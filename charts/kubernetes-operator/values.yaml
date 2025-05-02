@@ -70,7 +70,7 @@ operator:
     name: ""
 
   # This is for setting Kubernetes Annotations to a Pod.
-  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/ 
+  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
   podAnnotations: {}
   # This is for setting Kubernetes Labels to a Pod.
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
@@ -190,4 +190,6 @@ cluster:
 netbirdAPI: {}
   # NetBird Service Account Token
   # key: "nbp_m0LM9ZZvDUzFO0pY50iChDOTxJgKFM3DIqmZ"
-  # keyFromSecret: "Secret name with NB_API_KEY=Service Account Token"
+  #keyFromSecret:
+  #  name: "Secret name"
+  #  key: "NB_API_KEY"
