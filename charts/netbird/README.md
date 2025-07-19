@@ -83,6 +83,7 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | dashboard.service.name | string | `"http"` |  |
 | dashboard.service.port | int | `80` |  |
 | dashboard.service.type | string | `"ClusterIP"` |  |
+| dashboard.service.externalIPs | list | `[]` |  |
 | dashboard.serviceAccount.annotations | object | `{}` |  |
 | dashboard.serviceAccount.create | bool | `true` |  |
 | dashboard.serviceAccount.name | string | `""` |  |
@@ -152,12 +153,14 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | management.service.name | string | `"http"` |  |
 | management.service.port | int | `80` |  |
 | management.service.type | string | `"ClusterIP"` |  |
+| management.service.externalIPs | list | `[]` |  |
 | management.serviceAccount.annotations | object | `{}` |  |
 | management.serviceAccount.create | bool | `true` |  |
 | management.serviceAccount.name | string | `""` |  |
 | management.serviceGrpc.name | string | `"grpc"` |  |
 | management.serviceGrpc.port | int | `33073` |  |
 | management.serviceGrpc.type | string | `"ClusterIP"` |  |
+| management.serviceGrpc.externalIPs | list | `[]` |  |
 | management.tolerations | list | `[]` |  |
 | management.useBackwardsGrpcService | bool | `false` |  |
 | metrics.serviceMonitor.annotations | object | `{}` |  |
@@ -210,6 +213,7 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | relay.service.name | string | `"http"` |  |
 | relay.service.port | int | `33080` |  |
 | relay.service.type | string | `"ClusterIP"` |  |
+| relay.service.externalIPs | list | `[]` |  |
 | relay.serviceAccount.annotations | object | `{}` |  |
 | relay.serviceAccount.create | bool | `true` |  |
 | relay.serviceAccount.name | string | `""` |  |
@@ -249,6 +253,7 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | signal.service.name | string | `"grpc"` |  |
 | signal.service.port | int | `80` |  |
 | signal.service.type | string | `"ClusterIP"` |  |
+| signal.service.externalIPs | list | `[]` |  |
 | signal.serviceAccount.annotations | object | `{}` |  |
 | signal.serviceAccount.create | bool | `true` |  |
 | signal.serviceAccount.name | string | `""` |  |

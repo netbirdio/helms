@@ -18,7 +18,11 @@ spec:
       targetPort: metrics
       protocol: TCP
       name: metrics
-    {{- end}}
+    {{- end }}
   selector:
     {{- include "netbird.relay.selectorLabels" . | nindent 4 }}
+  {{- with .Values.relay.service.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
