@@ -15,4 +15,8 @@ spec:
       name: http
   selector:
     {{- include "netbird.dashboard.selectorLabels" . | nindent 4 }}
+  {{- with .Values.dashboard.service.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
