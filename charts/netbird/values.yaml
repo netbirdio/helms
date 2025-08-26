@@ -142,6 +142,10 @@ management:
     ##
     externalIPs: []
 
+    ## @param management.service.annotations Annotations for the management service.
+    ##
+    annotations: {}
+
   ## @param management.grpcContainerPort Container port for the management service.
   ##
   grpcContainerPort: 33073
@@ -162,6 +166,10 @@ management:
     ## @param management.serviceGrpc.externalIPs External IPs for the management GRPC service.
     ##
     externalIPs: []
+
+    ## @param management.serviceGrpc.annotations Annotations for the management service.
+    ##
+    annotations: {}
 
   ingress:
     ## @param management.ingress.enabled Enable or disable ingress for the management component.
@@ -393,6 +401,10 @@ signal:
     ##
     externalIPs: []
 
+    ## @param signal.service.annotations Annotations for the signal service.
+    ##
+    annotations: {}
+
   ingress:
     ## @param signal.ingress.enabled Enable or disable ingress for the signal component.
     ##
@@ -582,6 +594,10 @@ relay:
     ##
     externalIPs: []
 
+    ## @param relay.service.annotations Annotations for the relay service.
+    ##
+    annotations: {}
+
   ingress:
     ## @param relay.ingress.enabled Enable or disable ingress for the relay component.
     ##
@@ -742,6 +758,10 @@ dashboard:
     ## @param dashboard.service.externalIPs External IPs for the dashboard service.
     ##
     externalIPs: []
+    
+    ## @param dashboard.service.annotations Annotations for the dashboard service.
+    ##
+    annotations: {}
 
   ingress:
     ## @param dashboard.ingress.enabled

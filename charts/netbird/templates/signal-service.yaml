@@ -6,6 +6,10 @@ metadata:
   namespace: {{ include "netbird.namespace" . }}
   labels:
     {{- include "netbird.signal.labels" . | nindent 4 }}
+  {{- with .Values.signal.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.signal.service.type }}
   ports:
