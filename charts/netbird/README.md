@@ -3,8 +3,7 @@
 Forked from [TOT MICRO's Helm Repository](https://github.com/totmicro/helms).
 ![Version: 1.8.0](https://img.shields.io/badge/Version-1.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.46.0](https://img.shields.io/badge/AppVersion-0.46.0-informational?style=flat-square)
 
-# NetBird Helm Chart
-
+## NetBird Helm Chart
 
 This Helm chart installs and configures the [NetBird](https://github.com/netbirdio/netbird) services within a Kubernetes cluster. The chart includes the management, signal, and relay components of NetBird, providing secure peer-to-peer network connections across various environments.
 
@@ -264,9 +263,9 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | signal.serviceAccount.name | string | `""` |  |
 | signal.tolerations | list | `[]` |  |
 
-For more configuration options, refer to the `values.yaml` file.
+For more configuration options, refer to the [values.yaml](./values.yaml) file.
 
-You can find working examples [here](./examples)
+You can find working [examples](./examples).
 
 ## STUN/TURN Server
 
