@@ -110,7 +110,7 @@ spec:
             name: webhook-certs
             readOnly: true
           {{- with .Values.operator.volumeMounts }}
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 10 }}
           {{- end }}
       volumes:
       - name: webhook-certs
@@ -118,7 +118,7 @@ spec:
           defaultMode: 420
           secretName: {{ template "kubernetes-operator.webhookCertSecret" . }}
       {{- with .Values.operator.volumes }}
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.operator.nodeSelector }}
       nodeSelector:
@@ -130,5 +130,5 @@ spec:
       {{- end }}
       {{- with .Values.operator.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
