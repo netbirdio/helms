@@ -35,7 +35,7 @@ spec:
         - kubectl wait --for 'jsonpath={.status.networkID}' -n {{ $routerNS }} nbroutingpeer router; 
       containers:
       - name: apply-nbresource
-        image: "bitnami/kubectl:latest"
+        image: "registry.suse.com/suse/kubectl:latest"
         env:
         - name: NBRESOURCE_VALUE
           value: |
