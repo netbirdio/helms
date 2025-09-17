@@ -27,7 +27,7 @@ spec:
     spec:
       initContainers:
       - name: wait-network-ready
-        image: "bitnami/kubectl:latest"
+        image: {{ .Values.ingress.kubernetesAPI.customKubectlImage | default "registry.suse.com/suse/kubectl:latest"}}
         command:
         - bash
         - -c
