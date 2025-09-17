@@ -27,7 +27,7 @@ spec:
     spec:
       initContainers:
       - name: wait-network-ready
-        image: "bitnami/kubectl:latest"
+        image: "bitnamilegacy/kubectl:1.33.4"
         command:
         - bash
         - -c
@@ -35,7 +35,7 @@ spec:
         - kubectl wait --for 'jsonpath={.status.networkID}' -n {{ $routerNS }} nbroutingpeer router; 
       containers:
       - name: apply-nbresource
-        image: "bitnami/kubectl:latest"
+        image: "bitnamilegacy/kubectl:1.33.4"
         env:
         - name: NBRESOURCE_VALUE
           value: |

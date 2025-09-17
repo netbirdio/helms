@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: pre-delete
-        image: "bitnami/kubectl:latest"
+        image: "bitnamilegacy/kubectl:1.33.4"
         args:
         - delete
         - --all
@@ -57,7 +57,7 @@ spec:
     spec:
       containers:
       - name: pre-delete
-        image: "bitnami/kubectl:latest"
+        image: "bitnamilegacy/kubectl:1.33.4"
         args:
         - delete
         - --all
