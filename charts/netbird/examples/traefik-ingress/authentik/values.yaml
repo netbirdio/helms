@@ -105,7 +105,7 @@ management:
     }
 
   image:
-    tag: 0.32.0
+    tag: 0.59.8
   persistentVolume:
     enabled: false
   envFromSecret:
@@ -122,11 +122,11 @@ management:
 
 signal:
   image:
-    tag: 0.32.0
+    tag: 0.59.8
 
 relay:
   image:
-    tag: 0.32.0
+    tag: 0.59.8
   envFromSecret:
     NB_AUTH_SECRET: netbird/relayPassword
   env:
@@ -137,7 +137,7 @@ relay:
 dashboard:
   enabled: true
   image:
-    tag: v2.9.0
+    tag: v2.20.1
   env:
     # Endpoints
     NETBIRD_MGMT_API_ENDPOINT: https://netbird.example.com:443
@@ -169,14 +169,14 @@ extraManifests:
       - websecure
       routes:
       - kind: Rule
-        match: Host(`netbird.example.com`) && !PathPrefix(`/api`) && !PathPrefix(`/management`) && !PathPrefix(`/signalexchange`) && !PathPrefix(`/relay`)
+        match: Host(`netbird.example.com`) && !PathPrefix(`/api`) && !PathPrefix(`/management`) && !PathPrefix(`/signalexchange`) && !PathPrefix(`/relay`) && !PathPrefix(`/ws-proxy/management`) && !PathPrefix(`/ws-proxy/signal`)
         services:
         - name: netbird-traefik-dashboard
           namespace: netbird-traefik
           passHostHeader: true
           port: 80
       - kind: Rule
-        match: Host(`netbird.example.com`) && PathPrefix(`/api`)
+        match: Host(`netbird.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/ws-proxy/management`))
         services:
         - name: netbird-traefik-management
           namespace: netbird-traefik
@@ -205,5 +205,12 @@ extraManifests:
           passHostHeader: true
           port: 80
           scheme: h2c
+      - kind: Rule
+        match: Host(`netbird.example.com`) && PathPrefix(`/ws-proxy/signal`)
+        services:
+        - name: netbird-signal
+          namespace: netbird
+          passHostHeader: true
+          port: 80
       tls:
         secretName: netbird-tls
