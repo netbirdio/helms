@@ -209,7 +209,7 @@ extraManifests:
         match: Host(`netbird.example.com`) && PathPrefix(`/ws-proxy/signal`)
         services:
         - name: netbird-signal
-          namespace: netbird
+          namespace: netbird-traefik
           passHostHeader: true
           port: 80
       tls:
