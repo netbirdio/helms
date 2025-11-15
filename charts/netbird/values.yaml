@@ -306,6 +306,9 @@ management:
   # - name: tmp
   #   emptyDir: {}
 
+  ## @param management.mountDatadir Enable or disable netbird datadir mount.
+  mountDatadir: true
+
 ## @section NetBird Signal
 
 signal:
