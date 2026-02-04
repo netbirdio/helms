@@ -6,6 +6,7 @@ on:
       # update this file to trigger helm chart release
       - 'charts/kubernetes-operator/Chart.yaml'
       - 'charts/netbird/Chart.yaml'
+      - 'charts/netbird-operator-config/Chart.yaml'
     branches:
       - main
 
@@ -35,4 +36,4 @@ jobs:
         uses: helm/chart-releaser-action@v1.4.1
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NAME_TEMPLATE: "helm-v{{ .Version }}"
+          CR_RELEASE_NAME_TEMPLATE: "helm-{{ .Name }}-v{{ .Version }}"
