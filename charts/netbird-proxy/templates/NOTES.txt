@@ -1,0 +1,32 @@
+NetBird Proxy has been deployed.
+
+{{- if eq .Values.service.type "LoadBalancer" }}
+
+The proxy is exposed via a LoadBalancer service.
+It may take a few minutes for the external IP to be provisioned.
+
+  kubectl get svc {{ include "netbird-proxy.fullname" . }} -n {{ .Release.Namespace }} -w
+
+{{- else if eq .Values.service.type "NodePort" }}
+
+The proxy is exposed via NodePort.
+
+  export NODE_PORT=$(kubectl get svc {{ include "netbird-proxy.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+  export NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+  echo "https://${NODE_IP}:${NODE_PORT}"
+
+{{- else }}
+
+The proxy is using a ClusterIP service. To access it from outside the cluster,
+configure an Ingress resource or use port-forwarding:
+
+  kubectl port-forward svc/{{ include "netbird-proxy.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+{{- end }}
+
+{{- if .Values.acme.enabled }}
+
+ACME certificate management is enabled ({{ .Values.acme.directory }}).
+Certificates are stored in {{ .Values.certDir }}.
+Lock method: {{ .Values.acme.certLockMethod }}
+{{- end }}
