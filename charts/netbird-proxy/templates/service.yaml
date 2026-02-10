@@ -43,3 +43,9 @@ spec:
       targetPort: debug
       protocol: TCP
     {{- end }}
+    {{- if .Values.wireguard.enabled }}
+    - name: wireguard
+      port: {{ .Values.wireguard.port }}
+      targetPort: wireguard
+      protocol: UDP
+    {{- end }}

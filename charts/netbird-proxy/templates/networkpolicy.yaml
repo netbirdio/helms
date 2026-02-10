@@ -25,6 +25,10 @@ spec:
         - port: debug
           protocol: TCP
         {{- end }}
+        {{- if .Values.wireguard.enabled }}
+        - port: wireguard
+          protocol: UDP
+        {{- end }}
     {{- with .Values.networkPolicy.additionalIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

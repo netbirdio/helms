@@ -64,6 +64,11 @@ spec:
               containerPort: {{ include "netbird-proxy.port" .Values.debug.address | default 8444 }}
               protocol: TCP
             {{- end }}
+            {{- if .Values.wireguard.enabled }}
+            - name: wireguard
+              containerPort: {{ .Values.wireguard.port }}
+              protocol: UDP
+            {{- end }}
           env:
             - name: USER
               value: "netbird"
@@ -135,6 +140,10 @@ spec:
             {{- if .Values.oidc.scopes }}
             - name: NB_PROXY_OIDC_SCOPES
               value: {{ .Values.oidc.scopes | quote }}
+            {{- end }}
+            {{- if .Values.wireguard.enabled }}
+            - name: NB_PROXY_WG_PORT
+              value: {{ .Values.wireguard.port | quote }}
             {{- end }}
             {{- if .Values.debug.enabled }}
             - name: NB_PROXY_DEBUG_ENDPOINT

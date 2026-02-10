@@ -33,6 +33,14 @@ proxy:
   # -- Comma-separated CIDR ranges of trusted upstream proxies.
   trustedProxies: ""
 
+wireguard:
+  # -- Enable WireGuard UDP port exposure for P2P connectivity.
+  # Only works with single-account deployments; multiple accounts
+  # will fail to bind the same port.
+  enabled: false
+  # -- Fixed WireGuard port. Set to 0 for random OS-assigned port.
+  port: 51820
+
 acme:
   # -- Enable ACME certificate generation.
   enabled: true
