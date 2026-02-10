@@ -148,6 +148,14 @@ service:
   port: 443
   # -- ACME HTTP-01 challenge port (only exposed if acme.enabled).
   acmePort: 80
+  # -- IP families for dual-stack support. Dual-stack allows clients with
+  # IPv6 connectivity to reach peers directly without NAT traversal.
+  ipFamilies:
+    - IPv4
+    - IPv6
+  # -- IP family policy: SingleStack, PreferDualStack, or RequireDualStack.
+  # PreferDualStack falls back gracefully on single-stack clusters.
+  ipFamilyPolicy: PreferDualStack
 
   loadBalancer:
     # -- Source ranges allowed to reach the LoadBalancer.
