@@ -8,9 +8,6 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Quick version check
         id: version-check
@@ -83,6 +80,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.CHART_SYNC_TOKEN }}
 
       - name: Clone upstream and sync charts
         if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
@@ -113,7 +111,7 @@ jobs:
       - name: Create PR
         if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CHART_SYNC_TOKEN }}
         run: |
           BRANCH="sync/operator-charts-${{ steps.sync.outputs.upstream_sha }}"
           OPERATOR_VERSION="${{ steps.sync.outputs.operator_version }}"
