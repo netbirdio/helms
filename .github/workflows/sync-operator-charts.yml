@@ -1,8 +1,8 @@
-name: Sync Operator Charts from Upstream
+name: Sync Operator Charts
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
           UPSTREAM_REPO="netbirdio/kubernetes-operator"
           UPSTREAM_BRANCH="main"
 
-          # Fetch upstream Chart.yaml files via GitHub API
+          # Fetch upstream Chart.yaml files
           upstream_operator_version=$(curl -s \
             -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${UPSTREAM_REPO}/contents/helm/kubernetes-operator/Chart.yaml?ref=${UPSTREAM_BRANCH}" \
@@ -31,7 +31,7 @@ jobs:
             "https://api.github.com/repos/${UPSTREAM_REPO}/contents/helm/netbird-operator-config/Chart.yaml?ref=${UPSTREAM_BRANCH}" \
             | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}')
 
-          # Fetch local Chart.yaml files via GitHub API (from this repo)
+          # Fetch local Chart.yaml files
           local_operator_version=$(curl -s \
             -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/contents/charts/kubernetes-operator/Chart.yaml?ref=main" \
@@ -98,8 +98,8 @@ jobs:
           echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
 
           # Sync charts using rsync --delete to mirror upstream exactly
-          rsync -av --delete /tmp/upstream/helm/kubernetes-operator/ charts/kubernetes-operator/
-          rsync -av --delete /tmp/upstream/helm/netbird-operator-config/ charts/netbird-operator-config/
+          rsync -avc --delete /tmp/upstream/helm/kubernetes-operator/ charts/kubernetes-operator/
+          rsync -avc --delete /tmp/upstream/helm/netbird-operator-config/ charts/netbird-operator-config/
 
           # Extract versions
           operator_version=$(grep '^version:' charts/kubernetes-operator/Chart.yaml | awk '{print $2}')
@@ -132,7 +132,7 @@ jobs:
           # Create branch, commit, and push
           git checkout -b "$BRANCH"
           git add -A charts/kubernetes-operator/ charts/netbird-operator-config/
-          git commit -m "chore: sync operator charts from upstream (${{ steps.sync.outputs.upstream_sha }})"
+          git commit -m "sync operator charts from upstream (${{ steps.sync.outputs.upstream_sha }})"
           git push origin "$BRANCH"
 
           # Build PR body
@@ -143,14 +143,11 @@ jobs:
           | Chart | Version |
           |-------|---------|
           | kubernetes-operator | ${OPERATOR_VERSION} |
-          | netbird-operator-config | ${CONFIG_VERSION} |
-
-          This PR was automatically created by the sync workflow.
-          It will be auto-merged once all checks pass, triggering a Helm chart release."
+          | netbird-operator-config | ${CONFIG_VERSION} |"
 
           # Open PR
           gh pr create \
-            --title "chore: sync operator charts from upstream (v${OPERATOR_VERSION})" \
+            --title "sync operator charts from upstream" \
             --body "$BODY" \
             --base main \
             --head "$BRANCH"
