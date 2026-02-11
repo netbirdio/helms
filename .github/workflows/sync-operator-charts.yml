@@ -1,0 +1,154 @@
+name: Sync Operator Charts
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quick version check
+        id: version-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM_REPO="netbirdio/kubernetes-operator"
+          UPSTREAM_BRANCH="main"
+
+          # Fetch upstream Chart.yaml files
+          upstream_operator_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${UPSTREAM_REPO}/contents/helm/kubernetes-operator/Chart.yaml?ref=${UPSTREAM_BRANCH}" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}')
+
+          upstream_config_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${UPSTREAM_REPO}/contents/helm/netbird-operator-config/Chart.yaml?ref=${UPSTREAM_BRANCH}" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}')
+
+          # Fetch local Chart.yaml files
+          local_operator_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/charts/kubernetes-operator/Chart.yaml?ref=main" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}')
+
+          local_config_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/charts/netbird-operator-config/Chart.yaml?ref=main" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}')
+
+          echo "upstream_operator_version=$upstream_operator_version" >> "$GITHUB_OUTPUT"
+          echo "upstream_config_version=$upstream_config_version" >> "$GITHUB_OUTPUT"
+          echo "local_operator_version=$local_operator_version" >> "$GITHUB_OUTPUT"
+          echo "local_config_version=$local_config_version" >> "$GITHUB_OUTPUT"
+
+          if [ "$upstream_operator_version" = "$local_operator_version" ] && \
+             [ "$upstream_config_version" = "$local_config_version" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No version changes detected"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Version changes detected:"
+            echo "  kubernetes-operator: $local_operator_version -> $upstream_operator_version"
+            echo "  netbird-operator-config: $local_config_version -> $upstream_config_version"
+          fi
+
+      - name: Check for existing sync PR
+        if: steps.version-check.outputs.changed == 'true'
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing_pr=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "sync/operator-charts" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$existing_pr" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Open sync PR already exists: #${existing_pr}"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout this repo
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CHART_SYNC_TOKEN }}
+
+      - name: Clone upstream and sync charts
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        id: sync
+        run: |
+          UPSTREAM_REPO="https://github.com/netbirdio/kubernetes-operator.git"
+
+          # Shallow clone upstream
+          git clone --depth 1 "$UPSTREAM_REPO" /tmp/upstream
+
+          # Get upstream short SHA
+          upstream_sha=$(git -C /tmp/upstream rev-parse --short HEAD)
+          echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
+
+          # Sync charts using rsync --delete to mirror upstream exactly
+          rsync -avc --delete /tmp/upstream/helm/kubernetes-operator/ charts/kubernetes-operator/
+          rsync -avc --delete /tmp/upstream/helm/netbird-operator-config/ charts/netbird-operator-config/
+
+          # Extract versions
+          operator_version=$(grep '^version:' charts/kubernetes-operator/Chart.yaml | awk '{print $2}')
+          config_version=$(grep '^version:' charts/netbird-operator-config/Chart.yaml | awk '{print $2}')
+          echo "operator_version=$operator_version" >> "$GITHUB_OUTPUT"
+          echo "config_version=$config_version" >> "$GITHUB_OUTPUT"
+
+          # Clean up
+          rm -rf /tmp/upstream
+
+      - name: Create PR
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CHART_SYNC_TOKEN }}
+        run: |
+          BRANCH="sync/operator-charts-${{ steps.sync.outputs.upstream_sha }}"
+          OPERATOR_VERSION="${{ steps.sync.outputs.operator_version }}"
+          CONFIG_VERSION="${{ steps.sync.outputs.config_version }}"
+
+          # Check if there are actual changes
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No file changes after sync — versions may differ in API but files are identical"
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create branch, commit, and push
+          git checkout -b "$BRANCH"
+          git add -A charts/kubernetes-operator/ charts/netbird-operator-config/
+          git commit -m "sync operator charts from upstream (${{ steps.sync.outputs.upstream_sha }})"
+          git push origin "$BRANCH"
+
+          # Build PR body
+          BODY="## Synced Charts from Upstream
+
+          Upstream commit: netbirdio/kubernetes-operator@${{ steps.sync.outputs.upstream_sha }}
+
+          | Chart | Version |
+          |-------|---------|
+          | kubernetes-operator | ${OPERATOR_VERSION} |
+          | netbird-operator-config | ${CONFIG_VERSION} |"
+
+          # Open PR
+          gh pr create \
+            --title "sync operator charts from upstream" \
+            --body "$BODY" \
+            --base main \
+            --head "$BRANCH"
+
+          # Enable auto-merge (requires branch protection with required checks)
+          gh pr merge "$BRANCH" --auto --squash
