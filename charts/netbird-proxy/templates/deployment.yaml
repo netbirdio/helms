@@ -95,9 +95,9 @@ spec:
             - name: NB_PROXY_DEBUG_LOGS
               value: "true"
             {{- end }}
-            {{- if .Values.proxy.url }}
-            - name: NB_PROXY_URL
-              value: {{ .Values.proxy.url | quote }}
+            {{- if .Values.proxy.domain }}
+            - name: NB_PROXY_DOMAIN
+              value: {{ .Values.proxy.domain | quote }}
             {{- end }}
             {{- if and .Values.proxy.forwardedProto (ne .Values.proxy.forwardedProto "auto") }}
             - name: NB_PROXY_FORWARDED_PROTO

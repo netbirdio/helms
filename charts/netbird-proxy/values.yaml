@@ -25,9 +25,9 @@ allowInsecure: false
 proxy:
   # -- Listen address for the HTTPS reverse proxy.
   address: ":8443"
-  # -- Public URL of the proxy (used for ACME and client access).
+  # -- Public domain of the proxy (e.g., netbird.example.com).
   # Leave empty to auto-derive from the proxy address.
-  url: ""
+  domain: ""
   # -- X-Forwarded-Proto behaviour: auto, http, or https.
   forwardedProto: "auto"
   # -- Comma-separated CIDR ranges of trusted upstream proxies.
