@@ -266,7 +266,7 @@ management:
 
     ## @param management.persistentVolume.size Size of the persistent volume.
     ##
-    size: 10Mi
+    size: 100Mi
 
     ## @param management.persistentVolume.storageClass Storage Class of the persistent volume.
     ##
