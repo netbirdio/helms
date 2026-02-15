@@ -1,0 +1,255 @@
+replicaCount: 2
+
+image:
+  repository: netbird-proxy
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Proxy token for management server authentication.
+# Ignored if existingSecret is set.
+proxyToken: ""
+
+# -- Use an existing Secret for the proxy token.
+# The secret must contain a key named "token".
+existingSecret: ""
+
+managementAddress: "https://api.netbird.io:443"
+
+# -- Allow proxy token over non-TLS management connections.
+allowInsecure: false
+
+proxy:
+  # -- Listen address for the HTTPS reverse proxy.
+  address: ":8443"
+  # -- Public domain of the proxy (e.g., netbird.example.com).
+  # Leave empty to auto-derive from the proxy address.
+  domain: ""
+  # -- X-Forwarded-Proto behaviour: auto, http, or https.
+  forwardedProto: "auto"
+  # -- Comma-separated CIDR ranges of trusted upstream proxies.
+  trustedProxies: ""
+  # -- Enable PROXY protocol (v1/v2) on TCP listeners.
+  # Required when behind L4 proxies that support PROXY protocol.
+  # that use PROXY protocol to forward real client IPs.
+  proxyProtocol: false
+
+wireguard:
+  # -- Enable WireGuard UDP port exposure for P2P connectivity.
+  # Only works with single-account deployments; multiple accounts
+  # will fail to bind the same port.
+  enabled: false
+  # -- Fixed WireGuard port. Set to 0 for random OS-assigned port.
+  port: 51820
+
+acme:
+  # -- Enable ACME certificate generation.
+  enabled: true
+  # -- HTTP-01 challenge listen address.
+  address: ":80"
+  # -- ACME directory URL.
+  directory: "https://acme-v02.api.letsencrypt.org/directory"
+  # -- Certificate lock method: auto, flock, or k8s-lease.
+  certLockMethod: "k8s-lease"
+
+# -- Static TLS certificate configuration (used when acme.enabled=false).
+tls:
+  certFile: "tls.crt"
+  keyFile: "tls.key"
+
+oidc:
+  clientId: "netbird-proxy"
+  # -- OIDC client secret. Ignored if existingOidcSecret is set.
+  # For production, consider using existingOidcSecret with sealed-secrets
+  # or external-secrets-operator instead of storing the secret in values.
+  clientSecret: ""
+  # -- Use an existing Secret for the OIDC client secret.
+  # The secret must contain a key named "oidc-client-secret".
+  existingOidcSecret: ""
+  endpoint: "https://api.netbird.io/oauth2"
+  scopes: "openid,profile,email"
+
+debug:
+  # -- Enable the debug HTTP endpoint.
+  enabled: false
+  # -- Debug endpoint listen address.
+  address: ":8444"
+
+health:
+  # -- Health probe listen address.
+  address: ":8080"
+
+logging:
+  # -- Enable debug-level logging.
+  debug: false
+
+# -- Directory where certificates are stored inside the container.
+certDir: "/certs"
+
+# -- Certificate volume configuration.
+# ACME mode with multiple replicas requires a shared volume (RWX) because autocert
+# uses a DirCache and HTTP-01 challenges can arrive on any pod.
+# Set enabled=true to auto-provision a PVC, or supply an existingClaim.
+# For a single replica, emptyDir works but certs are lost on restart.
+certVolume:
+  # -- Enable persistent certificate storage via PVC.
+  # Defaults to true when acme is enabled; override to false for single-replica emptyDir.
+  enabled: true
+  # -- Mount an existing PVC instead of creating one.
+  existingClaim: ""
+  # -- Use a hostPath volume instead of a PVC.
+  # Takes precedence over enabled and existingClaim.
+  hostPath: ""
+  # -- PVC access mode. ReadWriteMany is required for multi-replica ACME
+  # (HTTP-01 challenges can arrive on any pod). ReadWriteOnce is fine for
+  # a single replica. Note: changing this on an existing release requires
+  # deleting and recreating the PVC (access modes are immutable).
+  accessMode: "ReadWriteMany"
+  # -- Storage class. Leave empty for the cluster default.
+  storageClass: ""
+  # -- PVC size.
+  size: "256Mi"
+
+serviceAccount:
+  # -- Create a ServiceAccount.
+  create: true
+  # -- Annotations to add to the ServiceAccount.
+  annotations: {}
+  # -- Override the ServiceAccount name.
+  name: ""
+  # -- Automount the ServiceAccount token. Required when using k8s-lease cert locking.
+  # Set to false if ACME is disabled or certLockMethod is not k8s-lease.
+  automount: true
+
+rbac:
+  # -- Create RBAC resources for k8s-lease cert locking.
+  create: true
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  # -- Service type: ClusterIP, LoadBalancer, or NodePort.
+  type: ClusterIP
+  # -- Annotations for the Service (e.g. cloud LB annotations).
+  annotations: {}
+  # -- HTTPS proxy port.
+  port: 443
+  # -- ACME HTTP-01 challenge port (only exposed if acme.enabled).
+  acmePort: 80
+  # -- IP families for dual-stack support. Dual-stack allows clients with
+  # IPv6 connectivity to reach peers directly without NAT traversal.
+  ipFamilies:
+    - IPv4
+    - IPv6
+  # -- IP family policy: SingleStack, PreferDualStack, or RequireDualStack.
+  # PreferDualStack falls back gracefully on single-stack clusters.
+  ipFamilyPolicy: PreferDualStack
+
+  loadBalancer:
+    # -- Source ranges allowed to reach the LoadBalancer.
+    sourceRanges: []
+    # -- Request a specific LoadBalancer IP.
+    ip: ""
+    # -- External traffic policy: Cluster or Local.
+    # Local preserves client source IP but may cause imbalanced traffic.
+    externalTrafficPolicy: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# -- Host aliases to inject into /etc/hosts.
+hostAliases: []
+#  - ip: "192.168.100.1"
+#    hostnames:
+#      - "host.docker.internal"
+
+# -- Pod topology spread constraints.
+topologySpreadConstraints: []
+
+# -- Node selector.
+nodeSelector: {}
+
+# -- Tolerations.
+tolerations: []
+
+# -- Affinity overrides. When empty, a default pod anti-affinity
+# (preferredDuringSchedulingIgnoredDuringExecution on hostname) is applied.
+affinity: {}
+
+podDisruptionBudget:
+  # -- Create a PodDisruptionBudget.
+  enabled: true
+  # -- Minimum available pods.
+  minAvailable: 1
+  # -- Maximum unavailable pods (mutually exclusive with minAvailable).
+  # maxUnavailable: 1
+
+serviceMonitor:
+  # -- Create a Prometheus ServiceMonitor resource.
+  enabled: false
+  # -- Extra labels for ServiceMonitor selector matching.
+  labels: {}
+  # -- Annotations on the ServiceMonitor.
+  annotations: {}
+  # -- Metrics endpoint path.
+  path: /metrics
+  # -- Scrape interval (e.g. "30s"). Uses Prometheus default if empty.
+  interval: ""
+  # -- Scrape timeout (e.g. "10s"). Uses Prometheus default if empty.
+  scrapeTimeout: ""
+  # -- Namespace selector for cross-namespace monitoring.
+  namespaceSelector: {}
+
+networkPolicy:
+  # -- Create a NetworkPolicy restricting ingress to proxy ports.
+  enabled: false
+  # -- Additional ingress rules to append.
+  additionalIngress: []
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# -- Extra environment variables to add to the proxy container.
+extraEnv: []
+#  - name: SSL_CERT_FILE
+#    value: "/pebble-ca/pebble-ca.pem"
+
+# -- Extra volumes to add to the pod.
+extraVolumes: []
+#  - name: pebble-ca
+#    secret:
+#      secretName: pebble-ca
+
+# -- Extra volume mounts to add to the proxy container.
+extraVolumeMounts: []
+#  - name: pebble-ca
+#    mountPath: /pebble-ca
+#    readOnly: true
+
+# -- Init containers to add to the pod.
+initContainers: []

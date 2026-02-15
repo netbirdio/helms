@@ -1,0 +1,240 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "netbird-proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "netbird-proxy.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      # Shutdown budget: 5s pre-stop LB drain + 30s HTTPS drain + 5s service stop + 30s client stop + 5s buffer
+      terminationGracePeriodSeconds: 75
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "netbird-proxy.serviceAccountName" . }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: proxy
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: {{ include "netbird-proxy.port" .Values.proxy.address | default 8443 }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ include "netbird-proxy.port" .Values.health.address | default 8080 }}
+              protocol: TCP
+            {{- if .Values.acme.enabled }}
+            - name: acme-http
+              containerPort: {{ include "netbird-proxy.port" .Values.acme.address | default 80 }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.debug.enabled }}
+            - name: debug
+              containerPort: {{ include "netbird-proxy.port" .Values.debug.address | default 8444 }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.wireguard.enabled }}
+            - name: wireguard
+              containerPort: {{ .Values.wireguard.port }}
+              protocol: UDP
+            {{- end }}
+          env:
+            - name: USER
+              value: "netbird"
+            - name: HOME
+              value: "/tmp"
+            - name: NB_PROXY_ADDRESS
+              value: {{ .Values.proxy.address | quote }}
+            - name: NB_PROXY_MANAGEMENT_ADDRESS
+              value: {{ .Values.managementAddress | quote }}
+            - name: NB_PROXY_HEALTH_ADDRESS
+              value: {{ .Values.health.address | quote }}
+            - name: NB_PROXY_CERTIFICATE_DIRECTORY
+              value: {{ .Values.certDir | quote }}
+            - name: NB_PROXY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "netbird-proxy.secretName" . }}
+                  key: token
+            {{- if .Values.allowInsecure }}
+            - name: NB_PROXY_ALLOW_INSECURE
+              value: "true"
+            {{- end }}
+            {{- if .Values.logging.debug }}
+            - name: NB_PROXY_DEBUG_LOGS
+              value: "true"
+            {{- end }}
+            {{- if .Values.proxy.domain }}
+            - name: NB_PROXY_DOMAIN
+              value: {{ .Values.proxy.domain | quote }}
+            {{- end }}
+            {{- if and .Values.proxy.forwardedProto (ne .Values.proxy.forwardedProto "auto") }}
+            - name: NB_PROXY_FORWARDED_PROTO
+              value: {{ .Values.proxy.forwardedProto | quote }}
+            {{- end }}
+            {{- if .Values.proxy.trustedProxies }}
+            - name: NB_PROXY_TRUSTED_PROXIES
+              value: {{ .Values.proxy.trustedProxies | quote }}
+            {{- end }}
+            {{- if .Values.proxy.proxyProtocol }}
+            - name: NB_PROXY_PROXY_PROTOCOL
+              value: "true"
+            {{- end }}
+            {{- if .Values.acme.enabled }}
+            - name: NB_PROXY_ACME_CERTIFICATES
+              value: "true"
+            - name: NB_PROXY_ACME_ADDRESS
+              value: {{ .Values.acme.address | quote }}
+            - name: NB_PROXY_ACME_DIRECTORY
+              value: {{ .Values.acme.directory | quote }}
+            - name: NB_PROXY_CERT_LOCK_METHOD
+              value: {{ .Values.acme.certLockMethod | quote }}
+            {{- else }}
+            - name: NB_PROXY_CERTIFICATE_FILE
+              value: {{ .Values.tls.certFile | quote }}
+            - name: NB_PROXY_CERTIFICATE_KEY_FILE
+              value: {{ .Values.tls.keyFile | quote }}
+            {{- end }}
+            {{- if .Values.oidc.clientId }}
+            - name: NB_PROXY_OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            {{- end }}
+            {{- if or .Values.oidc.clientSecret .Values.oidc.existingOidcSecret }}
+            - name: NB_PROXY_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "netbird-proxy.oidcSecretName" . }}
+                  key: oidc-client-secret
+            {{- end }}
+            {{- if .Values.oidc.endpoint }}
+            - name: NB_PROXY_OIDC_ENDPOINT
+              value: {{ .Values.oidc.endpoint | quote }}
+            {{- end }}
+            {{- if .Values.oidc.scopes }}
+            - name: NB_PROXY_OIDC_SCOPES
+              value: {{ .Values.oidc.scopes | quote }}
+            {{- end }}
+            {{- if .Values.wireguard.enabled }}
+            - name: NB_PROXY_WG_PORT
+              value: {{ .Values.wireguard.port | quote }}
+            {{- end }}
+            {{- if .Values.debug.enabled }}
+            - name: NB_PROXY_DEBUG_ENDPOINT
+              value: "true"
+            - name: NB_PROXY_DEBUG_ENDPOINT_ADDRESS
+              value: {{ .Values.debug.address | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: certs
+              mountPath: {{ .Values.certDir }}
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz/startup
+              port: health
+            periodSeconds: 2
+            timeoutSeconds: 10
+            # 60 * 2s = 120s for ACME certs + management sync + client startup
+            failureThreshold: 60
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: certs
+          {{- if .Values.certVolume.hostPath }}
+          hostPath:
+            path: {{ .Values.certVolume.hostPath }}
+            type: DirectoryOrCreate
+          {{- else if .Values.certVolume.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.certVolume.existingClaim }}
+          {{- else if .Values.certVolume.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "netbird-proxy.fullname" . }}-certs
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if not .Values.affinity }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "netbird-proxy.selectorLabels" . | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+      {{- else }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

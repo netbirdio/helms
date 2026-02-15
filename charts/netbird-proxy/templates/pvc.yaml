@@ -1,0 +1,17 @@
+{{- if and .Values.certVolume.enabled (not .Values.certVolume.existingClaim) (not .Values.certVolume.hostPath) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}-certs
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.certVolume.accessMode | default "ReadWriteMany" }}
+  {{- if .Values.certVolume.storageClass }}
+  storageClassName: {{ .Values.certVolume.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.certVolume.size | default "256Mi" }}
+{{- end }}

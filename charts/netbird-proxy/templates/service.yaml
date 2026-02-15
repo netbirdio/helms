@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- with .Values.service.ipFamilies }}
+  ipFamilies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ . }}
+  {{- end }}
+  {{- if and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancer.ip }}
+  loadBalancerIP: {{ .Values.service.loadBalancer.ip }}
+  {{- end }}
+  {{- if and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancer.sourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.service.loadBalancer.sourceRanges | nindent 4 }}
+  {{- end }}
+  {{- if and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancer.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.service.loadBalancer.externalTrafficPolicy }}
+  {{- end }}
+  selector:
+    {{- include "netbird-proxy.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: https
+      port: {{ .Values.service.port }}
+      targetPort: https
+      protocol: TCP
+    {{- if .Values.acme.enabled }}
+    - name: acme-http
+      port: {{ .Values.service.acmePort }}
+      targetPort: acme-http
+      protocol: TCP
+    {{- end }}
+    - name: health
+      port: {{ include "netbird-proxy.port" .Values.health.address | default 8080 }}
+      targetPort: health
+      protocol: TCP
+    {{- if .Values.debug.enabled }}
+    - name: debug
+      port: {{ include "netbird-proxy.port" .Values.debug.address | default 8444 }}
+      targetPort: debug
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.wireguard.enabled }}
+    - name: wireguard
+      port: {{ .Values.wireguard.port }}
+      targetPort: wireguard
+      protocol: UDP
+    {{- end }}
