@@ -32,6 +32,10 @@ proxy:
   forwardedProto: "auto"
   # -- Comma-separated CIDR ranges of trusted upstream proxies.
   trustedProxies: ""
+  # -- Enable PROXY protocol (v1/v2) on TCP listeners.
+  # Required when behind L4 proxies that support PROXY protocol.
+  # that use PROXY protocol to forward real client IPs.
+  proxyProtocol: false
 
 wireguard:
   # -- Enable WireGuard UDP port exposure for P2P connectivity.

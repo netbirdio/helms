@@ -30,3 +30,15 @@ ACME certificate management is enabled ({{ .Values.acme.directory }}).
 Certificates are stored in {{ .Values.certDir }}.
 Lock method: {{ .Values.acme.certLockMethod }}
 {{- end }}
+
+{{- if .Values.proxy.proxyProtocol }}
+
+PROXY protocol is enabled. Ensure your L4 load balancer sends
+PROXY protocol v1 or v2 headers.
+{{- if .Values.proxy.trustedProxies }}
+Trusted sources: {{ .Values.proxy.trustedProxies }}
+{{- else }}
+WARNING: No trustedProxies set. Any source can send PROXY headers.
+Set proxy.trustedProxies to your load balancer's CIDR for security.
+{{- end }}
+{{- end }}

@@ -107,6 +107,10 @@ spec:
             - name: NB_PROXY_TRUSTED_PROXIES
               value: {{ .Values.proxy.trustedProxies | quote }}
             {{- end }}
+            {{- if .Values.proxy.proxyProtocol }}
+            - name: NB_PROXY_PROXY_PROTOCOL
+              value: "true"
+            {{- end }}
             {{- if .Values.acme.enabled }}
             - name: NB_PROXY_ACME_CERTIFICATES
               value: "true"
