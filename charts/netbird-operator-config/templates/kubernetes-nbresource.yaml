@@ -24,7 +24,7 @@ spec:
     spec:
       initContainers:
       - name: wait-network-ready
-        image: "netbirdio/kubectl:latest"
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default latest }}
         command:
         - sh
         - -c
@@ -32,7 +32,7 @@ spec:
         - kubectl wait --for 'jsonpath={.status.networkID}' -n {{ $routerNS }} nbroutingpeer router;
       containers:
       - name: apply-nbresource
-        image: "netbirdio/kubectl:latest"
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default latest }}
         env:
         - name: NBRESOURCE_VALUE
           value: |
