@@ -62,7 +62,5 @@ image:
   registry: docker.io
   # Set operator image repository
   repository: netbirdio/kubectl
-  # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: latest
