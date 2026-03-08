@@ -5,6 +5,16 @@ cluster:
 # Create router per namespace, useful for strict networking requirements
 namespacedNetworks: false
 
+image:
+  # Set kubectl image registry
+  registry: docker.io
+  # Set kubectl image repository
+  repository: netbirdio/kubectl
+  # This sets the pull policy for images
+  pullPolicy: IfNotPresent
+  # Sets kubectl image tag
+  tag: "latest"
+
 router:
   # Deploy routing peer(s)
   enabled: false
