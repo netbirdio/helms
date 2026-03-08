@@ -31,6 +31,8 @@ management:
       - --single-account-mode-domain=netbird.selfhosted
       - --dns-domain=netbird.selfhosted
 
+  configFilename: "management.json" # Replace with "config.yaml" to use new netbird-server image instead of management
+
   configmap: |- # Placeholder for ConfigMap data
 
   lifecycle: {} # Define lifecycle hooks (preStop, postStart) if needed.
@@ -170,6 +172,10 @@ management:
     ## @param management.serviceGrpc.annotations Annotations for the management service.
     ##
     annotations: {}
+
+  ## @param management.stunPort netbird-server embedded STUN port
+  ##
+  #stunPort: 3478
 
   ingress:
     ## @param management.ingress.enabled Enable or disable ingress for the management component.
