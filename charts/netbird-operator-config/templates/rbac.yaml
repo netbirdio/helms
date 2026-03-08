@@ -16,12 +16,15 @@ rules:
   - watch
   - create
   - delete
+  - get
 - apiGroups:
   - netbird.io
   resources:
   - nbroutingpeers
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - netbird.io
   resources:
