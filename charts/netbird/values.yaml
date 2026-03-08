@@ -173,9 +173,33 @@ management:
     ##
     annotations: {}
 
+  ## @param management.useEmbeddedStunService Use the netbird-server embedded STUN service.
+  useEmbeddedStunService: false
+
   ## @param management.stunPort netbird-server embedded STUN port
   ##
-  #stunPort: 3478
+  stunPort: 3478
+
+  serviceStun:
+    ## @param management.serviceGrpc.type Service type for the netbird-server STUN component.
+    ##
+    type: ClusterIP
+
+    ## @param management.serviceGrpc.port Port for the netbird-server STUN service.
+    ##
+    port: 3478
+
+    ## @param management.serviceGrpc.name Name for the netbird-server STUN service port.
+    ##
+    name: stun
+
+    ## @param management.serviceGrpc.externalIPs External IPs for the netbird-server STUN service.
+    ##
+    externalIPs: []
+
+    ## @param management.serviceGrpc.annotations Annotations for the netbird-server STUN service.
+    ##
+    annotations: {}
 
   ingress:
     ## @param management.ingress.enabled Enable or disable ingress for the management component.
