@@ -100,9 +100,9 @@ spec:
             - name: NB_PROXY_ALLOW_INSECURE
               value: "true"
             {{- end }}
-            {{- if .Values.logging.debug }}
-            - name: NB_PROXY_DEBUG_LOGS
-              value: "true"
+            {{- if and .Values.logging.level (ne .Values.logging.level "info") }}
+            - name: NB_PROXY_LOG_LEVEL
+              value: {{ .Values.logging.level | quote }}
             {{- end }}
             {{- if .Values.proxy.domain }}
             - name: NB_PROXY_DOMAIN
@@ -119,6 +119,18 @@ spec:
             {{- if .Values.proxy.proxyProtocol }}
             - name: NB_PROXY_PROXY_PROTOCOL
               value: "true"
+            {{- end }}
+            {{- if .Values.proxy.maxDialTimeout }}
+            - name: NB_PROXY_MAX_DIAL_TIMEOUT
+              value: {{ .Values.proxy.maxDialTimeout | quote }}
+            {{- end }}
+            {{- if .Values.proxy.maxSessionIdleTimeout }}
+            - name: NB_PROXY_MAX_SESSION_IDLE_TIMEOUT
+              value: {{ .Values.proxy.maxSessionIdleTimeout | quote }}
+            {{- end }}
+            {{- if .Values.preSharedKey }}
+            - name: NB_PROXY_PRESHARED_KEY
+              value: {{ .Values.preSharedKey | quote }}
             {{- end }}
             {{- if .Values.acme.enabled }}
             - name: NB_PROXY_ACME_CERTIFICATES
@@ -139,6 +151,10 @@ spec:
             {{- end }}
             - name: NB_PROXY_CERT_LOCK_METHOD
               value: {{ .Values.acme.certLockMethod | quote }}
+            {{- if .Values.acme.wildcardCertDir }}
+            - name: NB_PROXY_WILDCARD_CERT_DIR
+              value: {{ .Values.acme.wildcardCertDir | quote }}
+            {{- end }}
             {{- else }}
             - name: NB_PROXY_CERTIFICATE_FILE
               value: {{ .Values.tls.certFile | quote }}

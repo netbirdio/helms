@@ -32,10 +32,12 @@ proxy:
   forwardedProto: "auto"
   # -- Comma-separated CIDR ranges of trusted upstream proxies.
   trustedProxies: ""
-  # -- Enable PROXY protocol (v1/v2) on TCP listeners.
-  # Required when behind L4 proxies that support PROXY protocol.
-  # that use PROXY protocol to forward real client IPs.
+  # -- Enable PROXY protocol (v1/v2) on TCP listeners for preserving client IPs.
   proxyProtocol: false
+  # -- Cap per-service backend dial timeout (e.g. "10s"). Empty or "0" means no cap.
+  maxDialTimeout: ""
+  # -- Cap per-service session idle timeout (e.g. "5m"). Empty or "0" means no cap.
+  maxSessionIdleTimeout: ""
 
 # -- Allow users to choose a specific listen port for TCP/UDP services.
 # When false, ports are auto-assigned by management. When true, users
@@ -53,6 +55,9 @@ requireSubdomain: false
 # Service manifest. When enabled, the container shares the host's
 # network namespace and all listen ports are directly reachable.
 hostNetwork: false
+
+# -- Pre-shared key for the tunnel between proxy and peers.
+preSharedKey: ""
 
 netbirdPort:
   # -- Expose the NetBird UDP port for direct peer connectivity.
@@ -75,6 +80,8 @@ acme:
   eabHmacKey: ""
   # -- Certificate lock method: auto, flock, or k8s-lease.
   certLockMethod: "k8s-lease"
+  # -- Directory containing wildcard certificate pairs (<name>.crt/<name>.key).
+  wildcardCertDir: ""
 
 # -- Static TLS certificate configuration (used when acme.enabled=false).
 tls:
@@ -121,8 +128,8 @@ health:
   address: ":8080"
 
 logging:
-  # -- Enable debug-level logging.
-  debug: false
+  # -- Log level: panic, fatal, error, warn, info, debug, trace.
+  level: "info"
 
 # -- Directory where certificates are stored inside the container.
 certDir: "/certs"
