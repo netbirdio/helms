@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: netbird-proxy
@@ -215,13 +215,13 @@ service:
     # Local preserves client source IP but may cause imbalanced traffic.
     externalTrafficPolicy: ""
 
-resources:
-  requests:
-    cpu: 100m
-    memory: 64Mi
-  limits:
-    cpu: 500m
-    memory: 256Mi
+resources: {}
+#  requests:
+#    cpu: 100m
+#    memory: 64Mi
+#  limits:
+#    cpu: 500m
+#    memory: 256Mi
 
 # -- Host aliases to inject into /etc/hosts.
 hostAliases: []
@@ -244,7 +244,7 @@ affinity: {}
 
 podDisruptionBudget:
   # -- Create a PodDisruptionBudget.
-  enabled: true
+  enabled: false
   # -- Minimum available pods.
   minAvailable: 1
   # -- Maximum unavailable pods (mutually exclusive with minAvailable).
@@ -282,18 +282,18 @@ autoscaling:
 # -- Extra environment variables to add to the proxy container.
 extraEnv: []
 #  - name: SSL_CERT_FILE
-#    value: "/pebble-ca/pebble-ca.pem"
+#    value: "/custom-ca/ca.pem"
 
 # -- Extra volumes to add to the pod.
 extraVolumes: []
-#  - name: pebble-ca
+#  - name: custom-ca
 #    secret:
-#      secretName: pebble-ca
+#      secretName: custom-ca
 
 # -- Extra volume mounts to add to the proxy container.
 extraVolumeMounts: []
-#  - name: pebble-ca
-#    mountPath: /pebble-ca
+#  - name: custom-ca
+#    mountPath: /custom-ca
 #    readOnly: true
 
 # -- Extra ports to expose on the Service and container.
