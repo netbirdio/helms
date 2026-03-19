@@ -25,8 +25,8 @@ spec:
         - port: debug
           protocol: TCP
         {{- end }}
-        {{- if .Values.wireguard.enabled }}
-        - port: wireguard
+        {{- if .Values.netbirdPort.enabled }}
+        - port: netbird
           protocol: UDP
         {{- end }}
     {{- with .Values.networkPolicy.additionalIngress }}

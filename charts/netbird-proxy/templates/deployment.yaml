@@ -35,6 +35,10 @@ spec:
       hostAliases:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.hostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- with .Values.initContainers }}
@@ -64,10 +68,15 @@ spec:
               containerPort: {{ include "netbird-proxy.port" .Values.debug.address | default 8444 }}
               protocol: TCP
             {{- end }}
-            {{- if .Values.wireguard.enabled }}
-            - name: wireguard
-              containerPort: {{ .Values.wireguard.port }}
+            {{- if .Values.netbirdPort.enabled }}
+            - name: netbird
+              containerPort: {{ .Values.netbirdPort.port }}
               protocol: UDP
+            {{- end }}
+            {{- range .Values.extraPorts }}
+            - name: {{ .name }}
+              containerPort: {{ .port }}
+              protocol: {{ .protocol }}
             {{- end }}
           env:
             - name: USER
@@ -114,10 +123,20 @@ spec:
             {{- if .Values.acme.enabled }}
             - name: NB_PROXY_ACME_CERTIFICATES
               value: "true"
+            - name: NB_PROXY_ACME_CHALLENGE_TYPE
+              value: {{ .Values.acme.challengeType | quote }}
             - name: NB_PROXY_ACME_ADDRESS
               value: {{ .Values.acme.address | quote }}
             - name: NB_PROXY_ACME_DIRECTORY
               value: {{ .Values.acme.directory | quote }}
+            {{- if .Values.acme.eabKid }}
+            - name: NB_PROXY_ACME_EAB_KID
+              value: {{ .Values.acme.eabKid | quote }}
+            {{- end }}
+            {{- if .Values.acme.eabHmacKey }}
+            - name: NB_PROXY_ACME_EAB_HMAC_KEY
+              value: {{ .Values.acme.eabHmacKey | quote }}
+            {{- end }}
             - name: NB_PROXY_CERT_LOCK_METHOD
               value: {{ .Values.acme.certLockMethod | quote }}
             {{- else }}
@@ -145,9 +164,24 @@ spec:
             - name: NB_PROXY_OIDC_SCOPES
               value: {{ .Values.oidc.scopes | quote }}
             {{- end }}
-            {{- if .Values.wireguard.enabled }}
+            {{- if .Values.netbirdPort.enabled }}
             - name: NB_PROXY_WG_PORT
-              value: {{ .Values.wireguard.port | quote }}
+              value: {{ .Values.netbirdPort.port | quote }}
+            {{- end }}
+            {{- if .Values.supportsCustomPorts }}
+            - name: NB_PROXY_SUPPORTS_CUSTOM_PORTS
+              value: "true"
+            {{- end }}
+            {{- if .Values.requireSubdomain }}
+            - name: NB_PROXY_REQUIRE_SUBDOMAIN
+              value: "true"
+            {{- end }}
+            {{- if .Values.geolocation.enabled }}
+            - name: NB_PROXY_GEO_DATA_DIR
+              value: {{ .Values.geolocation.dataDir | quote }}
+            {{- else }}
+            - name: NB_PROXY_DISABLE_GEOLOCATION
+              value: "true"
             {{- end }}
             {{- if .Values.debug.enabled }}
             - name: NB_PROXY_DEBUG_ENDPOINT
@@ -163,6 +197,8 @@ spec:
               mountPath: {{ .Values.certDir }}
             - name: tmp
               mountPath: /tmp
+            - name: data
+              mountPath: /var/lib/netbird
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -209,6 +245,16 @@ spec:
           {{- end }}
         - name: tmp
           emptyDir: {}
+        - name: data
+          {{- if and .Values.geolocation.enabled .Values.geolocation.volume.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.geolocation.volume.existingClaim }}
+          {{- else if and .Values.geolocation.enabled .Values.geolocation.volume.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "netbird-proxy.fullname" . }}-geodata
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

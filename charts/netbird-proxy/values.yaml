@@ -37,21 +37,42 @@ proxy:
   # that use PROXY protocol to forward real client IPs.
   proxyProtocol: false
 
-wireguard:
-  # -- Enable WireGuard UDP port exposure for P2P connectivity.
-  # Only works with single-account deployments; multiple accounts
-  # will fail to bind the same port.
+# -- Allow users to choose a specific listen port for TCP/UDP services.
+# When false, ports are auto-assigned by management. When true, users
+# can specify a custom port number via the API or dashboard.
+supportsCustomPorts: true
+
+# -- Require a subdomain label in front of the cluster domain. When true,
+# accounts cannot create services on the bare cluster domain. Enable this
+# on shared proxy deployments to prevent a single account from claiming
+# the cluster domain.
+requireSubdomain: false
+
+# -- Use host networking. Required for TCP/UDP service passthrough in
+# Kubernetes, since dynamically bound ports cannot be declared in the
+# Service manifest. When enabled, the container shares the host's
+# network namespace and all listen ports are directly reachable.
+hostNetwork: false
+
+netbirdPort:
+  # -- Expose the NetBird UDP port for direct peer connectivity.
   enabled: false
-  # -- Fixed WireGuard port. Set to 0 for random OS-assigned port.
+  # -- Fixed port number. Set to 0 for random OS-assigned port.
   port: 51820
 
 acme:
   # -- Enable ACME certificate generation.
   enabled: true
-  # -- HTTP-01 challenge listen address.
+  # -- Challenge type: tls-alpn-01 (default, uses port 443) or http-01 (requires port 80).
+  challengeType: "tls-alpn-01"
+  # -- HTTP-01 challenge listen address (only used when challengeType is http-01).
   address: ":80"
   # -- ACME directory URL.
   directory: "https://acme-v02.api.letsencrypt.org/directory"
+  # -- EAB key ID for providers that require External Account Binding.
+  eabKid: ""
+  # -- EAB HMAC key.
+  eabHmacKey: ""
   # -- Certificate lock method: auto, flock, or k8s-lease.
   certLockMethod: "k8s-lease"
 
@@ -71,6 +92,23 @@ oidc:
   existingOidcSecret: ""
   endpoint: "https://api.netbird.io/oauth2"
   scopes: "openid,profile,email"
+
+geolocation:
+  # -- Enable geolocation lookups for country-based access restrictions.
+  enabled: true
+  # -- Directory for the geolocation database inside the container.
+  dataDir: "/var/lib/netbird/geolocation"
+  volume:
+    # -- Enable persistent storage for the geolocation database.
+    # When false, an emptyDir is used and the database re-downloads on every pod restart.
+    enabled: true
+    # -- Use an existing PVC instead of creating one.
+    existingClaim: ""
+    # -- PVC access mode.
+    accessMode: "ReadWriteOnce"
+    # -- Storage class. Leave empty for the cluster default.
+    storageClass: ""
+    size: "128Mi"
 
 debug:
   # -- Enable the debug HTTP endpoint.
@@ -250,6 +288,12 @@ extraVolumeMounts: []
 #  - name: pebble-ca
 #    mountPath: /pebble-ca
 #    readOnly: true
+
+# -- Extra ports to expose on the Service and container.
+extraPorts: []
+#  - name: tcp-10000
+#    port: 10000
+#    protocol: TCP
 
 # -- Init containers to add to the pod.
 initContainers: []

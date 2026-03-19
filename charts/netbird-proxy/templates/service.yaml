@@ -50,9 +50,15 @@ spec:
       targetPort: debug
       protocol: TCP
     {{- end }}
-    {{- if .Values.wireguard.enabled }}
-    - name: wireguard
-      port: {{ .Values.wireguard.port }}
-      targetPort: wireguard
+    {{- if .Values.netbirdPort.enabled }}
+    - name: netbird
+      port: {{ .Values.netbirdPort.port }}
+      targetPort: netbird
       protocol: UDP
+    {{- end }}
+    {{- range .Values.extraPorts }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      protocol: {{ .protocol }}
     {{- end }}
