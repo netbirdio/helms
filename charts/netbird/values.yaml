@@ -24,14 +24,12 @@ management:
   ##
   podCommand:
     args:
-      - --port=80
-      - --log-file=console
-      - --log-level=info
-      - --disable-anonymous-metrics=false
-      - --single-account-mode-domain=netbird.selfhosted
-      - --dns-domain=netbird.selfhosted
+      - --config
+      - /etc/netbird/config.yaml
 
-  configmap: |- # Placeholder for ConfigMap data
+  ## @param management.configYaml NetBird server config.yaml.
+  ## 
+  configYaml: |-
 
   lifecycle: {} # Define lifecycle hooks (preStop, postStart) if needed.
 
@@ -60,7 +58,7 @@ management:
   image:
     ## @param management.image.repository Docker image repository for the management component.
     ##
-    repository: netbirdio/management
+    repository: netbirdio/netbird-server
 
     ## @param management.image.pullPolicy Docker image pull policy.
     ##
@@ -110,7 +108,7 @@ management:
   # runAsNonRoot: true
   # runAsUser: 1000
 
-  ## @param management.useBackwardsGrpcService Use the backwards-compatible GRPC service.
+  ## @param management.useBackwardsGrpcService [Deprecated] Use the legacy backwards-compatible GRPC service.
   useBackwardsGrpcService: false
 
   metrics:
@@ -146,9 +144,9 @@ management:
     ##
     annotations: {}
 
-  ## @param management.grpcContainerPort Container port for the management service.
+  ## @param management.grpcContainerPort [Deprecated] Legacy GRPC container port for the management service for management.useBackwardsGrpcService.
   ##
-  grpcContainerPort: 33073
+  grpcContainerPort: 80
 
   serviceGrpc:
     ## @param management.serviceGrpc.type Service type for the management GRPC component.
@@ -157,7 +155,7 @@ management:
 
     ## @param management.serviceGrpc.port Port for the management GRPC service.
     ##
-    port: 33073
+    port: 80
 
     ## @param management.serviceGrpc.name Name for the management GRPC service port.
     ##
@@ -170,6 +168,9 @@ management:
     ## @param management.serviceGrpc.annotations Annotations for the management service.
     ##
     annotations: {}
+
+  ## @param management.stunContainerPort Container port for the STUN service.
+  stunContainerPort: 3478
 
   ingress:
     ## @param management.ingress.enabled Enable or disable ingress for the management component.
@@ -191,8 +192,16 @@ management:
         paths:
           ## @param management.ingress.hosts[0].paths[0].path Path for the ingress.
           ##
-          - path: /
+          - path: /api
             ## @param management.ingress.hosts[0].paths[0].pathType Path type for the ingress.
+            ##
+            pathType: ImplementationSpecific
+          - path: /ws-proxy
+            ## @param management.ingress.hosts[0].paths[1].pathType Path type for the ingress.
+            ##
+            pathType: ImplementationSpecific
+          - path: /oauth2
+            ## @param management.ingress.hosts[0].paths[2].pathType Path type for the ingress.
             ##
             pathType: ImplementationSpecific
 
@@ -223,7 +232,7 @@ management:
         paths:
           ## @param management.ingressGrpc.hosts[0].paths[0].path Path for GRPC ingress.
           ##
-          - path: /
+          - path: /management.ManagementService
             ## @param management.ingressGrpc.hosts[0].paths[0].pathType Path type for GRPC ingress.
             ##
             pathType: ImplementationSpecific
@@ -310,6 +319,10 @@ management:
 
 signal:
   enabled: true
+
+  ## @param signal.standalone Whether to create a standalone signal deployment.
+  standalone: false
+
   ## @param signal.logLevel Log level for the signal component.
   ##
   logLevel: info
@@ -491,6 +504,9 @@ relay:
   ##
   enabled: true
 
+  ## @param relay.standalone Whether to create a standalone relay deployment.
+  standalone: false
+
   ## @param relay.replicaCount Number of relay pod replicas.
   ##
   replicaCount: 1
@@ -575,7 +591,7 @@ relay:
 
   ## @param relay.containerPort Container port for the relay service.
   ##
-  containerPort: 33080
+  containerPort: 80
 
   service:
     ## @param relay.service.type Service type for the relay component.
@@ -584,7 +600,7 @@ relay:
 
     ## @param relay.service.port Port for the relay service.
     ##
-    port: 33080
+    port: 80
 
     ## @param relay.service.name Name for the relay service port.
     ##
@@ -697,7 +713,7 @@ dashboard:
     pullPolicy: IfNotPresent
 
     ## @param image.tag image tag (immutable tags are recommended)
-    tag: "v2.13.1"
+    tag: "v2.36.0"
 
   ## @param imagePullSecrets image pull secrets
   imagePullSecrets: []
