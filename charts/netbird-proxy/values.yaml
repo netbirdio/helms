@@ -50,6 +50,16 @@ supportsCustomPorts: true
 # the cluster domain.
 requireSubdomain: false
 
+# -- CrowdSec IP reputation integration.
+crowdsec:
+  # -- CrowdSec LAPI URL. Empty disables CrowdSec.
+  apiUrl: ""
+  # -- Bouncer API key. Empty disables CrowdSec.
+  apiKey: ""
+  # -- Use an existing Secret for the CrowdSec bouncer API key.
+  # The secret must contain a key named "crowdsec-api-key".
+  existingSecret: ""
+
 # -- Use host networking. Required for TCP/UDP service passthrough in
 # Kubernetes, since dynamically bound ports cannot be declared in the
 # Service manifest. When enabled, the container shares the host's

@@ -203,6 +203,17 @@ spec:
             - name: NB_PROXY_DEBUG_ENDPOINT_ADDRESS
               value: {{ .Values.debug.address | quote }}
             {{- end }}
+            {{- if .Values.crowdsec.apiUrl }}
+            - name: NB_PROXY_CROWDSEC_API_URL
+              value: {{ .Values.crowdsec.apiUrl | quote }}
+            {{- end }}
+            {{- if or .Values.crowdsec.apiKey .Values.crowdsec.existingSecret }}
+            - name: NB_PROXY_CROWDSEC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.crowdsec.existingSecret | default (include "netbird-proxy.fullname" .) }}
+                  key: crowdsec-api-key
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
