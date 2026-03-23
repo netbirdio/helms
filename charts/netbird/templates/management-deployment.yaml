@@ -77,6 +77,9 @@ spec:
             - name: metrics
               containerPort: {{ .Values.management.metrics.port }}
               protocol: TCP
+            - name: stun
+              containerPort: {{ .Values.management.stunContainerPort }}
+              protocol: UDP
           {{- if .Values.management.livenessProbe }}
             {{- with .Values.management.livenessProbe }}
           livenessProbe:

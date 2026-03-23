@@ -1,5 +1,4 @@
-{{- if .Values.signal.enabled -}}
-
+{{- if and .Values.signal.enabled .Values.signal.standalone -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
