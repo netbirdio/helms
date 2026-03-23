@@ -16,6 +16,7 @@ rules:
   - watch
   - create
   - delete
+  - get
 - apiGroups:
   - netbird.io
   resources:
