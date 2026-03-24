@@ -184,10 +184,8 @@ spec:
             - name: NB_PROXY_WG_PORT
               value: {{ .Values.netbirdPort.port | quote }}
             {{- end }}
-            {{- if .Values.supportsCustomPorts }}
             - name: NB_PROXY_SUPPORTS_CUSTOM_PORTS
-              value: "true"
-            {{- end }}
+              value: {{ .Values.supportsCustomPorts | quote }}
             {{- if .Values.requireSubdomain }}
             - name: NB_PROXY_REQUIRE_SUBDOMAIN
               value: "true"
