@@ -1,0 +1,27 @@
+name: Sync Netbird Chart
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-app-version:
+    uses: ./.github/workflows/update-version-template.yml
+    with:
+      docker_repo: netbirdio/netbird
+      file_path: charts/netbird/Chart.yaml
+      key: appVersion
+      pr_prefix: bump/netbird-appversion
+      component_name: netbird
+    secrets: inherit
+
+  update-dashboard-version:
+    uses: ./.github/workflows/update-version-template.yml
+    with:
+      docker_repo: netbirdio/dashboard
+      file_path: charts/netbird/values.yaml
+      key: dashboard.image.tag
+      pr_prefix: bump/netbird-dashboard
+      component_name: dashboard
+    secrets: inherit

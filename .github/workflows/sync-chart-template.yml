@@ -1,0 +1,149 @@
+name: Sync Chart Template
+
+on:
+  workflow_call:
+    inputs:
+      upstream_repo:
+        required: true
+        type: string
+        description: "Upstream repository (e.g., netbirdio/netbird)"
+      upstream_branch:
+        required: true
+        type: string
+        description: "Upstream branch to sync from"
+      upstream_path:
+        required: true
+        type: string
+        description: "Path in upstream (e.g., infrastructure_files/helm/netbird)"
+      local_path:
+        required: true
+        type: string
+        description: "Local path (e.g., charts/netbird)"
+      chart_name:
+        required: true
+        type: string
+        description: "Chart name for display (e.g., netbird)"
+      pr_branch_prefix:
+        required: true
+        type: string
+        description: "PR branch prefix (e.g., sync/netbird-chart)"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quick version check
+        id: version-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM_REPO="${{ inputs.upstream_repo }}"
+          UPSTREAM_BRANCH="${{ inputs.upstream_branch }}"
+          UPSTREAM_PATH="${{ inputs.upstream_path }}"
+          LOCAL_PATH="${{ inputs.local_path }}"
+          
+          upstream_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${UPSTREAM_REPO}/contents/${UPSTREAM_PATH}/Chart.yaml?ref=${UPSTREAM_BRANCH}" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}' 2>/dev/null)
+          
+          local_version=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/${LOCAL_PATH}/Chart.yaml?ref=main" \
+            | jq -r '.content' | base64 -d | grep '^version:' | awk '{print $2}' 2>/dev/null)
+          
+          if [ -z "$upstream_version" ] || [ -z "$local_version" ]; then
+            echo "Warning: Could not fetch version for $LOCAL_PATH (upstream: $UPSTREAM_PATH)"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          echo "✓ ${{ inputs.chart_name }} | Local: $local_version | Upstream: $upstream_version"
+          
+          if [ "$upstream_version" != "$local_version" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "  → Version change detected: $local_version → $upstream_version"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for existing sync PR
+        if: steps.version-check.outputs.changed == 'true'
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing_pr=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "${{ inputs.pr_branch_prefix }}" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$existing_pr" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Open sync PR already exists: #${existing_pr}"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout this repo
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CHART_SYNC_TOKEN }}
+
+      - name: Clone upstream and sync charts
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        id: sync
+        run: |
+          UPSTREAM_REPO="https://github.com/${{ inputs.upstream_repo }}.git"
+          
+          git clone --depth 1 "$UPSTREAM_REPO" /tmp/upstream
+          
+          upstream_sha=$(git -C /tmp/upstream rev-parse --short HEAD)
+          echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
+          
+          rsync -avc --delete "/tmp/upstream/${{ inputs.upstream_path }}/" "${{ inputs.local_path }}/"
+          
+          version=$(grep '^version:' "${{ inputs.local_path }}/Chart.yaml" | awk '{print $2}')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          
+          rm -rf /tmp/upstream
+
+      - name: Create PR
+        if: steps.version-check.outputs.changed == 'true' && steps.check-pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CHART_SYNC_TOKEN }}
+        run: |
+          BRANCH="${{ inputs.pr_branch_prefix }}-${{ steps.sync.outputs.upstream_sha }}"
+          
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No file changes after sync"
+            exit 0
+          fi
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$BRANCH"
+          git add -A ${{ inputs.local_path }}
+          git commit -m "sync: ${{ inputs.chart_name }} from upstream (${{ steps.sync.outputs.upstream_sha }})"
+          git push origin "$BRANCH"
+          
+          BODY="## Synced Chart from Upstream
+
+          Upstream commit: ${{ inputs.upstream_repo }}@${{ steps.sync.outputs.upstream_sha }}
+
+          | Chart | Version |
+          |-------|---------|
+          | ${{ inputs.chart_name }} | ${{ steps.sync.outputs.version }} |"
+          
+          gh pr create \
+            --title "sync: ${{ inputs.chart_name }} from upstream" \
+            --body "$BODY" \
+            --base main \
+            --head "$BRANCH"
+          
+          gh pr merge "$BRANCH" --auto --squash

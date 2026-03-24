@@ -1,0 +1,107 @@
+name: Update Version Template
+
+on:
+  workflow_call:
+    inputs:
+      docker_repo:
+        required: true
+        type: string
+        description: "Docker Hub repository (e.g., netbirdio/netbird)"
+      file_path:
+        required: true
+        type: string
+        description: "File to update (e.g., charts/netbird/Chart.yaml)"
+      key:
+        required: true
+        type: string
+        description: "Key to update (e.g., appVersion or dashboard.image.tag)"
+      pr_prefix:
+        required: true
+        type: string
+        description: "PR branch prefix (e.g., update-netbird-appversion)"
+      component_name:
+        required: true
+        type: string
+        description: "Component name for PR title (e.g., netbird)"
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+      - name: Get latest Docker tag
+        id: docker-tag
+        run: |
+          # Fetch tags and filter for semantic versioning (X.Y.Z or vX.Y.Z format, no suffixes)
+          latest_tag=$(curl -s "https://registry.hub.docker.com/v2/repositories/${{ inputs.docker_repo }}/tags/?page_size=50" \
+            | jq -r '.results[].name' \
+            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -rV \
+            | head -1)
+          
+          if [ -z "$latest_tag" ]; then
+            echo "Could not fetch latest semantic version tag for ${{ inputs.docker_repo }}"
+            exit 1
+          fi
+          echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CHART_SYNC_TOKEN }}
+
+      - name: Get current version
+        id: current-version
+        run: |
+          current_version=$(yq eval ".${{ inputs.key }}" "${{ inputs.file_path }}" | tr -d '"')
+          echo "current_version=$current_version" >> "$GITHUB_OUTPUT"
+
+      - name: Check if update needed
+        id: check-update
+        run: |
+          if [ "${{ steps.docker-tag.outputs.latest_tag }}" != "${{ steps.current-version.outputs.current_version }}" ]; then
+            echo "update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update version in file
+        if: steps.check-update.outputs.update == 'true'
+        run: |
+          yq eval -i ".${{ inputs.key }} = \"${{ steps.docker-tag.outputs.latest_tag }}\"" "${{ inputs.file_path }}"
+
+      - name: Create PR
+        if: steps.check-update.outputs.update == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CHART_SYNC_TOKEN }}
+        run: |
+          BRANCH="${{ inputs.pr_prefix }}-${{ steps.docker-tag.outputs.latest_tag }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$BRANCH"
+          git add "${{ inputs.file_path }}"
+          git commit -m "chore: update ${{ inputs.component_name }} ${{ inputs.key }} to ${{ steps.docker-tag.outputs.latest_tag }}"
+          git push origin "$BRANCH"
+          
+          BODY="## Updated ${{ inputs.component_name }} ${{ inputs.key }}
+
+          Updated ${{ inputs.key }} to ${{ steps.docker-tag.outputs.latest_tag }} based on latest Docker image tag.
+
+          | Component | ${{ inputs.key }} |
+          |-----------|-------------------|
+          | ${{ inputs.component_name }} | ${{ steps.docker-tag.outputs.latest_tag }} |"
+          
+          gh pr create \
+            --title "chore: update ${{ inputs.component_name }} ${{ inputs.key }} to ${{ steps.docker-tag.outputs.latest_tag }}" \
+            --body "$BODY" \
+            --base main \
+            --head "$BRANCH"
+          
+          gh pr merge "$BRANCH" --auto --squash
