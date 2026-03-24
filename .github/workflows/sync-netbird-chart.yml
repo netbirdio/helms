@@ -1,0 +1,18 @@
+name: Sync Netbird Chart
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-netbird-chart:
+    uses: ./.github/workflows/sync-chart-template.yml
+    with:
+      upstream_repo: netbirdio/netbird
+      upstream_branch: main
+      upstream_path: infrastructure_files/helm/netbird
+      local_path: charts/netbird
+      chart_name: netbird
+      pr_branch_prefix: sync/netbird-chart
+    secrets: inherit
