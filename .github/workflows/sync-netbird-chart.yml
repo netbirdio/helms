@@ -6,13 +6,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  sync-netbird-chart:
-    uses: ./.github/workflows/sync-chart-template.yml
+  update-app-version:
+    uses: ./.github/workflows/update-version-template.yml
     with:
-      upstream_repo: netbirdio/netbird
-      upstream_branch: main
-      upstream_path: infrastructure_files/helm/netbird
-      local_path: charts/netbird
-      chart_name: netbird
-      pr_branch_prefix: sync/netbird-chart
+      docker_repo: netbirdio/netbird
+      file_path: charts/netbird/Chart.yaml
+      key: appVersion
+      pr_prefix: bump/netbird-appversion
+      component_name: netbird
+    secrets: inherit
+
+  update-dashboard-version:
+    uses: ./.github/workflows/update-version-template.yml
+    with:
+      docker_repo: netbirdio/dashboard
+      file_path: charts/netbird/values.yaml
+      key: dashboard.image.tag
+      pr_prefix: bump/netbird-dashboard
+      component_name: dashboard
     secrets: inherit
