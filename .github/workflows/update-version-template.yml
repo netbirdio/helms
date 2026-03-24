@@ -36,10 +36,10 @@ jobs:
       - name: Get latest Docker tag
         id: docker-tag
         run: |
-          # Fetch tags and filter for semantic versioning (X.Y.Z format, no suffixes)
+          # Fetch tags and filter for semantic versioning (X.Y.Z or vX.Y.Z format, no suffixes)
           latest_tag=$(curl -s "https://registry.hub.docker.com/v2/repositories/${{ inputs.docker_repo }}/tags/?page_size=50" \
             | jq -r '.results[].name' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
             | sort -rV \
             | head -1)
           
