@@ -1,0 +1,35 @@
+{{- if and .Values.certVolume.enabled (not .Values.certVolume.existingClaim) (not .Values.certVolume.hostPath) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}-certs
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.certVolume.accessMode | default "ReadWriteMany" }}
+  {{- if .Values.certVolume.storageClass }}
+  storageClassName: {{ .Values.certVolume.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.certVolume.size | default "256Mi" }}
+{{- end }}
+---
+{{- if and .Values.geolocation.enabled .Values.geolocation.volume.enabled (not .Values.geolocation.volume.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}-geodata
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.geolocation.volume.accessMode | default "ReadWriteMany" }}
+  {{- if .Values.geolocation.volume.storageClass }}
+  storageClassName: {{ .Values.geolocation.volume.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.geolocation.volume.size | default "128Mi" }}
+{{- end }}
