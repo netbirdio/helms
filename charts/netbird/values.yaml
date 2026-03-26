@@ -31,6 +31,24 @@ management:
   ## 
   configYaml: |-
 
+  ## @param management.envsubst Runtime secrets injection for config.yaml.
+  ##
+  envsubst:
+    ## @param management.envsubst.enabled Enable or disable envsubst init container.
+    enabled: false
+    ## @param management.envsubst.allowedPrefix Define an allowed prefix for environment variable keys to be substituted.
+    allowedPrefix: NETBIRD_
+    ## @param management.envsubst.env Environment variables for the envsubst init container.
+    env: {}
+    ## @param management.envsubst.envRaw Raw environment variables for the envsubst init container.
+    envRaw: []
+    ## @param management.envsubst.envFromSecret Environment variables from secrets for the envsubst init container.
+    envFromSecret: {}
+
+  ## @param management.initContainers Additional init containers for the management deployment.
+  ##
+  initContainers: []
+
   lifecycle: {} # Define lifecycle hooks (preStop, postStart) if needed.
 
   ## @param management.replicaCount Number of management pod replicas.
