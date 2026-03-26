@@ -33,6 +33,48 @@ spec:
       serviceAccountName: {{ include "netbird.management.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.management.podSecurityContext | nindent 8 }}
+      {{- if or .Values.management.envsubst.enabled .Values.management.initContainers }}
+      initContainers:
+        {{- if .Values.management.envsubst.enabled }}
+        - name: envsubst
+          image: nginx:stable-alpine-slim
+          command:
+            - /bin/sh
+            - -c
+            - |-
+              {{- with .Values.management.envsubst.allowedPrefix }}
+              ALLOWED_KEYS="$(printf '${%s} ' $(env | grep '^{{ . }}' | cut -d'=' -f1))"
+              envsubst "${ALLOWED_KEYS}" < /template/config.yaml > /output/config.yaml
+              {{- else }}
+              envsubst < /template/config.yaml > /output/config.yaml
+              {{- end }}
+          env:
+          {{- range $key, $val := .Values.management.envsubst.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+          {{- end }}
+          {{- if .Values.management.envsubst.envRaw }}
+            {{- with .Values.management.envsubst.envRaw }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- range $key, $val := .Values.management.envsubst.envFromSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ (split "/" $val)._0 }}
+                  key: {{ (split "/" $val)._1 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /output
+            - name: config-template
+              mountPath: /template
+        {{- end }}
+        {{- with .Values.management.initContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-management
           securityContext:
@@ -97,6 +139,7 @@ spec:
           volumeMounts:
             - mountPath: /etc/netbird
               name: config
+              readOnly: true
             - mountPath: /var/lib/netbird
               name: management
           {{- if .Values.management.volumeMounts }}
@@ -115,9 +158,18 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- if .Values.management.envsubst.enabled }}
+        - name: config
+          emptyDir:
+            sizeLimit: 1Mi
+        - name: config-template
+          configMap:
+            name: {{ include "netbird.fullname" . }}-management
+        {{- else }}
         - name: config
           configMap:
             name: {{ include "netbird.fullname" . }}-management
+        {{- end }}
         - name: management
           {{- if .Values.management.persistentVolume.enabled }}
           persistentVolumeClaim:
