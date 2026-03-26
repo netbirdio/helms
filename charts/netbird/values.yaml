@@ -114,10 +114,10 @@ management:
   useBackwardsGrpcService: false
 
   metrics:
-    ## @param signal.metrics.enabled enables/disables metrics
+    ## @param management.metrics.enabled enables/disables metrics
     ##
     enabled: false
-    ## @param signal.metrics.port target metrics port
+    ## @param management.metrics.port target metrics port
     ##
     port: 9090
 
