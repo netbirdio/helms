@@ -33,7 +33,7 @@ jobs:
 
       - name: Lint Helm Chart
         run: |
-          helm lint ./charts/kubernetes-operator
+          helm lint ./charts/netbird
 
       - name: Install Helm chart for project
         run: |
@@ -42,4 +42,3 @@ jobs:
       - name: Check Helm release status
         run: |
           helm status test-chart --namespace netbird
- 
