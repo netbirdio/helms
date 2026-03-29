@@ -165,6 +165,37 @@ Create the name of the dashboard service account to use
 {{- end }}
 
 {{/*
+Common agent labels
+*/}}
+{{- define "netbird.agent.labels" -}}
+helm.sh/chart: {{ include "netbird.chart" . }}
+{{ include "netbird.agent.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Agent selector labels
+*/}}
+{{- define "netbird.agent.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "netbird.name" . }}-agent
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Create the name of the agent service account to use
+*/}}
+{{- define "netbird.agent.serviceAccountName" -}}
+{{- if .Values.agent.serviceAccount.create }}
+{{- default (printf "%s-agent" (include "netbird.fullname" .)) .Values.agent.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.agent.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
 Allow the release namespace to be overridden
 */}}
 {{- define "netbird.namespace" -}}
