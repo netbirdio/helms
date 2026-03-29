@@ -138,6 +138,10 @@ management:
     ##
     name: http
 
+    ## @param management.service.appProtocol AppProtocol for the management service port.
+    ##
+    appProtocol: kubernetes.io/h2c
+
     ## @param management.service.externalIPs External IPs for the management service.
     ##
     externalIPs: []
@@ -162,6 +166,10 @@ management:
     ## @param management.serviceGrpc.name Name for the management GRPC service port.
     ##
     name: grpc
+
+    ## @param management.serviceGrpc.appProtocol AppProtocol for the management GRPC service port.
+    ##
+    appProtocol: kubernetes.io/h2c
 
     ## @param management.serviceGrpc.externalIPs External IPs for the management GRPC service.
     ##
@@ -397,6 +405,10 @@ signal:
     ##
     name: grpc
 
+    ## @param signal.service.appProtocol AppProtocol for the signal service port.
+    ##
+    appProtocol: kubernetes.io/h2c
+
     ## @param signal.service.externalIPs External IPs for the signal service.
     ##
     externalIPs: []
@@ -590,6 +602,10 @@ relay:
     ##
     name: http
 
+    ## @param relay.service.appProtocol AppProtocol for the relay service port.
+    ##
+    appProtocol: ""
+
     ## @param relay.service.externalIPs External IPs for the relay service.
     ##
     externalIPs: []
@@ -754,6 +770,10 @@ dashboard:
     ## @param dashboard.service.name Name for the dashboard service port.
     ##
     name: http
+
+    ## @param dashboard.service.appProtocol AppProtocol for the dashboard service port.
+    ##
+    appProtocol: ""
 
     ## @param dashboard.service.externalIPs External IPs for the dashboard service.
     ##

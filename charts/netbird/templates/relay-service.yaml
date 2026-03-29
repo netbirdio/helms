@@ -17,6 +17,9 @@ spec:
       targetPort: {{ .Values.relay.service.name }}
       protocol: TCP
       name: {{ .Values.relay.service.name }}
+      {{- if .Values.relay.service.appProtocol }}
+      appProtocol: {{ .Values.relay.service.appProtocol }}
+      {{- end }}
     {{- if .Values.relay.metrics.enabled }}
     - port: {{ .Values.relay.metrics.port}}
       targetPort: metrics
