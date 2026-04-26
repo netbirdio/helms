@@ -1,0 +1,12 @@
+{{- if and .Values.rbac.create .Values.serviceAccount.create (eq .Values.acme.certLockMethod "k8s-lease") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "netbird-proxy.fullname" . }}
+  labels:
+    {{- include "netbird-proxy.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+{{- end }}
