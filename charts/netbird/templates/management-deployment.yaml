@@ -94,8 +94,10 @@ spec:
           volumeMounts:
             - mountPath: /etc/netbird
               name: config
+            {{- if .Values.management.mountDatadir }}
             - mountPath: /var/lib/netbird
               name: management
+            {{- end }}
           {{- if .Values.management.volumeMounts }}
           {{- .Values.management.volumeMounts | toYaml | nindent 12 }}
           {{- end }}
