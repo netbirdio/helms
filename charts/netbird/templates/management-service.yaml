@@ -17,6 +17,9 @@ spec:
       targetPort: {{ .Values.management.service.name }}
       protocol: TCP
       name: {{ .Values.management.service.name }}
+      {{- if .Values.management.service.appProtocol }}
+      appProtocol: {{ .Values.management.service.appProtocol }}
+      {{- end }}
     {{- if .Values.management.metrics.enabled }}
     - port: {{ .Values.management.metrics.port }}
       targetPort: metrics

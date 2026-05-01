@@ -17,6 +17,9 @@ spec:
       targetPort: {{ .Values.signal.service.name }}
       protocol: TCP
       name: {{ .Values.signal.service.name }}
+      {{- if .Values.signal.service.appProtocol }}
+      appProtocol: {{ .Values.signal.service.appProtocol }}
+      {{- end }}
     {{- if .Values.signal.metrics.enabled }}
     - port: {{ .Values.signal.metrics.port }}
       targetPort: metrics

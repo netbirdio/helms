@@ -17,6 +17,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if .Values.dashboard.service.appProtocol }}
+      appProtocol: {{ .Values.dashboard.service.appProtocol }}
+      {{- end }}
   selector:
     {{- include "netbird.dashboard.selectorLabels" . | nindent 4 }}
   {{- with .Values.dashboard.service.externalIPs }}

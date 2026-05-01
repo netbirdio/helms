@@ -17,6 +17,9 @@ spec:
       targetPort: {{ .Values.management.serviceGrpc.name }}
       protocol: TCP
       name: {{ .Values.management.serviceGrpc.name }}
+      {{- if .Values.management.serviceGrpc.appProtocol }}
+      appProtocol: {{ .Values.management.serviceGrpc.appProtocol }}
+      {{- end }}
   selector:
     {{- include "netbird.management.selectorLabels" . | nindent 4 }}
   {{- with .Values.management.serviceGrpc.externalIPs }}
