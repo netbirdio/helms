@@ -148,6 +148,7 @@ dashboard:
   envFromSecret:
     AUTH_CLIENT_ID: netbird/idpClientID
     AUTH_CLIENT_SECRET: netbird/idpClientSecret
+    AUTH_AUDIENCE: netbird/idpClientID
 extraManifests:
   - apiVersion: networking.istio.io/v1
     kind: VirtualService
