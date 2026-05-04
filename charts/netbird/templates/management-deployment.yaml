@@ -71,12 +71,17 @@ spec:
             - name: http
               containerPort: {{ .Values.management.containerPort }}
               protocol: TCP
-            - name: grpc
-              containerPort: {{ .Values.management.grpcContainerPort }}
-              protocol: TCP
             - name: metrics
               containerPort: {{ .Values.management.metrics.port }}
               protocol: TCP
+            - name: stun
+              containerPort: {{ .Values.management.stunContainerPort }}
+              protocol: UDP
+            {{- if .Values.management.useBackwardsGrpcService }}
+            - name: grpc
+              containerPort: {{ .Values.management.grpcContainerPort }}
+              protocol: TCP
+            {{- end }}
           {{- if .Values.management.livenessProbe }}
             {{- with .Values.management.livenessProbe }}
           livenessProbe:
