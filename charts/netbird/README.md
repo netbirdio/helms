@@ -95,6 +95,12 @@ The following table lists the configurable parameters of the NetBird Helm chart 
 | management.volumes | list | `[]` |  |
 | management.affinity | object | `{}` |  |
 | management.configYaml | string | `""` |  |
+| management.envsubst.enabled | bool | `false` |  |
+| management.envsubst.allowedPrefix | string | `"NETBIRD_"` |  |
+| management.envsubst.env | object | `{}` |  |
+| management.envsubst.envFromSecret | object | `{}` |  |
+| management.envsubst.envRaw | list | `[]` |  |
+| management.initContainers | list | `[]` |  |
 | management.containerPort | int | `80` |  |
 | management.deploymentAnnotations | object | `{}` |  |
 | management.enabled | bool | `true` |  |
