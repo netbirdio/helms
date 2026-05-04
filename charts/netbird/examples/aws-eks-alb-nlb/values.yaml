@@ -1,0 +1,158 @@
+management:
+  configYaml: |-
+    server:
+      listenAddress: :80
+      exposedAddress: https://netbird.example.com:443
+      stunPorts: [3478]
+      metricsPort: 9090
+      healthcheckAddress: :9000
+      logLevel: info
+      logFile: console
+      authSecret: "${NETBIRD_RELAY_AUTH_SECRET}"
+      dataDir: /var/lib/netbird
+      auth:
+        issuer: https://netbird.example.com/oauth2
+        signKeyRefreshEnabled: true
+        dashboardRedirectURIs:
+          - https://netbird.example.com/nb-auth
+          - https://netbird.example.com/nb-silent-auth
+        cliRedirectURIs:
+          - http://localhost:53000/
+      reverseProxy:
+        trustedHTTPProxies:
+          - 172.30.0.10/32
+      store:
+        engine: postgres
+        dsn: >-
+          host=database.local
+          port=5432
+          dbname=store_db
+          user=store_user
+          password=${NETBIRD_STORE_DSN_PASSWORD}
+        encryptionKey: "${NETBIRD_DATASTORE_ENC_KEY}"
+      activityStore:
+        engine: postgres
+        dsn: >-
+          host=database.local
+          port=5432
+          dbname=events_db
+          user=events_user
+          password=${NETBIRD_STORE_DSN_PASSWORD}
+      authStore:
+        engine: postgres
+        dsn: >-
+          host=database.local
+          port=5432
+          sslmode=require
+          dbname=idp_db
+          user=idp_user
+          password=${NETBIRD_STORE_DSN_PASSWORD}
+  envsubst:
+    enabled: true
+    envFromSecret:
+      NETBIRD_RELAY_AUTH_SECRET: netbird/relayAuthSecret
+      NETBIRD_STORE_DSN_PASSWORD: netbird/datastoreDsnPassword
+      NETBIRD_DATASTORE_ENC_KEY: netbird/datastoreEncryptionKey
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/group.name: netbird
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/load-balancer-name: netbird-alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:{region}:{account}:certificate/{id}
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+    hosts:
+      - host: netbird.example.com
+        paths:
+          - path: /api
+            pathType: Prefix
+          - path: /ws-proxy
+            pathType: Prefix
+          - path: /oauth2
+            pathType: Prefix
+          - path: /relay
+            pathType: Prefix
+  ingressGrpc:
+    enabled: true
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/group.name: netbird
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+      alb.ingress.kubernetes.io/healthcheck-path: /management.ManagementService/isHealthy
+      alb.ingress.kubernetes.io/success-codes: "0"
+    hosts:
+      - host: netbird.example.com
+        paths:
+          - path: /management.ManagementService
+            pathType: Prefix
+          - path: /signalexchange.SignalExchange
+            pathType: Prefix
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  persistentVolume:
+    enabled: false
+dashboard:
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/group.name: netbird
+      alb.ingress.kubernetes.io/group.order: "10"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    hosts:
+      - host: netbird.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  env:
+    NETBIRD_MGMT_API_ENDPOINT: https://netbird.example.com
+    NETBIRD_MGMT_GRPC_API_ENDPOINT: https://netbird.example.com
+    AUTH_AUDIENCE: netbird-dashboard
+    AUTH_CLIENT_ID: netbird-dashboard
+    AUTH_CLIENT_SECRET: ""
+    AUTH_AUTHORITY: https://netbird.example.com/oauth2
+    USE_AUTH0: false
+    AUTH_SUPPORTED_SCOPES: openid profile email groups
+    AUTH_REDIRECT_URI: /nb-auth
+    AUTH_SILENT_REDIRECT_URI: /nb-silent-auth
+    LETSENCRYPT_DOMAIN: none
+extraManifests:
+  - apiVersion: networking.k8s.io/v1
+    kind: IngressClass
+    metadata:
+      name: alb
+    spec:
+      controller: ingress.k8s.aws/alb
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: netbird-stun
+      namespace: netbird
+    spec:
+      type: LoadBalancer
+      loadBalancerClass: service.k8s.aws/nlb
+      selector:
+        app.kubernetes.io/instance: netbird
+        app.kubernetes.io/name: netbird-management
+      ports:
+        - protocol: UDP
+          port: 3478
+          targetPort: stun

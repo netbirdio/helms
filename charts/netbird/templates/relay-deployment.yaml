@@ -1,5 +1,4 @@
-{{- if .Values.relay.enabled -}}
-
+{{- if and .Values.relay.enabled .Values.relay.standalone -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
