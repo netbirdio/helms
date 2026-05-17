@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: netbird-proxy
+  repository: netbirdio/reverse-proxy
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -58,6 +58,9 @@ crowdsec:
   apiKey: ""
   # -- Use an existing Secret for the CrowdSec bouncer API key.
   # The secret must contain a key named "crowdsec-api-key".
+  # Required when the top-level existingSecret is set, since the chart-managed
+  # Secret holding the proxy token is not rendered in that case and cannot
+  # carry crowdsec-api-key.
   existingSecret: ""
 
 # -- Use host networking. Required for TCP/UDP service passthrough in
@@ -155,8 +158,13 @@ certVolume:
   enabled: true
   # -- Mount an existing PVC instead of creating one.
   existingClaim: ""
+  # -- Mount an existing Secret as the certificate volume (e.g. a TLS Secret
+  # produced by cert-manager). Use with acme.enabled=false: ACME mode writes
+  # to this directory, which is read-only when backed by a Secret. The
+  # Secret keys should match tls.certFile and tls.keyFile.
+  existingSecret: ""
   # -- Use a hostPath volume instead of a PVC.
-  # Takes precedence over enabled and existingClaim.
+  # Takes precedence over enabled, existingClaim, and existingSecret.
   hostPath: ""
   # -- PVC access mode. ReadWriteMany is required for multi-replica ACME
   # (HTTP-01 challenges can arrive on any pod). ReadWriteOnce is fine for

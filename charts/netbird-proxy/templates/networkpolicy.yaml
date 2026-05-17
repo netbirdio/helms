@@ -15,7 +15,7 @@ spec:
     - ports:
         - port: https
           protocol: TCP
-        {{- if .Values.acme.enabled }}
+        {{- if and .Values.acme.enabled (eq .Values.acme.challengeType "http-01") }}
         - port: acme-http
           protocol: TCP
         {{- end }}

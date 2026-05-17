@@ -34,7 +34,7 @@ spec:
       port: {{ .Values.service.port }}
       targetPort: https
       protocol: TCP
-    {{- if .Values.acme.enabled }}
+    {{- if and .Values.acme.enabled (eq .Values.acme.challengeType "http-01") }}
     - name: acme-http
       port: {{ .Values.service.acmePort }}
       targetPort: acme-http

@@ -58,7 +58,7 @@ spec:
             - name: health
               containerPort: {{ include "netbird-proxy.port" .Values.health.address | default 8080 }}
               protocol: TCP
-            {{- if .Values.acme.enabled }}
+            {{- if and .Values.acme.enabled (eq .Values.acme.challengeType "http-01") }}
             - name: acme-http
               containerPort: {{ include "netbird-proxy.port" .Values.acme.address | default 80 }}
               protocol: TCP
@@ -262,6 +262,9 @@ spec:
           {{- else if .Values.certVolume.existingClaim }}
           persistentVolumeClaim:
             claimName: {{ .Values.certVolume.existingClaim }}
+          {{- else if .Values.certVolume.existingSecret }}
+          secret:
+            secretName: {{ .Values.certVolume.existingSecret }}
           {{- else if .Values.certVolume.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "netbird-proxy.fullname" . }}-certs

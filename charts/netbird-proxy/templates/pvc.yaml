@@ -1,4 +1,4 @@
-{{- if and .Values.certVolume.enabled (not .Values.certVolume.existingClaim) (not .Values.certVolume.hostPath) }}
+{{- if and .Values.certVolume.enabled (not .Values.certVolume.existingClaim) (not .Values.certVolume.existingSecret) (not .Values.certVolume.hostPath) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
