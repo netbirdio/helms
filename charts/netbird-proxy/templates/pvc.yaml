@@ -9,7 +9,7 @@ spec:
   accessModes:
     - {{ .Values.certVolume.accessMode | default "ReadWriteMany" }}
   {{- if .Values.certVolume.storageClass }}
-  storageClassName: {{ .Values.certVolume.storageClass }}
+  storageClassName: {{ .Values.certVolume.storageClass | quote }}
   {{- end }}
   resources:
     requests:
@@ -27,7 +27,7 @@ spec:
   accessModes:
     - {{ .Values.geolocation.volume.accessMode | default "ReadWriteMany" }}
   {{- if .Values.geolocation.volume.storageClass }}
-  storageClassName: {{ .Values.geolocation.volume.storageClass }}
+  storageClassName: {{ .Values.geolocation.volume.storageClass | quote }}
   {{- end }}
   resources:
     requests:
