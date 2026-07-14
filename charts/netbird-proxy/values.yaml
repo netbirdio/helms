@@ -38,6 +38,11 @@ proxy:
   maxDialTimeout: ""
   # -- Cap per-service session idle timeout (e.g. "5m"). Empty or "0" means no cap.
   maxSessionIdleTimeout: ""
+  # -- Run Rosenpass (post-quantum key exchange) in permissive mode on the
+  # embedded proxy clients. Required to connect to Rosenpass-enabled peers;
+  # falls back to plain WireGuard for peers without Rosenpass. Set to false
+  # to disable Rosenpass on the proxy.
+  rosenpass: true
 
 # -- Allow users to choose a specific listen port for TCP/UDP services.
 # When false, ports are auto-assigned by management. When true, users
