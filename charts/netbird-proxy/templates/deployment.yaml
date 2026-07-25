@@ -216,6 +216,18 @@ spec:
                   name: {{ .Values.crowdsec.existingSecret | default (include "netbird-proxy.fullname" .) }}
                   key: crowdsec-api-key
             {{- end }}
+            {{- if .Values.crowdsec.appsecUrl }}
+            - name: NB_PROXY_CROWDSEC_APPSEC_URL
+              value: {{ .Values.crowdsec.appsecUrl | quote }}
+            {{- end }}
+            {{- if .Values.crowdsec.appsecTimeout }}
+            - name: NB_PROXY_CROWDSEC_APPSEC_TIMEOUT
+              value: {{ .Values.crowdsec.appsecTimeout | quote }}
+            {{- end }}
+            {{- if .Values.crowdsec.appsecMaxBodyBytes }}
+            - name: NB_PROXY_CROWDSEC_APPSEC_MAX_BODY_BYTES
+              value: {{ .Values.crowdsec.appsecMaxBodyBytes | quote }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

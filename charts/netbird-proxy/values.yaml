@@ -67,6 +67,23 @@ crowdsec:
   # Secret holding the proxy token is not rendered in that case and cannot
   # carry crowdsec-api-key.
   existingSecret: ""
+  # -- CrowdSec AppSec (WAF) endpoint for HTTP request inspection, e.g.
+  # "http://crowdsec:7422/". Empty disables inspection. This is a separate
+  # endpoint from the LAPI above: the Security Engine must run an appsec
+  # acquisition datasource with at least one appsec-config loaded.
+  # Reuses apiKey, which the AppSec component validates against LAPI, so
+  # setting this without a key is a startup error. Proxies advertise the AppSec
+  # capability only when this is set, which is what gates the per-service
+  # appsec_mode in the dashboard.
+  appsecUrl: ""
+  # -- Timeout for a single AppSec inspection call, e.g. "200ms". Empty uses
+  # 200ms, the budget CrowdSec's remediation component spec assumes. Inspection
+  # is synchronous, so this bounds the latency added to every request.
+  appsecTimeout: ""
+  # -- Cap on the request body mirrored to AppSec, in bytes. Empty uses 65536.
+  # Bodies over the cap are inspected on headers and URI only, never on a
+  # truncated prefix. Set to -1 to never forward bodies.
+  appsecMaxBodyBytes: ""
 
 # -- Use host networking. Required for TCP/UDP service passthrough in
 # Kubernetes, since dynamically bound ports cannot be declared in the
