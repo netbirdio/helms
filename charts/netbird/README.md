@@ -37,6 +37,50 @@ helm uninstall netbird
 
 This will remove all the resources associated with the release.
 
+## Local development
+
+The repository `Taskfile.yml` manages an isolated kind cluster named
+`netbird-chart-dev`, ingress-nginx, and the local-only configuration in
+`examples/kind/values.yaml`. Install [Task](https://taskfile.dev/), kind, Helm,
+kubectl, OpenSSL, and a kind-compatible container runtime before starting it.
+Host ports 80 and 443 must be available.
+
+Create the cluster and install the chart:
+
+```bash
+task dev:up
+```
+
+The reserved `.localhost` names resolve to the loopback interface without
+editing `/etc/hosts`. Open the dashboard at
+<https://dashboard.netbird.localhost> and the management API at
+<https://netbird.localhost/api>. The development ingresses use a generated
+self-signed certificate, so browsers and API clients require an explicit
+certificate warning/verification bypass.
+
+After changing the chart, redeploy it with `task dev:deploy`. Helm arguments can
+be appended after `--`, for example:
+
+```bash
+task dev:deploy -- --set dashboard.enabled=false
+```
+
+Other useful commands:
+
+```bash
+task chart:lint
+task chart:template
+task dev:status
+task dev:urls
+task dev:down
+```
+
+Set `CLUSTER_NAME`, `NAMESPACE`, or `RELEASE_NAME` to override the defaults:
+
+```bash
+CLUSTER_NAME=my-cluster NAMESPACE=my-namespace task dev:up
+```
+
 ## Configuration
 
 The following table lists the configurable parameters of the NetBird Helm chart and their default values.
