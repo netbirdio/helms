@@ -42,8 +42,8 @@ This will remove all the resources associated with the release.
 The repository `Taskfile.yml` manages an isolated kind cluster named
 `netbird-chart-dev`, ingress-nginx, and the local-only configuration in
 `examples/kind/values.yaml`. Install [Task](https://taskfile.dev/), kind, Helm,
-kubectl, OpenSSL, and a kind-compatible container runtime before starting it.
-Host ports 80 and 443 must be available.
+kubectl, [mkcert](https://github.com/FiloSottile/mkcert), and a kind-compatible
+container runtime before starting it. Host ports 80 and 443 must be available.
 
 Create the cluster and install the chart:
 
@@ -54,9 +54,10 @@ task dev:up
 The reserved `.localhost` names resolve to the loopback interface without
 editing `/etc/hosts`. Open the dashboard at
 <https://dashboard.netbird.localhost> and the management API at
-<https://netbird.localhost/api>. The development ingresses use a generated
-self-signed certificate, so browsers and API clients require an explicit
-certificate warning/verification bypass.
+<https://netbird.localhost/api>. On the first run, mkcert installs a
+project-specific local CA in the system trust store and may request
+authorization. It then generates a browser-trusted certificate covering both
+local hostnames.
 
 After changing the chart, redeploy it with `task dev:deploy`. Helm arguments can
 be appended after `--`, for example:

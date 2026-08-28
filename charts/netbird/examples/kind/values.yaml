@@ -1,4 +1,7 @@
 management:
+  image:
+    repository: netbirdio/management
+    tag: 0.77.0
   configmap: |-
     {
       "Stuns": [],
@@ -29,17 +32,19 @@ management:
       "StoreConfig": {
         "Engine": "sqlite"
       },
-      "HttpConfig": {
-        "Address": "0.0.0.0:80",
-        "AuthIssuer": "https://netbird.localhost",
-        "AuthAudience": "netbird",
-        "AuthKeysLocation": "https://netbird.localhost/.well-known/jwks.json",
-        "AuthUserIDClaim": "",
-        "IdpSignKeyRefreshEnabled": false,
-        "OIDCConfigEndpoint": ""
-      },
       "IdpManagerConfig": {
         "ManagerType": "none"
+      },
+      "EmbeddedIdP": {
+        "Enabled": true,
+        "Issuer": "https://netbird.localhost/oauth2",
+        "DashboardRedirectURIs": [
+          "https://dashboard.netbird.localhost/nb-auth",
+          "https://dashboard.netbird.localhost/nb-silent-auth"
+        ],
+        "DashboardPostLogoutRedirectURIs": [
+          "https://dashboard.netbird.localhost/"
+        ]
       }
     }
   ingress:
@@ -51,6 +56,8 @@ management:
       - host: netbird.localhost
         paths:
           - path: /api
+            pathType: ImplementationSpecific
+          - path: /oauth2
             pathType: ImplementationSpecific
     tls:
       - secretName: netbird-local-tls
@@ -121,9 +128,19 @@ relay:
 
 
 dashboard:
+  image:
+    tag: v2.91.1
   env:
     NETBIRD_MGMT_API_ENDPOINT: https://netbird.localhost
     NETBIRD_MGMT_GRPC_API_ENDPOINT: https://netbird.localhost
+    AUTH_AUDIENCE: netbird-dashboard
+    AUTH_CLIENT_ID: netbird-dashboard
+    AUTH_CLIENT_SECRET: ""
+    AUTH_AUTHORITY: https://netbird.localhost/oauth2
+    USE_AUTH0: "false"
+    AUTH_SUPPORTED_SCOPES: "openid profile email groups"
+    AUTH_REDIRECT_URI: /nb-auth
+    AUTH_SILENT_REDIRECT_URI: /nb-silent-auth
   ingress:
     enabled: true
     className: nginx

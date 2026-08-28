@@ -9,6 +9,7 @@ vars:
   DASHBOARD_HOST: dashboard.netbird.localhost
   CLUSTER_NAME: '{{default "netbird-chart-dev" .CLUSTER_NAME}}'
   LOCAL_CERT_DIR: /tmp/{{.CLUSTER_NAME}}
+  LOCAL_CA_DIR: '{{.HOME}}/.local/share/mkcert/{{.CLUSTER_NAME}}'
   KUBE_CONTEXT: kind-{{.CLUSTER_NAME}}
   NAMESPACE: '{{default "netbird" .NAMESPACE}}'
   RELEASE_NAME: '{{default "netbird" .RELEASE_NAME}}'
@@ -77,21 +78,19 @@ tasks:
   local:certificate:
     internal: true
     preconditions:
-      - sh: command -v openssl
-        msg: openssl is required
-    status:
-      - test -s {{.LOCAL_CERT_DIR}}/tls.crt && test -s {{.LOCAL_CERT_DIR}}/tls.key
+      - sh: command -v mkcert
+        msg: mkcert is required
     cmds:
-      - mkdir -p {{.LOCAL_CERT_DIR}}
+      - mkdir -p {{.LOCAL_CERT_DIR}} {{.LOCAL_CA_DIR}}
+      - CAROOT={{.LOCAL_CA_DIR}} mkcert -install
       - >-
-        openssl req -x509 -nodes -newkey rsa:2048 -sha256 -days 3650
-        -keyout {{.LOCAL_CERT_DIR}}/tls.key
-        -out {{.LOCAL_CERT_DIR}}/tls.crt
-        -subj /CN={{.LOCAL_HOST}}
-        -addext subjectAltName=DNS:{{.LOCAL_HOST}},DNS:{{.DASHBOARD_HOST}}
+        CAROOT={{.LOCAL_CA_DIR}} mkcert
+        -cert-file {{.LOCAL_CERT_DIR}}/tls.crt
+        -key-file {{.LOCAL_CERT_DIR}}/tls.key
+        {{.LOCAL_HOST}} {{.DASHBOARD_HOST}}
 
   dev:tls:
-    desc: Create the self-signed certificate used by local ingresses
+    desc: Create the locally trusted certificate used by local ingresses
     preconditions:
       - sh: command -v kubectl
         msg: kubectl is required
