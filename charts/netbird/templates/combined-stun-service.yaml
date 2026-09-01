@@ -1,0 +1,35 @@
+{{- if and (eq .Values.backend.mode "combined") .Values.backend.combined.stunService.enabled }}
+{{- $values := .Values.backend.combined -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "netbird.componentName" (dict "root" . "component" "combined-stun") }}
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "combined") | nindent 4 }}
+  {{- with $values.stunService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $values.stunService.type }}
+  {{- if and (eq $values.stunService.type "LoadBalancer") $values.stunService.loadBalancerIP }}
+  loadBalancerIP: {{ $values.stunService.loadBalancerIP }}
+  {{- end }}
+  {{- if or (eq $values.stunService.type "LoadBalancer") (eq $values.stunService.type "NodePort") }}
+  externalTrafficPolicy: {{ $values.stunService.externalTrafficPolicy }}
+  {{- end }}
+  ports:
+    {{- range $values.config.stunPorts }}
+    - name: stun-{{ . }}
+      port: {{ . }}
+      targetPort: stun-{{ . }}
+      protocol: UDP
+    {{- end }}
+  selector:
+    {{- include "netbird.selectorLabels" (dict "root" . "component" "combined") | nindent 4 }}
+  {{- with $values.stunService.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

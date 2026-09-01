@@ -1,86 +1,105 @@
-{{- if .Values.signal.enabled -}}
-
+{{- if eq .Values.backend.mode "split" }}
+{{- $values := .Values.backend.split.signal -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "signal") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "netbird.fullname" . }}-signal
+  name: {{ $name }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.signal.labels" . | nindent 4 }}
+    {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
-  replicas: {{ .Values.signal.replicaCount }}
+  replicas: {{ $values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "netbird.signal.selectorLabels" . | nindent 6 }}
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.signal.podAnnotations }}
       annotations:
+        checksum/config: {{ include (print .Template.BasePath "/signal-cm.yaml") . | sha256sum }}
+        {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
-        {{- include "netbird.signal.selectorLabels" . | nindent 8 }}
+        {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 8 }}
     spec:
-      {{- with .Values.signal.imagePullSecrets }}
+      {{- with $values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "netbird.signal.serviceAccountName" . }}
+      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "signal" "values" $values) }}
       securityContext:
-        {{- toYaml .Values.signal.podSecurityContext | nindent 8 }}
+        {{- toYaml $values.pod.securityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}-signal
-          securityContext:
-            {{- toYaml .Values.signal.securityContext | nindent 12 }}
-          image: "{{ .Values.signal.image.repository }}:{{ .Values.signal.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.signal.image.pullPolicy }}
+        - name: signal
+          image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
+          imagePullPolicy: {{ $values.image.pullPolicy }}
+          {{- with $values.container.cmd.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           args:
-            - "--port"
-            - "{{ .Values.signal.service.port }}"
-            - "--log-level"
-            - "{{ .Values.signal.logLevel }}"
-            - "--log-file"
-            - "console"
+            - --config
+            - /etc/netbird/config.yaml
+            {{- with $values.container.cmd.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          securityContext:
+            {{- toYaml $values.container.securityContext | nindent 12 }}
+          {{- if or $values.env $values.envRaw $values.envFromSecret }}
+          env:
+            {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
+          {{- end }}
+          {{- with $values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: grpc
-              containerPort: {{ .Values.signal.containerPort }}
+              containerPort: {{ $values.container.port }}
               protocol: TCP
             - name: metrics
-              containerPort: {{ .Values.signal.metrics.port }}
+              containerPort: {{ $values.metrics.port }}
               protocol: TCP
-          {{- if .Values.signal.livenessProbe }}
-            {{- with .Values.signal.livenessProbe }}
+          {{- with $values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
-            {{- end }}
           {{- end }}
-          {{- if .Values.signal.readinessProbe }}
-            {{- with .Values.signal.readinessProbe }}
+          {{- with $values.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
-            {{- end }}
           {{- end }}
           resources:
-            {{- toYaml .Values.signal.resources | nindent 12 }}
-          {{- if .Values.signal.volumeMounts }}
+            {{- toYaml $values.resources | nindent 12 }}
           volumeMounts:
-          {{- .Values.signal.volumeMounts | toYaml | nindent 12 }}
-          {{- end }}
-      {{- if  .Values.signal.volumes }}
+            - name: config
+              mountPath: /etc/netbird/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            {{- with $values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
-      {{- .Values.signal.volumes | toYaml | nindent 8 }}
-      {{- end }}
-      {{- with .Values.signal.nodeSelector }}
+        - name: config
+          configMap:
+            name: {{ $name }}
+        {{- with $values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.signal.affinity }}
+      {{- with $values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.signal.tolerations }}
+      {{- with $values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-
 {{- end }}

@@ -1,31 +1,32 @@
-{{- if .Values.signal.enabled -}}
+{{- if eq .Values.backend.mode "split" }}
+{{- $values := .Values.backend.split.signal -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "netbird.fullname" . }}-signal
+  name: {{ include "netbird.componentName" (dict "root" . "component" "signal") }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.signal.labels" . | nindent 4 }}
-  {{- with .Values.signal.service.annotations }}
+    {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.signal.service.type }}
+  type: {{ $values.service.type }}
   ports:
-    - port: {{ .Values.signal.service.port }}
-      targetPort: {{ .Values.signal.service.name }}
+    - name: grpc
+      port: {{ $values.service.port }}
+      targetPort: grpc
       protocol: TCP
-      name: {{ .Values.signal.service.name }}
-    {{- if .Values.signal.metrics.enabled }}
-    - port: {{ .Values.signal.metrics.port }}
+    {{- if $values.metrics.enabled }}
+    - name: metrics
+      port: {{ $values.metrics.port }}
       targetPort: metrics
       protocol: TCP
-      name: metrics
     {{- end }}
   selector:
-    {{- include "netbird.signal.selectorLabels" . | nindent 4 }}
-  {{- with .Values.signal.service.externalIPs }}
+    {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.service.externalIPs }}
   externalIPs:
     {{- toYaml . | nindent 4 }}
   {{- end }}

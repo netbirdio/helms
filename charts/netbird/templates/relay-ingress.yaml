@@ -1,33 +1,27 @@
-{{- if .Values.relay.enabled -}}
-{{- if .Values.relay.ingress.enabled -}}
-{{- $fullName := printf "%s-relay" (include "netbird.fullname" .) -}}
-{{- $svcPort := .Values.relay.service.port -}}
-
+{{- if and (eq .Values.backend.mode "split") .Values.backend.split.relay.ingress.enabled }}
+{{- $ingress := .Values.backend.split.relay.ingress -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ $fullName }}
+  name: {{ $name }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.relay.labels" . | nindent 4 }}
-  {{- with .Values.relay.ingress.annotations }}
+    {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
+  {{- with $ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  ingressClassName: {{ .Values.relay.ingress.className }}
-  {{- if .Values.relay.ingress.tls }}
+  {{- with $ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with $ingress.tls }}
   tls:
-    {{- range .Values.relay.ingress.tls }}
-    - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
-    {{- range .Values.relay.ingress.hosts }}
+    {{- range $ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -36,10 +30,9 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ $fullName }}
+                name: {{ $name }}
                 port:
-                  number: {{ $svcPort }}
+                  number: {{ $.Values.backend.split.relay.service.port }}
           {{- end }}
     {{- end }}
-{{- end }}
 {{- end }}

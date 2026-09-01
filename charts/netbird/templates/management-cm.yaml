@@ -1,12 +1,12 @@
-{{- if .Values.management.enabled -}}
+{{- if eq .Values.backend.mode "split" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "netbird.fullname" . }}-management
+  name: {{ include "netbird.componentName" (dict "root" . "component" "management") }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.management.labels" . | nindent 4 }}
+    {{- include "netbird.labels" (dict "root" . "component" "management") | nindent 4 }}
 data:
   management.json: |-
-    {{- .Values.management.configmap | nindent 4 }}
-{{- end -}}
+    {{- include "netbird.managementConfig" . | nindent 4 }}
+{{- end }}

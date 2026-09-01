@@ -1,12 +1,12 @@
-{{- if eq .Values.backend.mode "split" }}
-{{- $values := .Values.backend.split.relay -}}
+{{- if eq .Values.backend.mode "combined" }}
+{{- $values := .Values.backend.combined -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "netbird.componentName" (dict "root" . "component" "relay") }}
+  name: {{ include "netbird.componentName" (dict "root" . "component" "combined") }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
+    {{- include "netbird.labels" (dict "root" . "component" "combined") | nindent 4 }}
   {{- with $values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -31,7 +31,7 @@ spec:
       protocol: TCP
     {{- end }}
   selector:
-    {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 4 }}
+    {{- include "netbird.selectorLabels" (dict "root" . "component" "combined") | nindent 4 }}
   {{- with $values.service.externalIPs }}
   externalIPs:
     {{- toYaml . | nindent 4 }}
