@@ -1,204 +1,18 @@
 fullnameOverride: netbird
-management:
-  configmap: |-
-    {
-      "Stuns": [
-        {
-          "Proto": "udp",
-          "URI": "{{ .STUN_SERVER }}",
-          "Username": "",
-          "Password": ""
-        }
-      ],
-      "TURNConfig": {
-        "TimeBasedCredentials": false,
-        "CredentialsTTL": "12h0m0s",
-        "Secret": "secret",
-        "Turns": [
-          {
-            "Proto": "udp",
-            "URI": "{{ .TURN_SERVER }}",
-            "Username": "{{ .TURN_SERVER_USER }}",
-            "Password": "{{ .TURN_SERVER_PASSWORD }}"
-          }
-        ]
-      },
-      "Relay": {
-        "Addresses": ["rels://netbird.example.com:443/relay"],
-        "CredentialsTTL": "24h",
-        "Secret": "{{ .RELAY_PASSWORD }}"
-      },
-      "Signal": {
-        "Proto": "https",
-        "URI": "netbird.example.com:443",
-        "Username": "",
-        "Password": ""
-      },
-      "Datadir": "/var/lib/netbird/",
-      "DataStoreEncryptionKey": "{{ .DATASTORE_ENCRYPTION_KEY }}",
-      "HttpConfig": {
-        "LetsEncryptDomain": "",
-        "CertFile": "",
-        "CertKey": "",
-        "AuthAudience": "{{ .IDP_CLIENT_ID }}",
-        "AuthIssuer": "https://idp.example.com/application/o/example-netbird/",
-        "AuthUserIDClaim": "",
-        "AuthKeysLocation": "https://idp.example.com/application/o/example-netbird/jwks/",
-        "OIDCConfigEndpoint": "https://idp.example.com/application/o/example-netbird/.well-known/openid-configuration",
-        "IdpSignKeyRefreshEnabled": false
-      },
-      "IdpManagerConfig": {
-        "ManagerType": "authentik",
-        "ClientConfig": {
-          "Issuer": "https://idp.example.com/application/o/example-netbird",
-          "TokenEndpoint": "https://idp.example.com/application/o/token/",
-          "ClientID": "{{ .IDP_CLIENT_ID }}",
-          "ClientSecret": "",
-          "GrantType": "client_credentials"
-        },
-        "ExtraConfig": {
-          "Password": "{{ .IDP_SERVICE_ACCOUNT_PASSWORD }}",
-          "Username": "{{ .IDP_SERVICE_ACCOUNT_USER }}"
-        },
-        "Auth0ClientCredentials": null,
-        "AzureClientCredentials": null,
-        "KeycloakClientCredentials": null,
-        "ZitadelClientCredentials": null
-      },
-      "DeviceAuthorizationFlow": {
-        "Provider": "hosted",
-        "ProviderConfig": {
-          "ClientID": "{{ .IDP_CLIENT_ID }}",
-          "ClientSecret": "",
-          "Domain": "idp.example.com",
-          "Audience": "{{ .IDP_CLIENT_ID }}",
-          "TokenEndpoint": "https://idp.example.com/application/o/token/",
-          "DeviceAuthEndpoint": "https://idp.example.com/application/o/device/",
-          "AuthorizationEndpoint": "",
-          "Scope": "openid",
-          "UseIDToken": false,
-          "RedirectURLs": null
-        }
-      },
-      "PKCEAuthorizationFlow": {
-        "ProviderConfig": {
-          "ClientID": "{{ .IDP_CLIENT_ID }}",
-          "ClientSecret": "",
-          "Domain": "",
-          "Audience": "{{ .IDP_CLIENT_ID }}",
-          "TokenEndpoint": "https://idp.example.com/application/o/token/",
-          "DeviceAuthEndpoint": "",
-          "AuthorizationEndpoint": "https://idp.example.com/application/o/authorize/",
-          "Scope": "openid profile email offline_access api",
-          "UseIDToken": false,
-          "DisablePromptLogin": true,
-          "RedirectURLs": ["http://localhost:53000"]
-        }
-      },
-      "StoreConfig": {
-        "Engine": "postgres"
-      },
-      "ReverseProxy": {
-        "TrustedHTTPProxies": null,
-        "TrustedHTTPProxiesCount": 0,
-        "TrustedPeers": null
-      }
-    }
-
-  ingress:
-    enabled: true
-    className: public
-    annotations:
-      cert-manager.io/cluster-issuer: example-issuer
-    hosts:
-      - host: netbird.example.com
-        paths:
-          - path: /api
-            pathType: ImplementationSpecific
-    tls:
-      - secretName: netbird-api-tls
-        hosts:
-          - netbird.example.com
-  ingressGrpc:
-    enabled: true
-    className: public
-    annotations:
-      cert-manager.io/cluster-issuer: example-issuer
-      nginx.ingress.kubernetes.io/backend-protocol: GRPC
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    hosts:
-      - host: netbird.example.com
-        paths:
-          - path: /management.ManagementService
-            pathType: ImplementationSpecific
-    tls:
-      - secretName: netbird-grpc-tls
-        hosts:
-          - netbird.example.com
-
-  persistentVolume:
-    enabled: false
-
-  envFromSecret:
-    NETBIRD_STORE_ENGINE_POSTGRES_DSN: netbird/postgresDSN
-    STUN_SERVER: netbird/stunServer
-    TURN_SERVER: netbird/turnServer
-    TURN_SERVER_USER: netbird/turnServerUser
-    TURN_SERVER_PASSWORD: netbird/turnServerPassword
-    RELAY_PASSWORD: netbird/relayPassword
-    DATASTORE_ENCRYPTION_KEY: netbird/datastoreEncryptionKey
-    IDP_CLIENT_ID: netbird/idpClientID
-    IDP_SERVICE_ACCOUNT_USER: netbird/idpServiceAccountUser
-    IDP_SERVICE_ACCOUNT_PASSWORD: netbird/idpServiceAccountPassword
-  useBackwardsGrpcService: true
-signal:
-  ingress:
-    enabled: true
-    className: public
-    annotations:
-      cert-manager.io/cluster-issuer: example-issuer
-      nginx.ingress.kubernetes.io/backend-protocol: GRPC
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    hosts:
-      - host: netbird.example.com
-        paths:
-          - path: /signalexchange.SignalExchange
-            pathType: ImplementationSpecific
-    tls:
-      - secretName: netbird-signal-tls
-        hosts:
-          - netbird.example.com
-
-relay:
-  ingress:
-    enabled: true
-    className: public
-    annotations:
-      cert-manager.io/cluster-issuer: example-issuer
-    hosts:
-      - host: netbird.example.com
-        paths:
-          - path: /relay
-            pathType: ImplementationSpecific
-    tls:
-      - secretName: netbird-relay-tls
-        hosts:
-          - netbird.example.com
-
-  envFromSecret:
-    NB_AUTH_SECRET: netbird/relayPassword
-
-  env:
-    NB_LOG_LEVEL: info
-    NB_LISTEN_ADDRESS: ":33080"
-    NB_EXPOSED_ADDRESS: rels://netbird.example.com:443/relay
 
 dashboard:
-  enabled: true
+  config:
+    api:
+      httpEndpoint: https://netbird.example.com:443
+      grpcEndpoint: https://netbird.example.com:443
+    auth:
+      authority: https://idp.example.com/application/o/example-netbird/
+      useAuth0: false
+      supportedScopes: openid profile email offline_access api
+      tokenSource: accessToken
+  envFromSecret:
+    AUTH_CLIENT_ID: netbird/idpClientID
+    AUTH_AUDIENCE: netbird/idpClientID
   ingress:
     enabled: true
     className: public
@@ -213,22 +27,159 @@ dashboard:
       - secretName: netbird-dashboard-tls
         hosts:
           - netbird-dashboard.example.com
-  env:
-    # Endpoints
-    NETBIRD_MGMT_API_ENDPOINT: https://netbird.example.com:443
-    NETBIRD_MGMT_GRPC_API_ENDPOINT: https://netbird.example.com:443
-    # OIDC
-    AUTH_CLIENT_SECRET:
-    AUTH_AUTHORITY: https://idp.example.com/application/o/example-netbird/
-    USE_AUTH0: false
-    AUTH_SUPPORTED_SCOPES: openid profile email offline_access api
-    AUTH_REDIRECT_URI:
-    AUTH_SILENT_REDIRECT_URI:
-    NETBIRD_TOKEN_SOURCE: accessToken
-    NGINX_SSL_PORT:
-    LETSENCRYPT_DOMAIN:
-    LETSENCRYPT_EMAIL:
 
-  envFromSecret:
-    AUTH_CLIENT_ID: netbird/idpClientID
-    AUTH_AUDIENCE: netbird/idpClientID
+backend:
+  mode: split
+  split:
+    management:
+      envFromSecret:
+        NETBIRD_STORE_ENGINE_POSTGRES_DSN: netbird/postgresDSN
+        STUN_SERVER: netbird/stunServer
+        TURN_SERVER: netbird/turnServer
+        TURN_SERVER_USER: netbird/turnServerUser
+        TURN_SERVER_PASSWORD: netbird/turnServerPassword
+        IDP_CLIENT_ID: netbird/idpClientID
+        IDP_SERVICE_ACCOUNT_USER: netbird/idpServiceAccountUser
+        IDP_SERVICE_ACCOUNT_PASSWORD: netbird/idpServiceAccountPassword
+      config:
+        stuns:
+          - proto: udp
+            uri: "{{ .STUN_SERVER }}"
+            username: ""
+            password: ""
+        turnConfig:
+          timeBasedCredentials: false
+          credentialsTTL: 12h
+          secret: secret
+          turns:
+            - proto: udp
+              uri: "{{ .TURN_SERVER }}"
+              username: "{{ .TURN_SERVER_USER }}"
+              password: "{{ .TURN_SERVER_PASSWORD }}"
+        embeddedIdp:
+          enabled: false
+        httpConfig:
+          letsEncryptDomain: ""
+          certFile: ""
+          certKey: ""
+          authAudience: "{{ .IDP_CLIENT_ID }}"
+          authIssuer: https://idp.example.com/application/o/example-netbird/
+          authUserIDClaim: ""
+          authKeysLocation: https://idp.example.com/application/o/example-netbird/jwks/
+          oidcConfigEndpoint: https://idp.example.com/application/o/example-netbird/.well-known/openid-configuration
+          idpSignKeyRefreshEnabled: false
+        idpManagerConfig:
+          managerType: authentik
+          clientConfig:
+            issuer: https://idp.example.com/application/o/example-netbird
+            tokenEndpoint: https://idp.example.com/application/o/token/
+            clientID: "{{ .IDP_CLIENT_ID }}"
+            clientSecret: ""
+            grantType: client_credentials
+          extraConfig:
+            Password: "{{ .IDP_SERVICE_ACCOUNT_PASSWORD }}"
+            Username: "{{ .IDP_SERVICE_ACCOUNT_USER }}"
+        deviceAuthorizationFlow:
+          provider: hosted
+          providerConfig:
+            clientID: "{{ .IDP_CLIENT_ID }}"
+            clientSecret: ""
+            domain: idp.example.com
+            audience: "{{ .IDP_CLIENT_ID }}"
+            tokenEndpoint: https://idp.example.com/application/o/token/
+            deviceAuthEndpoint: https://idp.example.com/application/o/device/
+            authorizationEndpoint: ""
+            scope: openid
+            useIDToken: false
+            redirectURLs: null
+        pkceAuthorizationFlow:
+          providerConfig:
+            clientID: "{{ .IDP_CLIENT_ID }}"
+            clientSecret: ""
+            domain: ""
+            audience: "{{ .IDP_CLIENT_ID }}"
+            tokenEndpoint: https://idp.example.com/application/o/token/
+            deviceAuthEndpoint: ""
+            authorizationEndpoint: https://idp.example.com/application/o/authorize/
+            scope: openid profile email offline_access api
+            useIDToken: false
+            disablePromptLogin: true
+            redirectURLs:
+              - http://localhost:53000
+        storeConfig:
+          engine: postgres
+      ingress:
+        http:
+          enabled: true
+          className: public
+          annotations:
+            cert-manager.io/cluster-issuer: example-issuer
+          hosts:
+            - host: netbird.example.com
+              paths:
+                - path: /api
+                  pathType: ImplementationSpecific
+          tls:
+            - secretName: netbird-api-tls
+              hosts:
+                - netbird.example.com
+        grpc:
+          enabled: true
+          className: public
+          annotations:
+            cert-manager.io/cluster-issuer: example-issuer
+            nginx.ingress.kubernetes.io/backend-protocol: GRPC
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+            nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          hosts:
+            - host: netbird.example.com
+              paths:
+                - path: /management.ManagementService
+                  pathType: ImplementationSpecific
+          tls:
+            - secretName: netbird-grpc-tls
+              hosts:
+                - netbird.example.com
+      persistence:
+        enabled: false
+
+    signal:
+      ingress:
+        enabled: true
+        className: public
+        annotations:
+          cert-manager.io/cluster-issuer: example-issuer
+          nginx.ingress.kubernetes.io/backend-protocol: GRPC
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+          nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+        hosts:
+          - host: netbird.example.com
+            paths:
+              - path: /signalexchange.SignalExchange
+                pathType: ImplementationSpecific
+        tls:
+          - secretName: netbird-signal-tls
+            hosts:
+              - netbird.example.com
+
+    relay:
+      config:
+        exposedAddress: rels://netbird.example.com:443/relay
+        log:
+          level: info
+      ingress:
+        enabled: true
+        className: public
+        annotations:
+          cert-manager.io/cluster-issuer: example-issuer
+        hosts:
+          - host: netbird.example.com
+            paths:
+              - path: /relay
+                pathType: ImplementationSpecific
+        tls:
+          - secretName: netbird-relay-tls
+            hosts:
+              - netbird.example.com
