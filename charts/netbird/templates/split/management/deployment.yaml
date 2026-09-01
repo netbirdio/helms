@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print .Template.BasePath "/management-cm.yaml") . | sha256sum }}
+        checksum/config: {{ include (print .Template.BasePath "/split/management/configmap.yaml") . | sha256sum }}
         checksum/credentials: {{ dict "management" $values.config "relay" .Values.backend.split.relay.config.authSecret | toJson | sha256sum }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}

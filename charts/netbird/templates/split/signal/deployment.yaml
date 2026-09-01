@@ -1,14 +1,13 @@
 {{- if eq .Values.backend.mode "split" }}
-{{- $values := .Values.backend.split.relay -}}
-{{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
-{{- $credentialsName := printf "%s-credentials" $name -}}
+{{- $values := .Values.backend.split.signal -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "signal") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
   namespace: {{ include "netbird.namespace" . }}
   labels:
-    {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
+    {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
   {{- with $values.deployment.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -17,27 +16,26 @@ spec:
   replicas: {{ $values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 6 }}
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 6 }}
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print .Template.BasePath "/relay-cm.yaml") . | sha256sum }}
-        checksum/credentials: {{ $values.config.authSecret | sha256sum }}
+        checksum/config: {{ include (print .Template.BasePath "/split/signal/configmap.yaml") . | sha256sum }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
-        {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 8 }}
+        {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 8 }}
     spec:
       {{- with $values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "relay" "values" $values) }}
+      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "signal" "values" $values) }}
       securityContext:
         {{- toYaml $values.pod.securityContext | nindent 8 }}
       containers:
-        - name: relay
+        - name: signal
           image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
           imagePullPolicy: {{ $values.image.pullPolicy }}
           {{- with $values.container.cmd.command }}
@@ -52,15 +50,8 @@ spec:
             {{- end }}
           securityContext:
             {{- toYaml $values.container.securityContext | nindent 12 }}
-          {{- if or (not $values.overrideConfig) $values.env $values.envRaw $values.envFromSecret }}
+          {{- if or $values.env $values.envRaw $values.envFromSecret }}
           env:
-            {{- if not $values.overrideConfig }}
-            - name: NB_AUTH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $credentialsName }}
-                  key: relay-auth-secret
-            {{- end }}
             {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
           {{- end }}
           {{- with $values.lifecycle }}
@@ -68,22 +59,12 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
-            - name: http
+            - name: grpc
               containerPort: {{ $values.container.port }}
               protocol: TCP
             - name: metrics
-              containerPort: {{ $values.config.metrics.port }}
+              containerPort: {{ $values.metrics.port }}
               protocol: TCP
-            - name: health
-              containerPort: {{ $values.config.health.port }}
-              protocol: TCP
-            {{- if $values.config.stun.enabled }}
-            {{- range $values.config.stun.ports }}
-            - name: stun-{{ . }}
-              containerPort: {{ . }}
-              protocol: UDP
-            {{- end }}
-            {{- end }}
           {{- with $values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

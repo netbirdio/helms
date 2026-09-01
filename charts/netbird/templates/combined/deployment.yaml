@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print .Template.BasePath "/combined-cm.yaml") . | sha256sum }}
+        checksum/config: {{ include (print .Template.BasePath "/combined/configmap.yaml") . | sha256sum }}
         checksum/credentials: {{ dict "auth" $values.config.auth "stores" $values.config.store "relays" $values.config.relays | toJson | sha256sum }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
