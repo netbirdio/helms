@@ -1,321 +1,158 @@
-# netbird
+# NetBird Helm chart
 
-Forked from [TOT MICRO's Helm Repository](https://github.com/totmicro/helms).
-![Version: 1.8.0](https://img.shields.io/badge/Version-1.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.46.0](https://img.shields.io/badge/AppVersion-0.46.0-informational?style=flat-square)
+Deploys the NetBird dashboard and either the combined NetBird server or the split management, signal, and relay services.
 
-## NetBird Helm Chart
+Focused guides: [installation and backend modes](docs/installation.md), [configuration and secrets](docs/configuration.md), and [template development](docs/development.md).
 
-This Helm chart installs and configures the [NetBird](https://github.com/netbirdio/netbird) services within a Kubernetes cluster. The chart includes the management, signal, and relay components of NetBird, providing secure peer-to-peer network connections across various environments.
+## Requirements
 
-## Prerequisites
+- Kubernetes 1.24+
+- Helm 3.12+
+- An ingress controller when any ingress is enabled
+- A TLS secret or certificate controller for HTTPS ingress
 
-- Helm 3.x
-- Kubernetes 1.19+
+## Install
 
-## Installation
+The chart uses the combined server by default. Set the public endpoints and an initial owner before installing:
 
-To install the chart with the release name `netbird`:
+```yaml
+dashboard:
+  config:
+    api:
+      httpEndpoint: https://netbird.example.com
+      grpcEndpoint: https://netbird.example.com
+    auth:
+      authority: https://netbird.example.com/oauth2
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: dashboard.netbird.example.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
 
-```bash
-helm repo add netbirdio https://netbirdio.github.io/helms
-helm install netbird netbirdio/netbird
+backend:
+  mode: combined
+  combined:
+    config:
+      exposedAddress: https://netbird.example.com:443
+      auth:
+        issuer: https://netbird.example.com/oauth2
+        dashboardRedirectURIs:
+          - https://dashboard.netbird.example.com/nb-auth
+          - https://dashboard.netbird.example.com/nb-silent-auth
+        owner:
+          email: admin@example.com
+          password: replace-me
+    ingress:
+      http:
+        enabled: true
+        className: nginx
+      grpc:
+        enabled: true
+        className: nginx
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: GRPC
 ```
 
-You can override default values by specifying a `values.yaml` file:
-
 ```bash
-helm install netbird netbirdio/netbird -f values.yaml
+helm upgrade --install netbird ./charts/netbird \
+  --namespace netbird \
+  --create-namespace \
+  --values values-production.yaml
 ```
 
-### Uninstalling the Chart
+The complete value surface, including probes, scheduling, persistence, services, and ingress routes, is documented inline in [`values.yaml`](values.yaml).
 
-To uninstall/delete the `netbird` release:
+## Backend modes
 
-```bash
-helm uninstall netbird
+### Combined
+
+`backend.mode: combined` runs management, signal, relay, and STUN from `netbirdio/netbird-server`. The chart translates `backend.combined.config` to the server's `server:` YAML schema.
+
+The HTTP and gRPC ingresses are separate because ingress controllers usually require different upstream protocols. The HTTP ingress serves `/api`, `/oauth2`, `/relay`, and `/ws-proxy`. The gRPC ingress serves management, proxy, and signal gRPC services.
+
+Kubernetes Ingress does not expose UDP. Enable `backend.combined.stunService` and select an appropriate `LoadBalancer` or `NodePort` configuration when clients should use the embedded STUN server.
+
+### Split
+
+`backend.mode: split` deploys management, signal, and relay separately:
+
+- `backend.split.management.config` is serialized as `management.json`.
+- `backend.split.signal.config` is translated to the signal YAML configuration introduced by the shared service config loader.
+- `backend.split.relay.config` is translated to the relay YAML configuration introduced by the shared service config loader.
+
+Each service also supports `overrideConfig`. When set, the override is mounted verbatim and that service's structured `config` values are ignored. Supply secrets used by an override through `env`, `envRaw`, or `envFromSecret`.
+
+The generated backend configurations target `feature/shared-service-config-loader`. In particular, the public `0.77.0` signal and relay images do not accept the `--config` flag. Until a release contains that loader, point the backend image values at images built from the feature branch.
+
+The provider-specific examples under `examples/nginx-ingress`, `examples/traefik-ingress`, and `examples/istio` use split mode with the structured `dashboard.config` and `backend.split.*.config` values. Provider credentials remain Secret references under `envFromSecret`; the chart owns the relay and datastore credentials.
+
+## Secrets
+
+For generated configurations, the chart stores sensitive values in Kubernetes Secrets rather than ConfigMaps:
+
+- relay authentication secret
+- management datastore encryption key
+- embedded IdP session-cookie encryption key
+- optional store DSNs
+- optional initial-owner password hash
+
+An empty relay, datastore, or session-cookie secret is generated on install and retained on upgrade with Helm's `lookup`. Set the corresponding value explicitly for GitOps renderers that cannot query the target cluster.
+
+`auth.owner.password` is a plaintext chart input. The chart stores only a bcrypt hash in the workload Secret because the server branch currently consumes a hash in the initial-owner field. The plaintext remains present in Helm release values, so provide it through your normal Helm secret-management workflow.
+
+The initial owner is seeded only when the embedded IdP database is first created. Changing the value later does not reset an existing user's password.
+
+## Environment values
+
+Every component supports:
+
+```yaml
+env:
+  NAME: value
+envRaw:
+  - name: NAME_FROM_FIELD_REF
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+envFromSecret:
+  NAME_FROM_SECRET: secret-name/secret-key
 ```
 
-This will remove all the resources associated with the release.
+Dashboard values under `dashboard.config` are translated to the dashboard image's environment contract. Explicit entries in `dashboard.env` override those generated values.
 
-## Local development
+## Persistence
 
-The repository `Taskfile.yml` manages an isolated kind cluster named
-`netbird-chart-dev`, ingress-nginx, and the local-only configuration in
-`examples/kind/values.yaml`. Install [Task](https://taskfile.dev/), kind, Helm,
-kubectl, [mkcert](https://github.com/FiloSottile/mkcert), and a kind-compatible
-container runtime before starting it. Host ports 80 and 443 must be available.
+Combined mode mounts one volume at `backend.combined.persistence.mountPath`. Split mode mounts the management volume at `backend.split.management.persistence.mountPath`. Keep that path aligned with the generated service data directory, or set it to the data directory used by `overrideConfig`. Set `persistence.existingClaim` to reuse a pre-created claim, or disable persistence only when every persistent store is external or data loss is acceptable.
 
-Create the cluster and install the chart:
+SQLite does not support active replicas sharing one `ReadWriteOnce` claim. Keep the corresponding backend replica count at one when SQLite is selected.
+
+## Local kind environment
+
+The repository Taskfile creates a dedicated kind cluster, installs ingress-nginx, creates a local TLS secret, and deploys [`examples/kind/values.yaml`](examples/kind/values.yaml):
 
 ```bash
 task dev:up
 ```
 
-The reserved `.localhost` names resolve to the loopback interface without
-editing `/etc/hosts`. Open the dashboard at
-<https://dashboard.netbird.localhost> and the management API at
-<https://netbird.localhost/api>. On the first run, mkcert installs a
-project-specific local CA in the system trust store and may request
-authorization. It then generates a browser-trusted certificate covering both
-local hostnames.
+Open `https://dashboard.netbird.localhost` and sign in with:
 
-After changing the chart, redeploy it with `task dev:deploy`. Helm arguments can
-be appended after `--`, for example:
+- User: `admin@netbird.local`
+- Password: `Netbird1!`
 
-```bash
-task dev:deploy -- --set dashboard.enabled=false
-```
-
-Other useful commands:
+Useful commands:
 
 ```bash
 task chart:lint
-task chart:template
+task chart:template -- --values charts/netbird/examples/kind/values.yaml
 task dev:status
-task dev:urls
 task dev:down
 ```
 
-Set `CLUSTER_NAME`, `NAMESPACE`, or `RELEASE_NAME` to override the defaults:
+The kind credentials and cryptographic keys are development-only.
 
-```bash
-CLUSTER_NAME=my-cluster NAMESPACE=my-namespace task dev:up
-```
+## Upgrade to 2.0
 
-## Configuration
-
-The following table lists the configurable parameters of the NetBird Helm chart and their default values.
-
-## Values
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| dashboard.volumeMounts | list | `[]` |  |
-| dashboard.volumes | list | `[]` |  |
-| dashboard.affinity | object | `{}` |  |
-| dashboard.containerPort | int | `80` |  |
-| dashboard.enabled | bool | `true` |  |
-| dashboard.env | object | `{}` |  |
-| dashboard.envFromSecret | object | `{}` |  |
-| dashboard.envRaw | list | `[]` |  |
-| dashboard.image.pullPolicy | string | `"IfNotPresent"` |  |
-| dashboard.image.repository | string | `"netbirdio/dashboard"` |  |
-| dashboard.image.tag | string | `"v2.13.1"` |  |
-| dashboard.imagePullSecrets | list | `[]` |  |
-| dashboard.ingress.annotations | object | `{}` |  |
-| dashboard.ingress.className | string | `""` |  |
-| dashboard.ingress.enabled | bool | `false` |  |
-| dashboard.ingress.hosts[0].host | string | `"chart-example.local"` |  |
-| dashboard.ingress.hosts[0].paths[0].path | string | `"/"` |  |
-| dashboard.ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
-| dashboard.ingress.tls | list | `[]` |  |
-| dashboard.lifecycle | object | `{}` |  |
-| dashboard.livenessProbe.httpGet.path | string | `"/"` |  |
-| dashboard.livenessProbe.httpGet.port | string | `"http"` |  |
-| dashboard.livenessProbe.periodSeconds | int | `5` |  |
-| dashboard.nodeSelector | object | `{}` |  |
-| dashboard.podAnnotations | object | `{}` |  |
-| dashboard.podCommand.args | list | `[]` |  |
-| dashboard.podSecurityContext | object | `{}` |  |
-| dashboard.readinessProbe.httpGet.path | string | `"/"` |  |
-| dashboard.readinessProbe.httpGet.port | string | `"http"` |  |
-| dashboard.readinessProbe.initialDelaySeconds | int | `5` |  |
-| dashboard.readinessProbe.periodSeconds | int | `5` |  |
-| dashboard.replicaCount | int | `1` |  |
-| dashboard.resources | object | `{}` |  |
-| dashboard.securityContext | object | `{}` |  |
-| dashboard.service.name | string | `"http"` |  |
-| dashboard.service.port | int | `80` |  |
-| dashboard.service.type | string | `"ClusterIP"` |  |
-| dashboard.service.externalIPs | list | `[]` |  |
-| dashboard.service.annotations | object | `{}` |  |
-| dashboard.serviceAccount.annotations | object | `{}` |  |
-| dashboard.serviceAccount.create | bool | `true` |  |
-| dashboard.serviceAccount.name | string | `""` |  |
-| dashboard.tolerations | list | `[]` |  |
-| extraManifests | object | `{}` |  |
-| fullnameOverride | string | `""` |  |
-| global.namespace | string | `""` |  |
-| management.volumeMounts | list | `[]` |  |
-| management.volumes | list | `[]` |  |
-| management.affinity | object | `{}` |  |
-| management.configmap | string | `""` |  |
-| management.containerPort | int | `80` |  |
-| management.deploymentAnnotations | object | `{}` |  |
-| management.enabled | bool | `true` |  |
-| management.env | object | `{}` |  |
-| management.envFromSecret | object | `{}` |  |
-| management.envRaw | list | `[]` |  |
-| management.grpcContainerPort | int | `33073` |  |
-| management.image.pullPolicy | string | `"IfNotPresent"` |  |
-| management.image.repository | string | `"netbirdio/management"` |  |
-| management.image.tag | string | `""` |  |
-| management.imagePullSecrets | list | `[]` |  |
-| management.ingress.annotations | object | `{}` |  |
-| management.ingress.className | string | `""` |  |
-| management.ingress.enabled | bool | `false` |  |
-| management.ingress.hosts[0].host | string | `"example.com"` |  |
-| management.ingress.hosts[0].paths[0].path | string | `"/"` |  |
-| management.ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
-| management.ingress.tls | list | `[]` |  |
-| management.ingressGrpc.annotations | object | `{}` |  |
-| management.ingressGrpc.className | string | `""` |  |
-| management.ingressGrpc.enabled | bool | `false` |  |
-| management.ingressGrpc.hosts[0].host | string | `"example.com"` |  |
-| management.ingressGrpc.hosts[0].paths[0].path | string | `"/"` |  |
-| management.ingressGrpc.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
-| management.ingressGrpc.tls | list | `[]` |  |
-| management.lifecycle | object | `{}` |  |
-| management.livenessProbe.failureThreshold | int | `3` |  |
-| management.livenessProbe.initialDelaySeconds | int | `15` |  |
-| management.livenessProbe.periodSeconds | int | `10` |  |
-| management.livenessProbe.tcpSocket.port | string | `"http"` |  |
-| management.livenessProbe.timeoutSeconds | int | `3` |  |
-| management.metrics.enabled | bool | `false` |  |
-| management.metrics.port | int | `9090` |  |
-| management.nodeSelector | object | `{}` |  |
-| management.persistentVolume.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| management.persistentVolume.enabled | bool | `true` |  |
-| management.persistentVolume.existingPVName | string | `""` |  |
-| management.persistentVolume.size | string | `"10Mi"` |  |
-| management.persistentVolume.storageClass | string | `nil` |  |
-| management.podAnnotations | object | `{}` |  |
-| management.podCommand.args[0] | string | `"--port=80"` |  |
-| management.podCommand.args[1] | string | `"--log-file=console"` |  |
-| management.podCommand.args[2] | string | `"--log-level=info"` |  |
-| management.podCommand.args[3] | string | `"--disable-anonymous-metrics=false"` |  |
-| management.podCommand.args[4] | string | `"--single-account-mode-domain=netbird.selfhosted"` |  |
-| management.podCommand.args[5] | string | `"--dns-domain=netbird.selfhosted"` |  |
-| management.podSecurityContext | object | `{}` |  |
-| management.readinessProbe.failureThreshold | int | `3` |  |
-| management.readinessProbe.initialDelaySeconds | int | `15` |  |
-| management.readinessProbe.periodSeconds | int | `10` |  |
-| management.readinessProbe.tcpSocket.port | string | `"http"` |  |
-| management.readinessProbe.timeoutSeconds | int | `3` |  |
-| management.replicaCount | int | `1` |  |
-| management.resources | object | `{}` |  |
-| management.securityContext | object | `{}` |  |
-| management.service.name | string | `"http"` |  |
-| management.service.port | int | `80` |  |
-| management.service.type | string | `"ClusterIP"` |  |
-| management.service.externalIPs | list | `[]` |  |
-| management.service.annotations | object | `{}` |  |
-| management.serviceAccount.annotations | object | `{}` |  |
-| management.serviceAccount.create | bool | `true` |  |
-| management.serviceAccount.name | string | `""` |  |
-| management.serviceGrpc.name | string | `"grpc"` |  |
-| management.serviceGrpc.port | int | `33073` |  |
-| management.serviceGrpc.type | string | `"ClusterIP"` |  |
-| management.serviceGrpc.externalIPs | list | `[]` |  |
-| management.serviceGrpc.annotations | object | `{}` |  |
-| management.tolerations | list | `[]` |  |
-| management.useBackwardsGrpcService | bool | `false` |  |
-| metrics.serviceMonitor.annotations | object | `{}` |  |
-| metrics.serviceMonitor.enabled | bool | `false` |  |
-| metrics.serviceMonitor.honorLabels | bool | `false` |  |
-| metrics.serviceMonitor.interval | string | `""` |  |
-| metrics.serviceMonitor.jobLabel | string | `""` |  |
-| metrics.serviceMonitor.labels | object | `{}` |  |
-| metrics.serviceMonitor.metricRelabelings | list | `[]` |  |
-| metrics.serviceMonitor.namespace | string | `""` |  |
-| metrics.serviceMonitor.relabelings | list | `[]` |  |
-| metrics.serviceMonitor.scrapeTimeout | string | `""` |  |
-| metrics.serviceMonitor.selector | object | `{}` |  |
-| nameOverride | string | `""` |  |
-| relay.volumeMounts | list | `[]` |  |
-| relay.volumes | list | `[]` |  |
-| relay.affinity | object | `{}` |  |
-| relay.containerPort | int | `33080` |  |
-| relay.deploymentAnnotations | object | `{}` |  |
-| relay.enabled | bool | `true` |  |
-| relay.env | object | `{}` |  |
-| relay.envFromSecret | object | `{}` |  |
-| relay.envRaw | list | `[]` |  |
-| relay.image.pullPolicy | string | `"IfNotPresent"` |  |
-| relay.image.repository | string | `"netbirdio/relay"` |  |
-| relay.image.tag | string | `""` |  |
-| relay.imagePullSecrets | list | `[]` |  |
-| relay.ingress.annotations | object | `{}` |  |
-| relay.ingress.className | string | `""` |  |
-| relay.ingress.enabled | bool | `false` |  |
-| relay.ingress.hosts[0].host | string | `"example.com"` |  |
-| relay.ingress.hosts[0].paths[0].path | string | `"/relay"` |  |
-| relay.ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
-| relay.ingress.tls | list | `[]` |  |
-| relay.livenessProbe.initialDelaySeconds | int | `5` |  |
-| relay.livenessProbe.periodSeconds | int | `5` |  |
-| relay.livenessProbe.tcpSocket.port | string | `"http"` |  |
-| relay.logLevel | string | `"info"` |  |
-| relay.metrics.enabled | bool | `false` |  |
-| relay.metrics.port | int | `9090` |  |
-| relay.nodeSelector | object | `{}` |  |
-| relay.podAnnotations | object | `{}` |  |
-| relay.podSecurityContext | object | `{}` |  |
-| relay.readinessProbe.initialDelaySeconds | int | `5` |  |
-| relay.readinessProbe.periodSeconds | int | `5` |  |
-| relay.readinessProbe.tcpSocket.port | string | `"http"` |  |
-| relay.replicaCount | int | `1` |  |
-| relay.resources | object | `{}` |  |
-| relay.securityContext | object | `{}` |  |
-| relay.service.name | string | `"http"` |  |
-| relay.service.port | int | `33080` |  |
-| relay.service.type | string | `"ClusterIP"` |  |
-| relay.service.externalIPs | list | `[]` |  |
-| relay.service.annotations | object | `{}` |  |
-| relay.serviceAccount.annotations | object | `{}` |  |
-| relay.serviceAccount.create | bool | `true` |  |
-| relay.serviceAccount.name | string | `""` |  |
-| relay.tolerations | list | `[]` |  |
-| signal.volumeMounts | list | `[]` |  |
-| signal.volumes | list | `[]` |  |
-| signal.affinity | object | `{}` |  |
-| signal.containerPort | int | `80` |  |
-| signal.deploymentAnnotations | object | `{}` |  |
-| signal.enabled | bool | `true` |  |
-| signal.image.pullPolicy | string | `"IfNotPresent"` |  |
-| signal.image.repository | string | `"netbirdio/signal"` |  |
-| signal.image.tag | string | `""` |  |
-| signal.imagePullSecrets | list | `[]` |  |
-| signal.ingress.annotations | object | `{}` |  |
-| signal.ingress.className | string | `""` |  |
-| signal.ingress.enabled | bool | `false` |  |
-| signal.ingress.hosts[0].host | string | `"example.com"` |  |
-| signal.ingress.hosts[0].paths[0].path | string | `"/signalexchange.SignalExchange"` |  |
-| signal.ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
-| signal.ingress.tls | list | `[]` |  |
-| signal.livenessProbe.initialDelaySeconds | int | `5` |  |
-| signal.livenessProbe.periodSeconds | int | `5` |  |
-| signal.livenessProbe.tcpSocket.port | string | `"grpc"` |  |
-| signal.logLevel | string | `"info"` |  |
-| signal.metrics.enabled | bool | `false` |  |
-| signal.metrics.port | int | `9090` |  |
-| signal.nodeSelector | object | `{}` |  |
-| signal.podAnnotations | object | `{}` |  |
-| signal.podSecurityContext | object | `{}` |  |
-| signal.readinessProbe.initialDelaySeconds | int | `5` |  |
-| signal.readinessProbe.periodSeconds | int | `5` |  |
-| signal.readinessProbe.tcpSocket.port | string | `"grpc"` |  |
-| signal.replicaCount | int | `1` |  |
-| signal.resources | object | `{}` |  |
-| signal.securityContext | object | `{}` |  |
-| signal.service.name | string | `"grpc"` |  |
-| signal.service.port | int | `80` |  |
-| signal.service.type | string | `"ClusterIP"` |  |
-| signal.service.externalIPs | list | `[]` |  |
-| signal.service.annotations | object | `{}` |  |
-| signal.serviceAccount.annotations | object | `{}` |  |
-| signal.serviceAccount.create | bool | `true` |  |
-| signal.serviceAccount.name | string | `""` |  |
-| signal.tolerations | list | `[]` |  |
-
-For more configuration options, refer to the [values.yaml](./values.yaml) file.
-
-You can find working [examples](./examples).
-
-## STUN/TURN Server
-
-If you need to deploy a High Available stun/turn server, please refer to this [blog](https://medium.com/l7mp-technologies/deploying-a-scalable-stun-service-in-kubernetes-c7b9726fa41d)
-
-## Contributing
-
-We welcome contributions to improve this chart! Please submit a pull request to the GitHub repository with any changes or suggestions.
+Version 2.0 is a clean values cutover. The top-level `management`, `signal`, and `relay` trees were replaced by `backend.mode`, `backend.combined`, and `backend.split`. Dashboard Kubernetes settings now use the same nested `image`, `pod`, and `container` layout as backend components. No compatibility aliases are rendered.
