@@ -38,6 +38,16 @@ tasks:
     cmds:
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} {{.CLI_ARGS}}
 
+  chart:verify:
+    desc: Lint and render the supported NetBird backend modes
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+    cmds:
+      - helm lint {{.CHART_DIR}}
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --set backend.mode=split >/dev/null
+
   cluster:create:
     desc: Create the dedicated kind cluster
     preconditions:
@@ -165,6 +175,8 @@ tasks:
     cmds:
       - echo "Dashboard  https://{{.DASHBOARD_HOST}}"
       - echo "API        https://{{.LOCAL_HOST}}/api"
+      - echo "User       admin@netbird.local"
+      - echo "Password   Netbird1!"
 
   dev:down:
     desc: Delete the development kind cluster
