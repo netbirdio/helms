@@ -1,8 +1,6 @@
 fullnameOverride: netbird
 
 dashboard:
-  image:
-    tag: v2.91.1
   config:
     api:
       httpEndpoint: https://netbird.localhost
@@ -34,56 +32,72 @@ dashboard:
           - dashboard.netbird.localhost
 
 backend:
-  mode: combined
-  combined:
-    image:
-      tag: 0.77.0
-    config:
-      exposedAddress: https://netbird.localhost:443
-      stunPorts:
-        - 3478
-      auth:
-        secret: netbird-development-relay-secret
-        issuer: https://netbird.localhost/oauth2
-        sessionCookieEncryptionKey: 0123456789abcdef0123456789abcdef
-        dashboardRedirectURIs:
-          - https://dashboard.netbird.localhost/nb-auth
-          - https://dashboard.netbird.localhost/nb-silent-auth
-        dashboardPostLogoutRedirectURIs:
-          - https://dashboard.netbird.localhost/
-        owner:
-          email: admin@netbird.local
-          password: Netbird1!
-      store:
-        default:
-          encryptionKey: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-      reverseProxy:
-        trustedHTTPProxiesCount: 1
-    ingress:
-      http:
-        enabled: true
-        className: nginx
-        annotations:
-          nginx.ingress.kubernetes.io/ssl-redirect: "true"
-          nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-          nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-        hosts:
-          - host: netbird.localhost
-            paths:
-              - path: /api
-                pathType: ImplementationSpecific
-              - path: /oauth2
-                pathType: ImplementationSpecific
-              - path: /relay
-                pathType: ImplementationSpecific
-              - path: /ws-proxy
-                pathType: ImplementationSpecific
-        tls:
-          - secretName: netbird-local-tls
-            hosts:
-              - netbird.localhost
-              - dashboard.netbird.localhost
-      grpc:
+  split:
+    management:
+      config:
+        relay:
+          addresses:
+            - rels://netbird.localhost:443/relay
+        signal:
+          proto: https
+          uri: netbird.localhost:443
+        dataStoreEncryptionKey: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+        embeddedIdp:
+          issuer: https://netbird.localhost/oauth2
+          sessionCookieEncryptionKey: 0123456789abcdef0123456789abcdef
+          dashboardRedirectURIs:
+            - https://dashboard.netbird.localhost/nb-auth
+            - https://dashboard.netbird.localhost/nb-silent-auth
+          dashboardPostLogoutRedirectURIs:
+            - https://dashboard.netbird.localhost/
+          owner:
+            email: admin@netbird.local
+            password: Netbird1!
+        reverseProxy:
+          trustedHTTPProxiesCount: 1
+      ingress:
+        http:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+            nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          hosts:
+            - host: netbird.localhost
+              paths:
+                - path: /api
+                  pathType: ImplementationSpecific
+                - path: /oauth2
+                  pathType: ImplementationSpecific
+          tls:
+            - secretName: netbird-local-tls
+              hosts:
+                - netbird.localhost
+                - dashboard.netbird.localhost
+        grpc:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/backend-protocol: GRPC
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+            nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          hosts:
+            - host: netbird.localhost
+              paths:
+                - path: /management.ManagementService
+                  pathType: ImplementationSpecific
+                - path: /management.ProxyService
+                  pathType: ImplementationSpecific
+          tls:
+            - secretName: netbird-local-tls
+              hosts:
+                - netbird.localhost
+                - dashboard.netbird.localhost
+
+    signal:
+      ingress:
         enabled: true
         className: nginx
         annotations:
@@ -94,11 +108,29 @@ backend:
         hosts:
           - host: netbird.localhost
             paths:
-              - path: /management.ManagementService
-                pathType: ImplementationSpecific
-              - path: /management.ProxyService
-                pathType: ImplementationSpecific
               - path: /signalexchange.SignalExchange
+                pathType: ImplementationSpecific
+        tls:
+          - secretName: netbird-local-tls
+            hosts:
+              - netbird.localhost
+              - dashboard.netbird.localhost
+
+    relay:
+      config:
+        exposedAddress: rels://netbird.localhost:443/relay
+        authSecret: netbird-development-relay-secret
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+          nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+        hosts:
+          - host: netbird.localhost
+            paths:
+              - path: /relay
                 pathType: ImplementationSpecific
         tls:
           - secretName: netbird-local-tls

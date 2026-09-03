@@ -92,202 +92,6 @@ dashboard:
     tls: []
 
 backend:
-  # combined runs management, signal, relay, and STUN in one process. split runs
-  # each service independently.
-  mode: combined
-
-  combined:
-    replicaCount: 1
-
-    image:
-      repository: netbirdio/netbird-server
-      tag: 0.77.0
-      pullPolicy: IfNotPresent
-      pullSecrets: []
-
-    serviceAccount:
-      create: true
-      annotations: {}
-      name: ""
-
-    deployment:
-      annotations: {}
-
-    pod:
-      annotations: {}
-      securityContext: {}
-
-    container:
-      port: 80
-      cmd:
-        command: []
-        args: []
-      securityContext: {}
-
-    resources: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-
-    env: {}
-    envRaw: []
-    envFromSecret: {}
-    lifecycle: {}
-
-    livenessProbe:
-      initialDelaySeconds: 5
-      periodSeconds: 10
-      tcpSocket:
-        port: http
-
-    readinessProbe:
-      initialDelaySeconds: 5
-      periodSeconds: 5
-      tcpSocket:
-        port: http
-
-    volumeMounts: []
-    volumes: []
-
-    service:
-      type: ClusterIP
-      port: 80
-      annotations: {}
-      externalIPs: []
-
-    # Kubernetes Ingress does not expose UDP. Enable this service when clients
-    # should use the embedded STUN server and select a suitable service type.
-    stunService:
-      enabled: false
-      type: LoadBalancer
-      annotations: {}
-      externalIPs: []
-      loadBalancerIP: ""
-      externalTrafficPolicy: Cluster
-
-    persistence:
-      enabled: true
-      mountPath: /var/lib/netbird
-      accessModes:
-        - ReadWriteOnce
-      size: 1Gi
-      storageClass: ""
-      existingClaim: ""
-      annotations: {}
-
-    config:
-      exposedAddress: https://netbird.example.com:443
-      stunPorts:
-        - 3478
-
-      metrics:
-        enabled: false
-        port: 9090
-
-      health:
-        enabled: true
-        port: 9000
-
-      log:
-        level: info
-        file: console
-
-      dataDir: /var/lib/netbird
-      disableAnonymousMetrics: false
-      disableGeoliteUpdate: false
-
-      # External service settings disable the corresponding embedded service.
-      stuns: []
-      relays:
-        addresses: []
-        credentialsTTL: 12h
-        secret: ""
-      signalURI: ""
-
-      store:
-        # Defaults are inherited by netbird, auth, and activity unless overridden.
-        default:
-          engine: sqlite
-          dsn: ""
-          file: ""
-          # Base64-encoded 32-byte AES key. Generated when empty.
-          encryptionKey: ""
-        netbird: {}
-        auth: {}
-        activity: {}
-
-      auth:
-        # Empty secrets are generated and retained in a Kubernetes Secret.
-        secret: ""
-        issuer: https://netbird.example.com/oauth2
-        localAuthDisabled: false
-        signKeyRefreshEnabled: true
-        mfaSessionMaxLifetime: ""
-        mfaSessionIdleTimeout: ""
-        mfaSessionRememberMe: false
-        sessionCookieEncryptionKey: ""
-        dashboardRedirectURIs:
-          - https://dashboard.netbird.example.com/nb-auth
-          - https://dashboard.netbird.example.com/nb-silent-auth
-        cliRedirectURIs:
-          - http://localhost:53000/
-          - http://localhost:54000/
-        dashboardPostLogoutRedirectURIs:
-          - https://dashboard.netbird.example.com/
-        grantTypes: []
-        owner:
-          email: ""
-          password: ""
-
-      reverseProxy:
-        trustedHTTPProxies: []
-        trustedHTTPProxiesCount: 0
-        trustedPeers: []
-        accessLogRetentionDays: 0
-        accessLogCleanupIntervalHours: 0
-
-      supportedSyncMessageVersions: null
-      perAccountSupportedSyncMessageVersions: {}
-
-      agentNetwork:
-        pricingDefaultsFile: ""
-
-    # When set, this is mounted verbatim and config above is ignored. Secrets in
-    # an override must be supplied by the override or through env/envFromSecret.
-    overrideConfig: ""
-
-    ingress:
-      http:
-        enabled: false
-        className: ""
-        annotations: {}
-        hosts:
-          - host: netbird.example.com
-            paths:
-              - path: /api
-                pathType: ImplementationSpecific
-              - path: /oauth2
-                pathType: ImplementationSpecific
-              - path: /relay
-                pathType: ImplementationSpecific
-              - path: /ws-proxy
-                pathType: ImplementationSpecific
-        tls: []
-      grpc:
-        enabled: false
-        className: ""
-        annotations: {}
-        hosts:
-          - host: netbird.example.com
-            paths:
-              - path: /management.ManagementService
-                pathType: ImplementationSpecific
-              - path: /management.ProxyService
-                pathType: ImplementationSpecific
-              - path: /signalexchange.SignalExchange
-                pathType: ImplementationSpecific
-        tls: []
-
   split:
     management:
       replicaCount: 1
@@ -429,6 +233,7 @@ backend:
             password: ""
             username: ""
         agentNetwork:
+          # Effective on NetBird 0.77.0+; ignored by 0.74.0.
           pricingDefaultsFile: ""
 
       overrideConfig: ""
@@ -509,9 +314,9 @@ backend:
         certKey: ""
         logLevel: info
         logFile: console
+        # Effective on NetBird 0.77.0+; ignored by 0.74.0.
         pprofAddress: ""
 
-      overrideConfig: ""
 
       livenessProbe:
         initialDelaySeconds: 5
@@ -595,6 +400,7 @@ backend:
         health:
           enabled: true
           port: 9000
+        # Effective on NetBird 0.77.0+; ignored by 0.74.0.
         trustedProxies: ""
         letsencrypt:
           email: ""
@@ -610,7 +416,6 @@ backend:
             - 3478
           logLevel: info
 
-      overrideConfig: ""
 
       livenessProbe:
         initialDelaySeconds: 5

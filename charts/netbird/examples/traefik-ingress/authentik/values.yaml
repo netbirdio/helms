@@ -15,7 +15,6 @@ dashboard:
     AUTH_AUDIENCE: netbird/idpClientID
 
 backend:
-  mode: split
   split:
     management:
       envFromSecret:

@@ -1,4 +1,4 @@
-{{- if and (eq .Values.backend.mode "split") .Values.backend.split.signal.ingress.enabled }}
+{{- if .Values.backend.split.signal.ingress.enabled }}
 {{- $ingress := .Values.backend.split.signal.ingress -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "signal") -}}
 apiVersion: networking.k8s.io/v1

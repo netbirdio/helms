@@ -39,14 +39,25 @@ tasks:
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} {{.CLI_ARGS}}
 
   chart:verify:
-    desc: Lint and render the supported NetBird backend modes
+    desc: Lint and render the supported NetBird backend boundaries
     preconditions:
       - sh: command -v helm
         msg: helm is required
     cmds:
-      - helm lint {{.CHART_DIR}}
+      - helm lint --strict {{.CHART_DIR}}
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} >/dev/null
+      - >-
+        helm template {{.RELEASE_NAME}} {{.CHART_DIR}}
+        --namespace {{.NAMESPACE}}
+        --set backend.split.management.image.tag=0.74.0
+        --set backend.split.signal.image.tag=0.74.0
+        --set backend.split.relay.image.tag=0.74.0
+        >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
-      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --set backend.mode=split >/dev/null
+      - |
+        for values in charts/netbird/examples/nginx-ingress/auth0/values.yaml charts/netbird/examples/nginx-ingress/authentik/values.yaml charts/netbird/examples/nginx-ingress/google/values.yaml charts/netbird/examples/nginx-ingress/okta/values.yaml charts/netbird/examples/traefik-ingress/authentik/values.yaml charts/netbird/examples/istio/zitadel/values.yaml; do
+          helm template netbird charts/netbird --namespace netbird --values "$values" >/dev/null
+        done
 
   cluster:create:
     desc: Create the dedicated kind cluster
@@ -81,8 +92,7 @@ tasks:
       - >-
         kubectl --context {{.KUBE_CONTEXT}}
         --namespace ingress-nginx
-        wait deployment/ingress-nginx-controller
-        --for condition=Available
+        rollout status deployment/ingress-nginx-controller
         --timeout 2m
 
   local:certificate:

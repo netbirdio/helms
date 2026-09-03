@@ -16,7 +16,6 @@ dashboard:
     AUTH_CLIENT_SECRET: netbird/idpClientSecret
 
 backend:
-  mode: split
   split:
     management:
       envFromSecret:

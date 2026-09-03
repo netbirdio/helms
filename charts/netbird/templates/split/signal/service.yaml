@@ -1,4 +1,3 @@
-{{- if eq .Values.backend.mode "split" }}
 {{- $values := .Values.backend.split.signal -}}
 apiVersion: v1
 kind: Service
@@ -30,4 +29,3 @@ spec:
   externalIPs:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- end }}

@@ -1,4 +1,4 @@
-{{- if and (eq .Values.backend.mode "split") .Values.backend.split.management.persistence.enabled (not .Values.backend.split.management.persistence.existingClaim) }}
+{{- if and .Values.backend.split.management.persistence.enabled (not .Values.backend.split.management.persistence.existingClaim) }}
 {{- $values := .Values.backend.split.management -}}
 apiVersion: v1
 kind: PersistentVolumeClaim

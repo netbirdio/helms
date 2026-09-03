@@ -1,4 +1,3 @@
-{{- if eq .Values.backend.mode "split" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,4 +8,3 @@ metadata:
 data:
   management.json: |-
     {{- include "netbird.managementConfig" . | nindent 4 }}
-{{- end }}

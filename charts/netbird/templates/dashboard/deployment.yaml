@@ -1,4 +1,3 @@
-{{- include "netbird.validate" . -}}
 {{- $values := .Values.dashboard -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "dashboard") -}}
 apiVersion: apps/v1

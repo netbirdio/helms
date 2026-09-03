@@ -1,4 +1,4 @@
-{{- if and (eq .Values.backend.mode "split") .Values.backend.split.management.ingress.grpc.enabled }}
+{{- if .Values.backend.split.management.ingress.grpc.enabled }}
 {{- $ingress := .Values.backend.split.management.ingress.grpc -}}
 {{- $serviceName := include "netbird.componentName" (dict "root" . "component" "management") -}}
 apiVersion: networking.k8s.io/v1

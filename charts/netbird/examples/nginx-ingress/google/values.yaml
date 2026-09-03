@@ -32,7 +32,6 @@ dashboard:
           - netbird-dashboard.example.com
 
 backend:
-  mode: split
   split:
     management:
       container:

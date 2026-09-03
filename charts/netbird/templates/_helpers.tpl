@@ -24,13 +24,6 @@
 {{- default .Release.Namespace .Values.global.namespace -}}
 {{- end -}}
 
-{{/* Validate the clean-cutover backend selector once from an always-rendered resource. */}}
-{{- define "netbird.validate" -}}
-{{- if not (has .Values.backend.mode (list "combined" "split")) -}}
-{{- fail "backend.mode must be either combined or split" -}}
-{{- end -}}
-{{- end -}}
-
 {{/* Generic component metadata. Context: root, component. */}}
 {{- define "netbird.componentName" -}}
 {{- printf "%s-%s" (include "netbird.fullname" .root) .component | trunc 63 | trimSuffix "-" -}}
@@ -98,7 +91,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
-{{/* The branch's combined owner field currently consumes a bcrypt hash. */}}
+{{/* The split management embedded-IDP owner field consumes a bcrypt hash. */}}
 {{- define "netbird.passwordHash" -}}
 {{- $password := toString (default "" .password) -}}
 {{- if $password -}}
