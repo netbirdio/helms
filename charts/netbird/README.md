@@ -13,9 +13,11 @@ Focused guides: [installation](docs/installation.md), [configuration and secrets
 
 ## Version compatibility
 
-Chart `2.0.0` is tested with NetBird management, signal, and relay images from `0.74.0` through `0.77.0`. The chart defaults all three backend images to `0.77.0`.
+| Chart | Tested backend versions | Default backend | Dashboard |
+| --- | --- | --- | --- |
+| `2.0.0` | `0.74.0`–`0.77.0` | `0.77.0` | `v2.91.1` |
 
-The dashboard has an independent compatibility pin: `netbirdio/dashboard:v2.91.1`. Do not derive or replace its tag from the chart `appVersion`.
+Backend versions apply to the management, signal, and relay images. The dashboard has an independent compatibility pin and is not derived from the chart `appVersion`.
 
 ## Install
 
