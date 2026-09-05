@@ -51,6 +51,51 @@ envFromSecret:
 
 For the dashboard, `dashboard.env` overrides environment values generated from `dashboard.config`. Prefer `dashboard.config` for supported fields.
 
+## Typed Secret references
+
+Each secret-bearing field in the chart's default typed values has an adjacent `*Ref` alternative. A reference selects one key from a Secret in the release namespace:
+
+```yaml
+dashboard:
+  config:
+    auth:
+      clientSecretRef:
+        name: netbird-external-credentials
+        key: dashboard-client-secret
+
+backend:
+  split:
+    management:
+      config:
+        dataStoreEncryptionKeyRef:
+          name: netbird-external-credentials
+          key: datastore-encryption-key
+    relay:
+      config:
+        authSecretRef:
+          name: netbird-external-credentials
+          key: relay-auth-secret
+```
+
+Set either the literal value or its reference, never both. Helm rejects references without both `name` and `key`. The chart passes referenced management values through Secret-backed environment variables and expands them into `management.json` only inside the management process; the referenced data is not copied into a rendered ConfigMap or chart-managed Secret.
+
+| Literal value | Secret reference |
+| --- | --- |
+| `dashboard.config.auth.clientSecret` | `dashboard.config.auth.clientSecretRef` |
+| `backend.split.management.config.stuns[].password` | `backend.split.management.config.stuns[].passwordRef` |
+| `backend.split.management.config.turnConfig.turns[].password` | `backend.split.management.config.turnConfig.turns[].passwordRef` |
+| `backend.split.management.config.turnConfig.secret` | `backend.split.management.config.turnConfig.secretRef` |
+| `backend.split.management.config.signal.password` | `backend.split.management.config.signal.passwordRef` |
+| `backend.split.management.config.dataStoreEncryptionKey` | `backend.split.management.config.dataStoreEncryptionKeyRef` |
+| `backend.split.management.config.embeddedIdp.storage.config.dsn` | `backend.split.management.config.embeddedIdp.storage.config.dsnRef` |
+| `backend.split.management.config.embeddedIdp.sessionCookieEncryptionKey` | `backend.split.management.config.embeddedIdp.sessionCookieEncryptionKeyRef` |
+| `backend.split.management.config.embeddedIdp.owner.password` | `backend.split.management.config.embeddedIdp.owner.passwordRef` |
+| `backend.split.relay.config.authSecret` | `backend.split.relay.config.authSecretRef` |
+
+The initial-owner `passwordRef` must contain the bcrypt hash consumed by management, not plaintext. Inline `owner.password` remains a convenience input that Helm hashes. Management always receives the relay reference configured under `backend.split.relay.config`, so management and relay cannot drift to different authentication secrets.
+
+Changing the data in an external Secret does not change the rendered Pod template. Restart the affected Deployment, or use a Secret-reload controller, after rotating an externally managed value.
+
 ## Chart-managed credentials
 
 The chart manages two Secret identities:
@@ -65,11 +110,11 @@ The chart manages two Secret identities:
 
 Management and relay both read the same `relay-auth-secret`, keeping advertised credentials aligned with relay runtime authentication.
 
-When a value is empty, Helm generates it during installation and reuses the existing Secret value during upgrades through `lookup`. Set explicit values when rendering through a GitOps system that cannot query the destination cluster.
+When an inline chart-managed value is empty and no reference is configured, Helm generates it during installation and reuses the existing Secret value during upgrades through `lookup`. A configured reference is used directly, and the corresponding key is omitted from the chart-managed Secret. If every key for one of the chart-managed Secrets is external, that Secret is not rendered. Set explicit inline values when rendering through a GitOps system that cannot query the destination cluster.
 
 A configured datastore encryption key must be a base64-encoded 32-byte value. Do not rotate datastore or session-cookie keys without planning for data and sessions encrypted by the old key.
 
-The initial-owner password is plaintext in Helm input and release values. Only its bcrypt hash is written to the workload Secret. The owner is seeded when the embedded identity-provider database is first created; changing the value later does not reset that account.
+The inline initial-owner password is plaintext in Helm input and release values. Only its bcrypt hash is written to the workload Secret. `owner.passwordRef` instead references a precomputed bcrypt hash, keeping the plaintext out of Helm values. The owner is seeded when the embedded identity-provider database is first created; changing either value later does not reset that account.
 
 ## Management raw configuration override
 

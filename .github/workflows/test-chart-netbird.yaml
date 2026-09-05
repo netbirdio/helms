@@ -33,6 +33,9 @@ jobs:
       - name: Lint Helm chart
         run: helm lint --strict ./charts/netbird
 
+      - name: Render external Secret references
+        run: helm template test-chart ./charts/netbird --namespace netbird --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
+
       - name: Test minimum-to-default backend upgrade
         shell: bash
         run: |

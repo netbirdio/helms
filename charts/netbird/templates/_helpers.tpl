@@ -76,6 +76,31 @@ app.kubernetes.io/component: {{ .component }}
 {{- end }}
 {{- end -}}
 
+{{/* Validate an optional Secret key selector. Context: ref, value, path. */}}
+{{- define "netbird.validateSecretRef" -}}
+{{- with .ref -}}
+{{- if not (kindIs "map" .) -}}
+{{- fail (printf "%s must be an object with name and key" $.path) -}}
+{{- end -}}
+{{- if not (get . "name") -}}
+{{- fail (printf "%s.name is required" $.path) -}}
+{{- end -}}
+{{- if not (get . "key") -}}
+{{- fail (printf "%s.key is required" $.path) -}}
+{{- end -}}
+{{- if not (empty $.value) -}}
+{{- fail (printf "%s and %s are mutually exclusive" (trimSuffix "Ref" $.path) $.path) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Render a validated Secret key selector. Context: ref, value, path. */}}
+{{- define "netbird.secretKeyRef" -}}
+{{- include "netbird.validateSecretRef" . -}}
+name: {{ get .ref "name" | quote }}
+key: {{ get .ref "key" | quote }}
+{{- end -}}
+
 {{/* Preserve generated credentials across upgrades unless a value is configured. */}}
 {{- define "netbird.persistedSecret" -}}
 {{- $configured := toString (default "" .value) -}}

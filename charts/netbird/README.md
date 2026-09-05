@@ -103,14 +103,28 @@ Provider-specific examples under `examples/nginx-ingress`, `examples/traefik-ing
 
 ## Secrets
 
-The chart stores generated sensitive values in Kubernetes Secrets rather than ConfigMaps:
+Sensitive typed values accept either an inline value or an adjacent `*Ref` selector:
+
+```yaml
+backend:
+  split:
+    relay:
+      config:
+        authSecretRef:
+          name: netbird-external-credentials
+          key: relay-auth-secret
+```
+
+References select a Secret key in the release namespace and are mutually exclusive with the corresponding inline value. Management expands referenced values into its JSON at process start, so their data is not copied into the management ConfigMap. See [configuration and secrets](docs/configuration.md) for every supported pair, including dashboard client credentials, TURN/STUN credentials, datastore and embedded-IdP values, and the initial owner hash.
+
+Without references, the chart stores generated sensitive values in Kubernetes Secrets:
 
 - `<fullname>-management-credentials`: datastore encryption key, embedded IdP session-cookie encryption key, and optional initial-owner password hash
 - `<fullname>-relay-credentials`: relay authentication secret used by both management and relay
 
-Empty relay, datastore, and session-cookie secrets are generated on install and retained on upgrade with Helm's `lookup`. Set them explicitly for GitOps renderers that cannot query the target cluster.
+Empty relay, datastore, and session-cookie values are generated on install and retained on upgrade with Helm's `lookup`. Referenced keys are omitted; a chart-managed Secret with no remaining keys is not rendered.
 
-`backend.split.management.config.embeddedIdp.owner.password` is a plaintext Helm input. The chart stores only its bcrypt hash in the workload Secret, but the plaintext remains in Helm release values. The owner is seeded only when the embedded IdP database is first created; changing the value later does not reset that account.
+Inline `backend.split.management.config.embeddedIdp.owner.password` is plaintext in Helm input and release values, then stored only as a bcrypt hash in the workload Secret. `owner.passwordRef` must reference a precomputed bcrypt hash. The owner is seeded only when the embedded IdP database is first created; changing either value later does not reset that account.
 
 ## Environment values
 

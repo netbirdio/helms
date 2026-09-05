@@ -39,7 +39,7 @@ tasks:
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} {{.CLI_ARGS}}
 
   chart:verify:
-    desc: Lint and render the supported NetBird backend boundaries
+    desc: Lint and render supported NetBird chart configurations
     preconditions:
       - sh: command -v helm
         msg: helm is required
@@ -53,6 +53,7 @@ tasks:
         --set backend.split.signal.image.tag=0.74.0
         --set backend.split.relay.image.tag=0.74.0
         >/dev/null
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
       - |
         for values in charts/netbird/examples/nginx-ingress/auth0/values.yaml charts/netbird/examples/nginx-ingress/authentik/values.yaml charts/netbird/examples/nginx-ingress/google/values.yaml charts/netbird/examples/nginx-ingress/okta/values.yaml charts/netbird/examples/traefik-ingress/authentik/values.yaml charts/netbird/examples/istio/zitadel/values.yaml; do

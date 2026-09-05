@@ -2,6 +2,10 @@
 {{- $name := include "netbird.componentName" (dict "root" . "component" "management") -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
 {{- $relayCredentialsName := printf "%s-credentials" (include "netbird.componentName" (dict "root" . "component" "relay")) -}}
+{{- $dataStoreEncryptionKeyRef := default dict $values.config.dataStoreEncryptionKeyRef -}}
+{{- $sessionCookieEncryptionKeyRef := default dict $values.config.embeddedIdp.sessionCookieEncryptionKeyRef -}}
+{{- $relayValues := .Values.backend.split.relay -}}
+{{- $relayAuthSecretRef := default dict $relayValues.config.authSecretRef -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +26,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print .Template.BasePath "/split/management/configmap.yaml") . | sha256sum }}
-        checksum/credentials: {{ dict "management" $values.config "relay" .Values.backend.split.relay.config.authSecret | toJson | sha256sum }}
+        checksum/credentials: {{ dict "management" $values.config "relay" $relayValues.config | toJson | sha256sum }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -61,24 +65,113 @@ spec:
             - name: NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
+                  {{- if $dataStoreEncryptionKeyRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $dataStoreEncryptionKeyRef
+                    "value" $values.config.dataStoreEncryptionKey
+                    "path" "backend.split.management.config.dataStoreEncryptionKeyRef"
+                  ) | nindent 18 }}
+                  {{- else }}
                   name: {{ $credentialsName }}
                   key: datastore-encryption-key
+                  {{- end }}
             - name: NB_IDP_SESSION_COOKIE_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
+                  {{- if $sessionCookieEncryptionKeyRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $sessionCookieEncryptionKeyRef
+                    "value" $values.config.embeddedIdp.sessionCookieEncryptionKey
+                    "path" "backend.split.management.config.embeddedIdp.sessionCookieEncryptionKeyRef"
+                  ) | nindent 18 }}
+                  {{- else }}
                   name: {{ $credentialsName }}
                   key: idp-session-cookie-encryption-key
+                  {{- end }}
             - name: NB_RELAY_AUTH_SECRET
               valueFrom:
                 secretKeyRef:
+                  {{- if $relayAuthSecretRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $relayAuthSecretRef
+                    "value" $relayValues.config.authSecret
+                    "path" "backend.split.relay.config.authSecretRef"
+                  ) | nindent 18 }}
+                  {{- else }}
                   name: {{ $relayCredentialsName }}
                   key: relay-auth-secret
-            {{- if and $values.config.embeddedIdp.owner.email $values.config.embeddedIdp.owner.password }}
+                  {{- end }}
+            {{- range $index, $stun := $values.config.stuns }}
+            {{- $passwordRef := default dict (get $stun "passwordRef") }}
+            {{- if $passwordRef }}
+            - name: NB_MANAGEMENT_STUN_PASSWORD_{{ $index }}
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $passwordRef
+                    "value" (get $stun "password")
+                    "path" (printf "backend.split.management.config.stuns[%d].passwordRef" $index)
+                  ) | nindent 18 }}
+            {{- end }}
+            {{- end }}
+            {{- with $values.config.turnConfig.secretRef }}
+            - name: NB_MANAGEMENT_TURN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" .
+                    "value" $values.config.turnConfig.secret
+                    "path" "backend.split.management.config.turnConfig.secretRef"
+                  ) | nindent 18 }}
+            {{- end }}
+            {{- range $index, $turn := $values.config.turnConfig.turns }}
+            {{- $passwordRef := default dict (get $turn "passwordRef") }}
+            {{- if $passwordRef }}
+            - name: NB_MANAGEMENT_TURN_PASSWORD_{{ $index }}
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $passwordRef
+                    "value" (get $turn "password")
+                    "path" (printf "backend.split.management.config.turnConfig.turns[%d].passwordRef" $index)
+                  ) | nindent 18 }}
+            {{- end }}
+            {{- end }}
+            {{- with $values.config.signal.passwordRef }}
+            - name: NB_MANAGEMENT_SIGNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" .
+                    "value" $values.config.signal.password
+                    "path" "backend.split.management.config.signal.passwordRef"
+                  ) | nindent 18 }}
+            {{- end }}
+            {{- with $values.config.embeddedIdp.storage.config.dsnRef }}
+            - name: NB_IDP_STORAGE_DSN
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" .
+                    "value" $values.config.embeddedIdp.storage.config.dsn
+                    "path" "backend.split.management.config.embeddedIdp.storage.config.dsnRef"
+                  ) | nindent 18 }}
+            {{- end }}
+            {{- $owner := $values.config.embeddedIdp.owner }}
+            {{- if and $owner.email (or $owner.password $owner.passwordRef) }}
             - name: NB_OWNER_PASSWORD_HASH
               valueFrom:
                 secretKeyRef:
+                  {{- if $owner.passwordRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $owner.passwordRef
+                    "value" $owner.password
+                    "path" "backend.split.management.config.embeddedIdp.owner.passwordRef"
+                  ) | nindent 18 }}
+                  {{- else }}
                   name: {{ $credentialsName }}
                   key: owner-password-hash
+                  {{- end }}
             {{- end }}
             {{- end }}
             {{- include "netbird.env" (dict "values" $values) | nindent 12 }}

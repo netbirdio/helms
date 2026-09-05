@@ -51,6 +51,8 @@ dashboard:
       audience: netbird-dashboard
       clientId: netbird-dashboard
       clientSecret: ""
+      # References a key in a Secret in this release namespace. Mutually exclusive with clientSecret.
+      clientSecretRef: {}
       authority: ""
       useAuth0: false
       supportedScopes: "openid profile email groups"
@@ -176,22 +178,28 @@ backend:
       # Management still uses its established JSON schema. The chart serializes
       # this object and expands secret fields at process start.
       config:
+        # Each entry may set passwordRef instead of password.
         stuns: []
         turnConfig:
+          # Each entry may set passwordRef instead of password.
           turns: []
           credentialsTTL: 12h
           secret: ""
+          # References a key in a Secret in this release namespace. Mutually exclusive with secret.
+          secretRef: {}
           timeBasedCredentials: false
         relay:
           addresses:
             - rels://netbird.example.com:443/relay
           credentialsTTL: 24h
-          secret: ""
+          # Authentication is shared with backend.split.relay.config.authSecret.
         signal:
           proto: https
           uri: netbird.example.com:443
           username: ""
           password: null
+          # References a key in a Secret in this release namespace. Mutually exclusive with password.
+          passwordRef: {}
         reverseProxy:
           trustedHTTPProxies: []
           trustedHTTPProxiesCount: 0
@@ -201,6 +209,8 @@ backend:
         datadir: /var/lib/netbird
         # Base64-encoded 32-byte AES key. Generated when empty.
         dataStoreEncryptionKey: ""
+        # References a key in a Secret in this release namespace. Mutually exclusive with dataStoreEncryptionKey.
+        dataStoreEncryptionKeyRef: {}
         storeConfig:
           engine: sqlite
         idpManagerConfig:
@@ -213,12 +223,16 @@ backend:
             config:
               file: /var/lib/netbird/idp.db
               dsn: ""
+              # References a key in a Secret in this release namespace. Mutually exclusive with dsn.
+              dsnRef: {}
           localAuthDisabled: false
           signKeyRefreshEnabled: true
           mfaSessionMaxLifetime: ""
           mfaSessionIdleTimeout: ""
           mfaSessionRememberMe: false
           sessionCookieEncryptionKey: ""
+          # References a key in a Secret in this release namespace. Mutually exclusive with sessionCookieEncryptionKey.
+          sessionCookieEncryptionKeyRef: {}
           dashboardRedirectURIs:
             - https://dashboard.netbird.example.com/nb-auth
             - https://dashboard.netbird.example.com/nb-silent-auth
@@ -231,6 +245,8 @@ backend:
           owner:
             email: ""
             password: ""
+            # The referenced value must be a bcrypt hash. Mutually exclusive with password.
+            passwordRef: {}
             username: ""
         agentNetwork:
           # Effective on NetBird 0.77.0+; ignored by 0.74.0.
@@ -391,6 +407,8 @@ backend:
       config:
         exposedAddress: rels://netbird.example.com:443/relay
         authSecret: ""
+        # References a key in a Secret in this release namespace. Mutually exclusive with authSecret.
+        authSecretRef: {}
         log:
           level: info
           file: console

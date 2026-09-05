@@ -53,6 +53,36 @@ backend:
         exposedAddress: rels://netbird.example.com:443/relay
 ```
 
+To keep credentials out of Helm values, create or provision a Secret in the release namespace and replace inline sensitive values with their adjacent `*Ref` selectors:
+
+```yaml
+dashboard:
+  config:
+    auth:
+      clientSecretRef:
+        name: netbird-external-credentials
+        key: dashboard-client-secret
+
+backend:
+  split:
+    management:
+      config:
+        dataStoreEncryptionKeyRef:
+          name: netbird-external-credentials
+          key: datastore-encryption-key
+        embeddedIdp:
+          sessionCookieEncryptionKeyRef:
+            name: netbird-external-credentials
+            key: idp-session-cookie-encryption-key
+    relay:
+      config:
+        authSecretRef:
+          name: netbird-external-credentials
+          key: relay-auth-secret
+```
+
+The referenced Secret must exist in the Helm release namespace. Set `name` to the Secret name and `key` to the key containing the value. Do not set the corresponding inline value at the same time. See [configuration and secrets](configuration.md#typed-secret-references) for every supported pair, including TURN/STUN passwords, embedded-IDP storage, and the initial-owner bcrypt hash.
+
 Enable dashboard, management HTTP and gRPC, signal gRPC, and relay ingresses for your ingress controller. Management and signal gRPC ingresses usually need a controller-specific backend-protocol annotation.
 
 ## Install or upgrade

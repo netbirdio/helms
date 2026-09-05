@@ -1,6 +1,7 @@
 {{- $values := .Values.backend.split.relay -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
+{{- $authSecretRef := default dict $values.config.authSecretRef -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,7 +21,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/credentials: {{ $values.config.authSecret | sha256sum }}
+        checksum/credentials: {{ dict "authSecret" $values.config.authSecret "authSecretRef" $authSecretRef | toJson | sha256sum }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -81,8 +82,16 @@ spec:
             - name: NB_AUTH_SECRET
               valueFrom:
                 secretKeyRef:
+                  {{- if $authSecretRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $authSecretRef
+                    "value" $values.config.authSecret
+                    "path" "backend.split.relay.config.authSecretRef"
+                  ) | nindent 18 }}
+                  {{- else }}
                   name: {{ $credentialsName }}
                   key: relay-auth-secret
+                  {{- end }}
             {{- with $values.config.trustedProxies }}
             - name: NB_TRUSTED_PROXIES
               value: {{ . | quote }}
