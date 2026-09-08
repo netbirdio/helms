@@ -1,0 +1,150 @@
+{{- $values := .Values.backend.split.relay -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
+{{- $credentialsName := printf "%s-credentials" $name -}}
+{{- $authSecretRef := default dict $values.config.authSecretRef -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
+  {{- with $values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/credentials: {{ dict "authSecret" $values.config.authSecret "authSecretRef" $authSecretRef | toJson | sha256sum }}
+        {{- with $values.pod.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 8 }}
+    spec:
+      {{- with $values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "relay" "values" $values) }}
+      securityContext:
+        {{- toYaml $values.pod.securityContext | nindent 8 }}
+      containers:
+        - name: relay
+          image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
+          imagePullPolicy: {{ $values.image.pullPolicy }}
+          {{- with $values.container.cmd.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - --listen-address=:{{ $values.container.port }}
+            - --exposed-address={{ $values.config.exposedAddress }}
+            - --metrics-port={{ $values.config.metrics.port }}
+            - --log-level={{ $values.config.log.level }}
+            - --log-file={{ $values.config.log.file }}
+            - --health-listen-address=:{{ $values.config.health.port }}
+            - --enable-stun={{ $values.config.stun.enabled }}
+            - --stun-log-level={{ $values.config.stun.logLevel }}
+            {{- if $values.config.stun.ports }}
+            - --stun-ports={{ join "," $values.config.stun.ports }}
+            {{- end }}
+            {{- with $values.config.letsencrypt.email }}
+            - --letsencrypt-email={{ . }}
+            {{- end }}
+            {{- with $values.config.letsencrypt.dataDir }}
+            - --letsencrypt-data-dir={{ . }}
+            {{- end }}
+            {{- if $values.config.letsencrypt.domains }}
+            - --letsencrypt-domains={{ join "," $values.config.letsencrypt.domains }}
+            {{- end }}
+            {{- if $values.config.letsencrypt.awsRoute53 }}
+            - --letsencrypt-aws-route53=true
+            {{- end }}
+            {{- with $values.config.tls.certFile }}
+            - --tls-cert-file={{ . }}
+            {{- end }}
+            {{- with $values.config.tls.keyFile }}
+            - --tls-key-file={{ . }}
+            {{- end }}
+            {{- with $values.container.cmd.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          securityContext:
+            {{- toYaml $values.container.securityContext | nindent 12 }}
+          env:
+            - name: NB_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- if $authSecretRef }}
+                  {{- include "netbird.secretKeyRef" (dict
+                    "ref" $authSecretRef
+                    "value" $values.config.authSecret
+                    "path" "backend.split.relay.config.authSecretRef"
+                  ) | nindent 18 }}
+                  {{- else }}
+                  name: {{ $credentialsName }}
+                  key: relay-auth-secret
+                  {{- end }}
+            {{- with $values.config.trustedProxies }}
+            - name: NB_TRUSTED_PROXIES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
+          {{- with $values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $values.container.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ $values.config.metrics.port }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ $values.config.health.port }}
+              protocol: TCP
+            {{- if $values.config.stun.enabled }}
+            {{- range $values.config.stun.ports }}
+            - name: stun-{{ . }}
+              containerPort: {{ . }}
+              protocol: UDP
+            {{- end }}
+            {{- end }}
+          {{- with $values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $values.resources | nindent 12 }}
+          {{- with $values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

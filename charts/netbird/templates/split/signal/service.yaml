@@ -1,0 +1,31 @@
+{{- $values := .Values.backend.split.signal -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "netbird.componentName" (dict "root" . "component" "signal") }}
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $values.service.type }}
+  ports:
+    - name: grpc
+      port: {{ $values.service.port }}
+      targetPort: grpc
+      protocol: TCP
+    {{- if $values.metrics.enabled }}
+    - name: metrics
+      port: {{ $values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.service.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

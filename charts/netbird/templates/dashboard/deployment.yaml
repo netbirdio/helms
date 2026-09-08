@@ -1,0 +1,88 @@
+{{- $values := .Values.dashboard -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "dashboard") -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "dashboard") | nindent 4 }}
+  {{- with $values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "dashboard") | nindent 6 }}
+  template:
+    metadata:
+      {{- with $values.pod.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "netbird.selectorLabels" (dict "root" . "component" "dashboard") | nindent 8 }}
+    spec:
+      {{- with $values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "dashboard" "values" $values) }}
+      securityContext:
+        {{- toYaml $values.pod.securityContext | nindent 8 }}
+      containers:
+        - name: dashboard
+          image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
+          imagePullPolicy: {{ $values.image.pullPolicy }}
+          {{- with $values.container.cmd.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $values.container.cmd.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            {{- toYaml $values.container.securityContext | nindent 12 }}
+          env:
+            {{- include "netbird.dashboardEnv" . | nindent 12 }}
+          {{- with $values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $values.container.port }}
+              protocol: TCP
+          {{- with $values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $values.resources | nindent 12 }}
+          {{- with $values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

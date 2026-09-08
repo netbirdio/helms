@@ -1,0 +1,58 @@
+{{- $componentMetricsEnabled := or
+  .Values.backend.split.management.metrics.enabled
+  .Values.backend.split.signal.metrics.enabled
+  .Values.backend.split.relay.config.metrics.enabled
+-}}
+{{- if and .Values.metrics.serviceMonitor.enabled (not $componentMetricsEnabled) -}}
+{{- fail "metrics.serviceMonitor.enabled requires metrics on management, signal, or relay" -}}
+{{- end -}}
+{{- if .Values.metrics.serviceMonitor.enabled }}
+{{- $values := .Values.metrics.serviceMonitor -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "netbird.fullname" . }}
+  namespace: {{ default (include "netbird.namespace" .) $values.namespace | quote }}
+  labels:
+    helm.sh/chart: {{ include "netbird.chart" . }}
+    app.kubernetes.io/name: {{ include "netbird.name" . }}-monitor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- with $values.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $values.jobLabel }}
+  jobLabel: {{ . | quote }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- with $values.selector }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ include "netbird.namespace" . | quote }}
+  endpoints:
+    - port: metrics
+      {{- with $values.interval }}
+      interval: {{ . }}
+      {{- end }}
+      {{- with $values.scrapeTimeout }}
+      scrapeTimeout: {{ . }}
+      {{- end }}
+      honorLabels: {{ $values.honorLabels }}
+      {{- with $values.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
