@@ -100,3 +100,47 @@ backend:
         exposedAddress: rels://netbird.example.com:443/relay
         log:
           level: info
+
+extraManifests:
+  - apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: netbird
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`netbird.example.com`) && !PathPrefix(`/api`) && !PathPrefix(`/management`) && !PathPrefix(`/signalexchange`) && !PathPrefix(`/relay`)
+          services:
+            - name: netbird-dashboard
+              passHostHeader: true
+              port: 80
+        - kind: Rule
+          match: Host(`netbird.example.com`) && PathPrefix(`/api`)
+          services:
+            - name: netbird-management
+              passHostHeader: true
+              port: 80
+        - kind: Rule
+          match: Host(`netbird.example.com`) && PathPrefix(`/management`)
+          services:
+            - name: netbird-management
+              passHostHeader: true
+              port: 80
+              scheme: h2c
+        - kind: Rule
+          match: Host(`netbird.example.com`) && PathPrefix(`/relay`)
+          services:
+            - name: netbird-relay
+              passHostHeader: true
+              port: 33080
+        - kind: Rule
+          match: Host(`netbird.example.com`) && PathPrefix(`/signalexchange`)
+          services:
+            - name: netbird-signal
+              passHostHeader: true
+              port: 80
+              scheme: h2c
+      tls:
+        secretName: netbird-tls

@@ -63,7 +63,8 @@ backend:
           timeBasedCredentials: false
         reverseProxy:
           trustedPeers:
-            - 0.0.0.0/0
+            # Replace with your Kubernetes cluster's pod CIDR.
+            - 10.244.0.0/16
         embeddedIdp:
           enabled: false
         httpConfig:
@@ -90,7 +91,7 @@ backend:
             audience: "{{ .IDP_NATIVEAPP_CLIENT_ID }}"
             authorizationEndpoint: ""
             domain: ""
-            clientID: nativeclientid
+            clientID: "{{ .IDP_NATIVEAPP_CLIENT_ID }}"
             clientSecret: ""
             tokenEndpoint: https://example.okta.com/oauth2/v1/token
             deviceAuthEndpoint: https://example.okta.com/oauth2/v1/device/authorize

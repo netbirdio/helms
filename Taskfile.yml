@@ -5,6 +5,8 @@ vars:
   DEV_VALUES: charts/netbird/examples/kind/values.yaml
   KIND_CONFIG: charts/netbird/examples/kind/kind.yaml
   INGRESS_NGINX_VERSION: 1.12.1
+  INGRESS_NGINX_COMMIT: 64780b1fed3af99f4eccbc3fdad7ad785e8a83b6
+  INGRESS_NGINX_MANIFEST_SHA256: cb84b0ea747c9149cce08aef4e95b1e55f183f07299f40e7009043e960a0133f
   LOCAL_HOST: netbird.localhost
   DASHBOARD_HOST: dashboard.netbird.localhost
   CLUSTER_NAME: '{{default "netbird-chart-dev" .CLUSTER_NAME}}'
@@ -87,9 +89,17 @@ tasks:
       - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
         msg: Run "task cluster:create" first
     cmds:
-      - >-
-        kubectl --context {{.KUBE_CONTEXT}} apply
-        --filename https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v{{.INGRESS_NGINX_VERSION}}/deploy/static/provider/kind/deploy.yaml
+      - |
+        set -eu
+        manifest="$(mktemp)"
+        trap 'rm -f "$manifest"' EXIT
+        curl --fail --location --silent --show-error \
+          --output "$manifest" \
+          https://raw.githubusercontent.com/kubernetes/ingress-nginx/{{.INGRESS_NGINX_COMMIT}}/deploy/static/provider/kind/deploy.yaml
+        printf '%s  %s\n' \
+          '{{.INGRESS_NGINX_MANIFEST_SHA256}}' \
+          "$manifest" | shasum -a 256 --check -
+        kubectl --context {{.KUBE_CONTEXT}} apply --filename "$manifest"
       - >-
         kubectl --context {{.KUBE_CONTEXT}}
         --namespace ingress-nginx

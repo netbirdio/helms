@@ -25,7 +25,17 @@ jobs:
         run: kind create cluster --config charts/netbird/examples/kind/kind.yaml
 
       - name: Install Helm
-        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        run: |
+          set -euo pipefail
+          installer="$(mktemp)"
+          trap 'rm -f "$installer"' EXIT
+          curl --fail --location --silent --show-error \
+            --output "$installer" \
+            https://raw.githubusercontent.com/helm/helm/e4da49785aa6e6ee2b86efd5dd9e43400318262b/scripts/get-helm-3
+          printf '%s  %s\n' \
+            '4a01413bf2a767ae744b8bbe4485cd83654d9a0a769c92377afc36328d5a007a' \
+            "$installer" | sha256sum --check -
+          DESIRED_VERSION=v3.17.3 bash "$installer"
 
       - name: Verify Helm installation
         run: helm version

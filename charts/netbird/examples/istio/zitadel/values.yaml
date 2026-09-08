@@ -12,6 +12,7 @@ dashboard:
       redirectUri: /nb-auth
       silentRedirectUri: /nb-silent-auth
   envFromSecret:
+    AUTH_AUDIENCE: netbird/idpClientID
     AUTH_CLIENT_ID: netbird/idpClientID
     AUTH_CLIENT_SECRET: netbird/idpClientSecret
 

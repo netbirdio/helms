@@ -1,3 +1,7 @@
+# Local development values for the kind cluster only.
+# The credentials below are published in this repository and are intentionally
+# fixed so that repeated installs and upgrades keep the same values.
+# Never reuse this file, or any key in it, for a real deployment.
 fullnameOverride: netbird
 
 dashboard:

@@ -70,7 +70,7 @@ backend:
         idpManagerConfig:
           managerType: authentik
           clientConfig:
-            issuer: https://idp.example.com/application/o/example-netbird
+            issuer: https://idp.example.com/application/o/example-netbird/
             tokenEndpoint: https://idp.example.com/application/o/token/
             clientID: "{{ .IDP_CLIENT_ID }}"
             clientSecret: ""

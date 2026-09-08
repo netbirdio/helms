@@ -26,7 +26,9 @@
 
 {{/* Generic component metadata. Context: root, component. */}}
 {{- define "netbird.componentName" -}}
-{{- printf "%s-%s" (include "netbird.fullname" .root) .component | trunc 63 | trimSuffix "-" -}}
+{{- $prefixLength := sub 62 (len .component) -}}
+{{- $prefix := include "netbird.fullname" .root | trunc (int $prefixLength) | trimSuffix "-" -}}
+{{- printf "%s-%s" $prefix .component -}}
 {{- end -}}
 
 {{- define "netbird.selectorLabels" -}}

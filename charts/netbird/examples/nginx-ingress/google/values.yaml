@@ -65,7 +65,8 @@ backend:
           timeBasedCredentials: false
         reverseProxy:
           trustedPeers:
-            - 0.0.0.0/0
+            # Replace with your Kubernetes cluster's pod CIDR.
+            - 10.244.0.0/16
         embeddedIdp:
           enabled: false
         httpConfig:
