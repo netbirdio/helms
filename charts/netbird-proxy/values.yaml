@@ -1,5 +1,12 @@
 replicaCount: 1
 
+# -- Number of old ReplicaSets to retain.
+revisionHistoryLimit: 10
+
+# -- Deployment rollout strategy.
+strategy:
+  type: RollingUpdate
+
 image:
   repository: netbirdio/reverse-proxy
   tag: ""
