@@ -96,18 +96,32 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Signal target service
+*/}}
+{{- define "netbird.signal.targetService" -}}
+{{ include "netbird.fullname" . }}-{{ .Values.signal.standalone | ternary "signal" "management" }}
+{{- end }}
+
+{{/*
 Signal selector labels
 */}}
 {{- define "netbird.signal.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "netbird.name" . }}-signal
+app.kubernetes.io/name: {{ include "netbird.signal.targetService" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Relay target service
+*/}}
+{{- define "netbird.relay.targetService" -}}
+{{ include "netbird.fullname" . }}-{{ .Values.relay.standalone | ternary "relay" "management" }}
 {{- end }}
 
 {{/*
 Relay selector labels
 */}}
 {{- define "netbird.relay.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "netbird.name" . }}-relay
+app.kubernetes.io/name: {{ include "netbird.relay.targetService" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 

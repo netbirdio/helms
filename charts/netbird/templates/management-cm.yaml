@@ -7,6 +7,6 @@ metadata:
   labels:
     {{- include "netbird.management.labels" . | nindent 4 }}
 data:
-  management.json: |-
-    {{- .Values.management.configmap | nindent 4 }}
+  config.yaml: |-
+    {{- .Values.management.configYaml | nindent 4 }}
 {{- end -}}
