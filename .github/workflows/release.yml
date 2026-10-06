@@ -1,0 +1,62 @@
+name: Release Helm Chart
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  packages: write
+
+# serialize gh-pages index updates
+concurrency: gh-pages
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package chart
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag $TAG is not a SemVer tag like v2.0.0 or v2.0.0-rc.1"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          helm package charts/netbird --version "$VERSION" --destination dist
+
+      - name: Upload chart to release
+        run: gh release upload "$TAG" "dist/netbird-$VERSION.tgz" --clobber
+
+      - name: Push chart to OCI registry
+        run: |
+          echo "$GH_TOKEN" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+          helm push "dist/netbird-$VERSION.tgz" oci://ghcr.io/${{ github.repository_owner }}/helm-charts
+
+      - name: Update Helm repository index
+        run: |
+          helm repo index dist \
+            --url "https://github.com/${{ github.repository }}/releases/download/$TAG" \
+            --merge gh-pages/index.yaml
+          cp dist/index.yaml gh-pages/index.yaml
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.yaml
+          git commit -m "Release netbird $VERSION"
+          git push
