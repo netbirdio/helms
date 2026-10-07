@@ -17,6 +17,30 @@ The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`
 
 Kubernetes settings sit beside each component's configuration. Common examples include `image`, `replicaCount`, `resources`, `pod`, `container`, `service`, `ingress`, probes, scheduling values, and management persistence.
 
+### Management server flags
+
+`backend.split.management.server` sets the management command-line flags:
+
+| Value | Flag | Default |
+| --- | --- | --- |
+| `singleAccountModeDomain` | `--single-account-mode-domain`; when empty, `--disable-single-account-mode=true` | `netbird.selfhosted` |
+| `dnsDomain` | `--dns-domain` | `netbird.selfhosted` |
+| `disableLegacyPort` | `--disable-legacy-port=true` | `true` |
+
+The management server uses single-account mode when no flag turns it off: every user joins one account. Set `singleAccountModeDomain: ""` for multi-account installations. `container.cmd.args` adds extra flags after these and is empty by default.
+
+### Management JSON pass-through
+
+Keys under `backend.split.management.config` that the chart does not know are copied unchanged into `management.json`. Use this for fields such as `httpConfig`, `idpManagerConfig` or `deviceAuthorizationFlow`.
+
+At start, management replaces `{{ .NAME }}` placeholders in `management.json` with the environment variable `NAME`. Provide the variable through `env` or `envFromSecret`. A missing variable becomes the text `<no value>` and management gives no error, so check the variable names.
+
+When `embeddedIdp.enabled` is `false`, the chart omits the `embeddedIdp` block from `management.json`.
+
+### Dashboard redirect URIs
+
+`dashboard.config.auth.redirectUri` and `silentRedirectUri` are empty by default, and the dashboard then uses `/#callback` and `/#silent-callback`. External identity providers expect these. The embedded IdP needs `/nb-auth` and `/nb-silent-auth`, as in [`../examples/kind/values.yaml`](../examples/kind/values.yaml).
+
 ## Version-specific values
 
 The following additive fields are effective on NetBird 0.77.0 or newer and ignored by 0.74.0:
@@ -87,6 +111,7 @@ Set either the literal value or its reference, never both. Helm rejects referenc
 | `backend.split.management.config.turnConfig.secret` | `backend.split.management.config.turnConfig.secretRef` |
 | `backend.split.management.config.signal.password` | `backend.split.management.config.signal.passwordRef` |
 | `backend.split.management.config.dataStoreEncryptionKey` | `backend.split.management.config.dataStoreEncryptionKeyRef` |
+| `backend.split.management.config.storeConfig.dsn` | `backend.split.management.config.storeConfig.dsnRef` |
 | `backend.split.management.config.embeddedIdp.storage.config.dsn` | `backend.split.management.config.embeddedIdp.storage.config.dsnRef` |
 | `backend.split.management.config.embeddedIdp.sessionCookieEncryptionKey` | `backend.split.management.config.embeddedIdp.sessionCookieEncryptionKeyRef` |
 | `backend.split.management.config.embeddedIdp.owner.password` | `backend.split.management.config.embeddedIdp.owner.passwordRef` |
@@ -103,6 +128,7 @@ The chart manages two Secret identities:
 - `<fullname>-management-credentials`
   - `datastore-encryption-key`
   - `idp-session-cookie-encryption-key`, when the embedded IdP is enabled
+  - `store-dsn`, when `storeConfig.engine` is `postgres` or `mysql`
   - optional `stun-password-<index>`, `turn-password-<index>`, `turn-secret`, `signal-password` and `idp-storage-dsn`
   - optional `owner-password-checksum`
   - optional `owner-password-hash`
@@ -145,5 +171,9 @@ Signal and relay do not accept `overrideConfig`; use their typed settings and ap
 ## Persistence and network exposure
 
 Management persists data through `backend.split.management.persistence`. Keep its mount path aligned with `backend.split.management.config.datadir`. SQLite installations should use one replica with a `ReadWriteOnce` claim.
+
+When persistence is enabled, management uses the `Recreate` strategy, because a `ReadWriteOnce` volume cannot attach to the old and the new pod at the same time. Set `backend.split.management.strategy` to change it. The claim has `helm.sh/resource-policy: keep`, so `helm uninstall` does not delete the data; delete the claim manually when you no longer need it.
+
+For PostgreSQL or MySQL, set `storeConfig.engine` and `storeConfig.dsnRef` (or the inline `dsn`). The chart provides the DSN as `NB_STORE_ENGINE_POSTGRES_DSN` or `NB_STORE_ENGINE_MYSQL_DSN`; the render fails when it is missing.
 
 HTTP and gRPC ingresses are separate because ingress controllers often require different upstream protocol settings. Kubernetes Ingress does not expose UDP; enable both relay `config.stun.enabled` and `stunService.enabled`, then choose a suitable `LoadBalancer` or `NodePort` when clients need the chart's STUN endpoint.

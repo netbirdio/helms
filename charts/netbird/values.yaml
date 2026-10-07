@@ -56,8 +56,10 @@ dashboard:
       authority: ""
       useAuth0: false
       supportedScopes: "openid profile email groups"
-      redirectUri: /nb-auth
-      silentRedirectUri: /nb-silent-auth
+      # Empty uses the dashboard defaults (/#callback, /#silent-callback) for
+      # external IdPs. The embedded IdP needs /nb-auth and /nb-silent-auth.
+      redirectUri: ""
+      silentRedirectUri: ""
       tokenSource: accessToken
 
   livenessProbe:
@@ -120,11 +122,21 @@ backend:
         port: 80
         cmd:
           command: []
-          args:
-            - --disable-legacy-port=true
-            - --single-account-mode-domain=netbird.selfhosted
-            - --dns-domain=netbird.selfhosted
+          # Extra arguments, appended after the flags from server.
+          args: []
         securityContext: {}
+
+      # Management server flags.
+      server:
+        # Management runs in single-account mode by default: every user joins
+        # one account with this domain. Set "" to turn the mode off.
+        singleAccountModeDomain: netbird.selfhosted
+        dnsDomain: netbird.selfhosted
+        disableLegacyPort: true
+
+      # Deployment strategy. Empty uses Recreate when persistence is enabled,
+      # because a ReadWriteOnce volume cannot attach to two pods.
+      strategy: {}
 
       resources: {}
       nodeSelector: {}
@@ -212,7 +224,12 @@ backend:
         # References a key in a Secret in this release namespace. Mutually exclusive with dataStoreEncryptionKey.
         dataStoreEncryptionKeyRef: {}
         storeConfig:
+          # sqlite, postgres or mysql.
           engine: sqlite
+          # Required for postgres and mysql. Mutually exclusive with dsnRef.
+          dsn: ""
+          # References a key in a Secret in this release namespace.
+          dsnRef: {}
         idpManagerConfig:
           managerType: none
         embeddedIdp:

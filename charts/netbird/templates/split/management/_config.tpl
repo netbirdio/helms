@@ -39,6 +39,13 @@
 {{- $_ := set . "password" "{{ .NB_MANAGEMENT_SIGNAL_PASSWORD }}" -}}
 {{- end -}}
 {{- end -}}
+{{- if not $config.embeddedIdp.enabled -}}
+{{- $_ := unset $config "embeddedIdp" -}}
+{{- end -}}
+{{- with $config.storeConfig -}}
+{{- $_ := unset . "dsn" -}}
+{{- $_ := unset . "dsnRef" -}}
+{{- end -}}
 {{- with $config.embeddedIdp -}}
 {{- $_ := unset . "sessionCookieEncryptionKeyRef" -}}
 {{- with .storage.config -}}
@@ -48,11 +55,7 @@
 {{- $_ := set . "dsn" "{{ .NB_IDP_STORAGE_DSN }}" -}}
 {{- end -}}
 {{- end -}}
-{{- if .enabled -}}
 {{- $_ := set . "sessionCookieEncryptionKey" "{{ .NB_IDP_SESSION_COOKIE_ENCRYPTION_KEY }}" -}}
-{{- else -}}
-{{- $_ := unset . "sessionCookieEncryptionKey" -}}
-{{- end -}}
 {{- $owner := deepCopy (default dict .owner) -}}
 {{- $email := toString (default "" $owner.email) -}}
 {{- $password := toString (default "" $owner.password) -}}
@@ -86,11 +89,16 @@ chart-managed credentials Secret under key, with data (default value).
 {{- $config := .Values.backend.split.management.config -}}
 {{- $base := "backend.split.management.config" -}}
 {{- $entries := list -}}
-{{- include "netbird.requireSecret" (dict "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKey" $base)) -}}
+{{- include "netbird.requireSecret" (dict "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKey" $base) "hint" "generate one with: openssl rand -base64 32") -}}
 {{- $entries = append $entries (dict "env" "NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY" "key" "datastore-encryption-key" "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKeyRef" $base)) -}}
+{{- $store := default dict $config.storeConfig -}}
+{{- if has (toString $store.engine) (list "postgres" "mysql") -}}
+{{- include "netbird.requireSecret" (dict "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsn" $base)) -}}
+{{- $entries = append $entries (dict "env" (printf "NB_STORE_ENGINE_%s_DSN" (upper $store.engine)) "key" "store-dsn" "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsnRef" $base)) -}}
+{{- end -}}
 {{- $idp := $config.embeddedIdp -}}
 {{- if $idp.enabled -}}
-{{- include "netbird.requireSecret" (dict "value" $idp.sessionCookieEncryptionKey "ref" $idp.sessionCookieEncryptionKeyRef "path" (printf "%s.embeddedIdp.sessionCookieEncryptionKey" $base)) -}}
+{{- include "netbird.requireSecret" (dict "value" $idp.sessionCookieEncryptionKey "ref" $idp.sessionCookieEncryptionKeyRef "path" (printf "%s.embeddedIdp.sessionCookieEncryptionKey" $base) "hint" "generate one with: openssl rand -base64 32") -}}
 {{- $entries = append $entries (dict "env" "NB_IDP_SESSION_COOKIE_ENCRYPTION_KEY" "key" "idp-session-cookie-encryption-key" "value" $idp.sessionCookieEncryptionKey "ref" $idp.sessionCookieEncryptionKeyRef "path" (printf "%s.embeddedIdp.sessionCookieEncryptionKeyRef" $base)) -}}
 {{- end -}}
 {{- range $index, $stun := default list $config.stuns -}}
@@ -113,6 +121,7 @@ chart-managed credentials Secret under key, with data (default value).
 {{- $entries = append $entries (dict "env" "NB_MANAGEMENT_SIGNAL_PASSWORD" "key" "signal-password" "value" .password "ref" .passwordRef "path" (printf "%s.signal.passwordRef" $base)) -}}
 {{- end -}}
 {{- end -}}
+{{- if $idp.enabled -}}
 {{- with $idp.storage.config -}}
 {{- if include "netbird.externalize" (dict "value" .dsn "ref" .dsnRef) -}}
 {{- $entries = append $entries (dict "env" "NB_IDP_STORAGE_DSN" "key" "idp-storage-dsn" "value" .dsn "ref" .dsnRef "path" (printf "%s.embeddedIdp.storage.config.dsnRef" $base)) -}}
@@ -123,6 +132,7 @@ chart-managed credentials Secret under key, with data (default value).
 {{- $credentialsName := printf "%s-credentials" (include "netbird.componentName" (dict "root" . "component" "management")) -}}
 {{- $hash := include "netbird.passwordHash" (dict "root" . "name" $credentialsName "hashKey" "owner-password-hash" "checksumKey" "owner-password-checksum" "password" $owner.password) -}}
 {{- $entries = append $entries (dict "env" "NB_OWNER_PASSWORD_HASH" "key" "owner-password-hash" "value" $owner.password "data" $hash "ref" $owner.passwordRef "path" (printf "%s.embeddedIdp.owner.passwordRef" $base)) -}}
+{{- end -}}
 {{- end -}}
 {{- toJson $entries -}}
 {{- end -}}
