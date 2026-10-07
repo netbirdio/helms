@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "description": "Shallow schema: rejects unknown top-level keys, such as the v1 management, signal and relay trees.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": { "type": "object" },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "dashboard": { "type": "object" },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "split": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "management": { "type": "object" },
+            "signal": { "type": "object" },
+            "relay": { "type": "object" }
+          }
+        }
+      }
+    },
+    "extraManifests": { "type": "array" },
+    "metrics": { "type": "object" }
+  }
+}
