@@ -95,7 +95,7 @@ backend:
           key: relay-auth-secret
 ```
 
-The referenced Secret must exist in the Helm release namespace. Set `name` to the Secret name and `key` to the key containing the value. Do not set the corresponding inline value at the same time. See [configuration and secrets](configuration.md#typed-secret-references) for every supported pair, including TURN/STUN passwords, embedded-IDP storage, and the initial-owner bcrypt hash.
+The referenced Secret must exist in the namespace of the component that uses it (the release namespace unless you set `<component>.namespace`). Set `name` to the Secret name and `key` to the key containing the value. Do not set the corresponding inline value at the same time. See [configuration and secrets](configuration.md#typed-secret-references) for every supported pair, including TURN/STUN passwords, embedded-IDP storage, and the initial-owner bcrypt hash.
 
 Enable dashboard, management HTTP and gRPC, signal gRPC, and relay ingresses for your ingress controller. Management and signal gRPC ingresses usually need a controller-specific backend-protocol annotation.
 

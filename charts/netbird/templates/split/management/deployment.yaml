@@ -1,21 +1,19 @@
+{{- if .Values.backend.split.management.enabled }}
 {{- $values := .Values.backend.split.management -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "management") -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
-{{- $relayCredentialsName := printf "%s-credentials" (include "netbird.componentName" (dict "root" . "component" "relay")) -}}
 {{- $relayValues := .Values.backend.split.relay -}}
-{{- $relayAuthSecretRef := default dict $relayValues.config.authSecretRef -}}
 {{- $secretEnv := list -}}
 {{- $reservedEnv := list -}}
 {{- if not $values.overrideConfig -}}
 {{- $secretEnv = include "netbird.management.secretEnv" . | fromJsonArray -}}
 {{- range $secretEnv -}}{{- $reservedEnv = append $reservedEnv .env -}}{{- end -}}
-{{- $reservedEnv = append $reservedEnv "NB_RELAY_AUTH_SECRET" -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "management") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "management") | nindent 4 }}
   {{- with $values.deployment.annotations }}
@@ -93,19 +91,6 @@ spec:
                   key: {{ .key }}
                   {{- end }}
             {{- end }}
-            - name: NB_RELAY_AUTH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  {{- if $relayAuthSecretRef }}
-                  {{- include "netbird.secretKeyRef" (dict
-                    "ref" $relayAuthSecretRef
-                    "value" $relayValues.config.authSecret
-                    "path" "backend.split.relay.config.authSecretRef"
-                  ) | nindent 18 }}
-                  {{- else }}
-                  name: {{ $relayCredentialsName }}
-                  key: relay-auth-secret
-                  {{- end }}
             {{- end }}
             {{- include "netbird.env" (dict "values" $values "reserved" $reservedEnv) | nindent 12 }}
           {{- end }}
@@ -165,3 +150,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

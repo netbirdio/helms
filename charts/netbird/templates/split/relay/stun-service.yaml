@@ -1,10 +1,11 @@
+{{- if .Values.backend.split.relay.enabled }}
 {{- if and .Values.backend.split.relay.config.stun.enabled .Values.backend.split.relay.stunService.enabled }}
 {{- $values := .Values.backend.split.relay -}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "netbird.componentName" (dict "root" . "component" "relay-stun") }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "relay") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
   {{- with $values.stunService.annotations }}
@@ -32,4 +33,5 @@ spec:
   externalIPs:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}

@@ -9,9 +9,9 @@
 {{- if .Values.metrics.serviceMonitor.enabled }}
 {{- $values := .Values.metrics.serviceMonitor -}}
 {{- $components := dict
-  "management" .Values.backend.split.management.metrics.enabled
-  "signal" .Values.backend.split.signal.metrics.enabled
-  "relay" .Values.backend.split.relay.config.metrics.enabled
+  "management" (and .Values.backend.split.management.enabled .Values.backend.split.management.metrics.enabled)
+  "signal" (and .Values.backend.split.signal.enabled .Values.backend.split.signal.metrics.enabled)
+  "relay" (and .Values.backend.split.relay.enabled .Values.backend.split.relay.config.metrics.enabled)
 -}}
 {{- range $component := keys $components | sortAlpha }}
 {{- if get $components $component }}
@@ -42,7 +42,7 @@ spec:
       {{- end }}
   namespaceSelector:
     matchNames:
-      - {{ include "netbird.namespace" $ | quote }}
+      - {{ include "netbird.componentNamespace" (dict "root" $ "component" $component) | quote }}
   endpoints:
     - port: metrics
       {{- with $values.interval }}

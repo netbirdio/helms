@@ -89,4 +89,13 @@ out="$(render "${required[@]}")"
 has "type: Recreate" "$out"
 has "helm.sh/resource-policy: keep" "$out"
 
+# 15. Per-component enabled and namespace: a relay-only render needs only relay values.
+out="$(render --set backend.split.relay.config.authSecret=relay-secret --set dashboard.enabled=false --set backend.split.management.enabled=false --set backend.split.signal.enabled=false --set backend.split.relay.namespace=edge)"
+test "$(grep "app.kubernetes.io/component:" <<<"$out" | sort -u | tr -d ' ')" = "app.kubernetes.io/component:relay" || { echo "FAIL: relay-only render has other components"; exit 1; }
+test "$(grep "^  namespace:" <<<"$out" | sort -u | tr -d ' ')" = "namespace:edge" || { echo "FAIL: relay namespace"; exit 1; }
+
+# 16. Management keeps its own copy of the relay secret, so namespaces can differ.
+out="$(render "${required[@]}" --set backend.split.relay.namespace=edge --show-only templates/split/management/secret.yaml)"
+has "relay-auth-secret" "$out"
+
 echo "render checks passed"
