@@ -64,6 +64,10 @@ backend:
           key: relay-auth-secret
 ```
 
+### Images
+
+Each component renders `repository:tag`. Set `image.digest` (`sha256:...`) to render `repository@digest`; the tag is then ignored. `global.imageRegistry` adds a registry prefix to every image.
+
 ## Version-specific values
 
 The following additive fields are effective on NetBird 0.77.0 or newer and ignored by 0.74.0:
@@ -199,5 +203,9 @@ Management persists data through `backend.split.management.persistence`. Keep it
 When persistence is enabled, management uses the `Recreate` strategy, because a `ReadWriteOnce` volume cannot attach to the old and the new pod at the same time. Set `backend.split.management.strategy` to change it. The claim has `helm.sh/resource-policy: keep`, so `helm uninstall` does not delete the data; delete the claim manually when you no longer need it.
 
 For PostgreSQL or MySQL, set `storeConfig.engine` and `storeConfig.dsnRef` (or the inline `dsn`). The chart provides the DSN as `NB_STORE_ENGINE_POSTGRES_DSN` or `NB_STORE_ENGINE_MYSQL_DSN`; the render fails when it is missing.
+
+The management `http` port and the signal `grpc` port set `appProtocol: kubernetes.io/h2c` (`service.appProtocol`). Gateway API implementations such as Envoy Gateway need it to send gRPC as HTTP/2 cleartext. Set it to `""` to omit it.
+
+For a `NodePort` STUN Service, `backend.split.relay.stunService.nodePorts` fixes the node port for each STUN port, for example `{"3478": 30478}`. STUN cannot go through a gateway UDP proxy, because peers would learn the proxy address as their reflexive address.
 
 HTTP and gRPC ingresses are separate because ingress controllers often require different upstream protocol settings. Kubernetes Ingress does not expose UDP; enable both relay `config.stun.enabled` and `stunService.enabled`, then choose a suitable `LoadBalancer` or `NodePort` when clients need the chart's STUN endpoint.

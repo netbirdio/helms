@@ -30,6 +30,17 @@
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
 {{- end -}}
 
+{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag. Context: root, image. */}}
+{{- define "netbird.image" -}}
+{{- $repository := .image.repository -}}
+{{- with .root.Values.global.imageRegistry -}}{{- $repository = printf "%s/%s" (trimSuffix "/" .) $repository -}}{{- end -}}
+{{- if .image.digest -}}
+{{- printf "%s@%s" $repository .image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" $repository (toString .image.tag) -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Generic component metadata. Context: root, component. */}}
 {{- define "netbird.componentName" -}}
 {{- $prefixLength := sub 62 (len .component) -}}

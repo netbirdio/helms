@@ -38,7 +38,7 @@ spec:
         {{- toYaml $values.pod.securityContext | nindent 8 }}
       containers:
         - name: relay
-          image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
+          image: {{ include "netbird.image" (dict "root" . "image" $values.image) | quote }}
           imagePullPolicy: {{ $values.image.pullPolicy }}
           {{- with $values.container.cmd.command }}
           command:
