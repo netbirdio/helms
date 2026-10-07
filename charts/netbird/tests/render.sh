@@ -98,4 +98,16 @@ test "$(grep "^  namespace:" <<<"$out" | sort -u | tr -d ' ')" = "namespace:edge
 out="$(render "${required[@]}" --set backend.split.relay.namespace=edge --show-only templates/split/management/secret.yaml)"
 has "relay-auth-secret" "$out"
 
+# 17. appProtocol h2c on the management http and signal grpc ports only.
+out="$(render "${required[@]}")"
+test "$(grep -c "appProtocol: kubernetes.io/h2c" <<<"$out")" = 2 || { echo "FAIL: want 2 h2c ports"; exit 1; }
+
+# 18. Image digest and global registry.
+out="$(render "${required[@]}" --set global.imageRegistry=reg.example.com --set backend.split.relay.image.digest=sha256:abc --show-only templates/split/relay/deployment.yaml)"
+has 'image: "reg.example.com/netbirdio/relay@sha256:abc"' "$out"
+
+# 19. Fixed STUN node ports.
+out="$(render "${required[@]}" --set backend.split.relay.config.stun.enabled=true --set backend.split.relay.stunService.enabled=true --set backend.split.relay.stunService.type=NodePort --set-json 'backend.split.relay.stunService.nodePorts={"3478":30478}' --show-only templates/split/relay/stun-service.yaml)"
+has "nodePort: 30478" "$out"
+
 echo "render checks passed"
