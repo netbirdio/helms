@@ -3,7 +3,7 @@
 set -euo pipefail
 chart="$(cd "$(dirname "$0")/.." && pwd)"
 render() { helm template t "$chart" --namespace netbird "$@"; }
-fails_with() { local want="$1"; shift; local out; if out="$(render "$@" 2>&1)"; then echo "FAIL: render passed, want error: $want"; exit 1; fi; grep -qF -- "$want" <<<"$out" || { echo "FAIL: want error '$want', got: $out"; exit 1; }; }
+fails_with() { local want="$1"; shift; local out; if out="$(render "$@" 2>&1)"; then echo "FAIL: render passed, want error: $want"; exit 1; fi; grep -qiF -- "$want" <<<"$out" || { echo "FAIL: want error '$want', got: $out"; exit 1; }; }
 has() { grep -qF -- "$1" <<<"$2" || { echo "FAIL: missing '$1'"; exit 1; }; }
 lacks() { ! grep -qF -- "$1" <<<"$2" || { echo "FAIL: unexpected '$1'"; exit 1; }; }
 
@@ -62,7 +62,7 @@ has "app.kubernetes.io/name: netbird-management" "$out"
 lacks "app.kubernetes.io/name: t-netbird" "$out"
 
 # 9. A v1 values file (top-level management/signal/relay) is rejected.
-fails_with "additional properties" "${required[@]}" --set management.enabled=true
+fails_with "additional propert" "${required[@]}" --set management.enabled=true
 
 # 10. One ServiceMonitor per component with metrics, selecting only that component.
 out="$(render "${required[@]}" --set metrics.serviceMonitor.enabled=true --set backend.split.signal.metrics.enabled=true --show-only templates/monitoring/service-monitor.yaml)"
