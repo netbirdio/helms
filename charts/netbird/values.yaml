@@ -207,7 +207,7 @@ backend:
           accessLogRetentionDays: 0
           accessLogCleanupIntervalHours: 0
         datadir: /var/lib/netbird
-        # Base64-encoded 32-byte AES key. Generated when empty.
+        # Required: base64-encoded 32-byte AES key (openssl rand -base64 32), or set dataStoreEncryptionKeyRef.
         dataStoreEncryptionKey: ""
         # References a key in a Secret in this release namespace. Mutually exclusive with dataStoreEncryptionKey.
         dataStoreEncryptionKeyRef: {}
@@ -230,6 +230,7 @@ backend:
           mfaSessionMaxLifetime: ""
           mfaSessionIdleTimeout: ""
           mfaSessionRememberMe: false
+          # Required when enabled: set this value or sessionCookieEncryptionKeyRef.
           sessionCookieEncryptionKey: ""
           # References a key in a Secret in this release namespace. Mutually exclusive with sessionCookieEncryptionKey.
           sessionCookieEncryptionKeyRef: {}
@@ -406,6 +407,7 @@ backend:
 
       config:
         exposedAddress: rels://netbird.example.com:443/relay
+        # Required: set this value or authSecretRef.
         authSecret: ""
         # References a key in a Secret in this release namespace. Mutually exclusive with authSecret.
         authSecretRef: {}

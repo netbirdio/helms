@@ -71,7 +71,7 @@ spec:
             - name: NB_PPROF_ADDR
               value: {{ . | quote }}
             {{- end }}
-            {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
+            {{- include "netbird.env" (dict "values" $values "reserved" (ternary (list "NB_PPROF_ADDR") (list) (not (empty $values.config.pprofAddress)))) | nindent 12 }}
           {{- end }}
           {{- with $values.lifecycle }}
           lifecycle:

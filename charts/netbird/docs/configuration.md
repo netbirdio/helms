@@ -102,7 +102,8 @@ The chart manages two Secret identities:
 
 - `<fullname>-management-credentials`
   - `datastore-encryption-key`
-  - `idp-session-cookie-encryption-key`
+  - `idp-session-cookie-encryption-key`, when the embedded IdP is enabled
+  - optional `stun-password-<index>`, `turn-password-<index>`, `turn-secret`, `signal-password` and `idp-storage-dsn`
   - optional `owner-password-checksum`
   - optional `owner-password-hash`
 - `<fullname>-relay-credentials`
@@ -110,11 +111,15 @@ The chart manages two Secret identities:
 
 Management and relay both read the same `relay-auth-secret`, keeping advertised credentials aligned with relay runtime authentication.
 
-When an inline chart-managed value is empty and no reference is configured, Helm generates it during installation and reuses the existing Secret value during upgrades through `lookup`. A configured reference is used directly, and the corresponding key is omitted from the chart-managed Secret. If every key for one of the chart-managed Secrets is external, that Secret is not rendered. Set explicit inline values when rendering through a GitOps system that cannot query the destination cluster.
+The chart does not generate credentials. The datastore encryption key, the relay authentication secret and, when the embedded IdP is enabled, the session-cookie key each need an inline value or a reference; otherwise the render fails. Rendering is therefore the same with `helm install`, `helm template`, Tanka, Argo CD and Flux.
+
+Inline values are written to the chart-managed Secret and replaced by an environment placeholder in `management.json`; they never appear in the ConfigMap. An inline value that is already a placeholder, such as `"{{ .TURN_SERVER_PASSWORD }}"`, is left in `management.json` unchanged. A configured reference is used directly, and the corresponding key is omitted from the chart-managed Secret. If every key for one of the chart-managed Secrets is external, that Secret is not rendered. For GitOps, set references and keep the values in your secret store.
+
+Environment variables in `env`, `envRaw` and `envFromSecret` must not repeat each other or a variable that the chart sets, such as `NB_RELAY_AUTH_SECRET`; the render fails on a collision.
 
 A configured datastore encryption key must be a base64-encoded 32-byte value. Do not rotate datastore or session-cookie keys without planning for data and sessions encrypted by the old key.
 
-The inline initial-owner password is plaintext in Helm input and release values. Only its bcrypt hash is written to the workload Secret. `owner.passwordRef` instead references a precomputed bcrypt hash, keeping the plaintext out of Helm values. The owner is seeded when the embedded identity-provider database is first created; changing either value later does not reset that account.
+The inline initial-owner password is plaintext in Helm input and release values. Only its bcrypt hash is written to the workload Secret. Without cluster access (for example `helm template`), bcrypt makes a new salt on each render, so the stored hash changes while it still matches the same password. Use `owner.passwordRef` for a stable render. `owner.passwordRef` instead references a precomputed bcrypt hash, keeping the plaintext out of Helm values. The owner is seeded when the embedded identity-provider database is first created; changing either value later does not reset that account.
 
 ## Management raw configuration override
 

@@ -21,7 +21,7 @@ Backend versions apply to the management, signal, and relay images. The dashboar
 
 ## Install
 
-Configure the public endpoints, embedded identity provider, and service-specific ingresses:
+Create the `netbird-external-credentials` Secret first (see [Secrets](#secrets)). Then configure the public endpoints, embedded identity provider, credential references, and service-specific ingresses:
 
 ```yaml
 dashboard:
@@ -45,8 +45,14 @@ backend:
         signal:
           proto: https
           uri: netbird.example.com:443
+        dataStoreEncryptionKeyRef:
+          name: netbird-external-credentials
+          key: datastore-encryption-key
         embeddedIdp:
           issuer: https://netbird.example.com/oauth2
+          sessionCookieEncryptionKeyRef:
+            name: netbird-external-credentials
+            key: idp-session-cookie-encryption-key
           owner:
             email: admin@example.com
             password: replace-me
@@ -68,6 +74,9 @@ backend:
     relay:
       config:
         exposedAddress: rels://netbird.example.com:443/relay
+        authSecretRef:
+          name: netbird-external-credentials
+          key: relay-auth-secret
       ingress:
         enabled: true
         className: nginx
@@ -117,12 +126,24 @@ backend:
 
 References select a Secret key in the release namespace and are mutually exclusive with the corresponding inline value. Management expands referenced values into its JSON at process start, so their data is not copied into the management ConfigMap. See [configuration and secrets](docs/configuration.md) for every supported pair, including dashboard client credentials, TURN/STUN credentials, datastore and embedded-IdP values, and the initial owner hash.
 
-Without references, the chart stores generated sensitive values in Kubernetes Secrets:
+The chart does not generate credentials. Create them once before the first install:
 
-- `<fullname>-management-credentials`: datastore encryption key, embedded IdP session-cookie encryption key, and optional initial-owner password hash
+```bash
+kubectl create namespace netbird
+kubectl --namespace netbird create secret generic netbird-external-credentials \
+  --from-literal=datastore-encryption-key="$(openssl rand -base64 32)" \
+  --from-literal=idp-session-cookie-encryption-key="$(openssl rand -hex 16)" \
+  --from-literal=relay-auth-secret="$(openssl rand -base64 32)"
+```
+
+Then reference them with `dataStoreEncryptionKeyRef`, `embeddedIdp.sessionCookieEncryptionKeyRef` (embedded IdP only) and `relay.config.authSecretRef`. The render fails if one of these has no value and no reference.
+
+Inline values are stored in Kubernetes Secrets, never in the management ConfigMap:
+
+- `<fullname>-management-credentials`: datastore and session-cookie keys, inline TURN/STUN/signal passwords, IdP storage DSN, and optional initial-owner password hash
 - `<fullname>-relay-credentials`: relay authentication secret used by both management and relay
 
-Empty relay, datastore, and session-cookie values are generated on install and retained on upgrade with Helm's `lookup`. Referenced keys are omitted; a chart-managed Secret with no remaining keys is not rendered.
+Referenced keys are omitted; a chart-managed Secret with no remaining keys is not rendered.
 
 Inline `backend.split.management.config.embeddedIdp.owner.password` is plaintext in Helm input and release values, then stored only as a bcrypt hash in the workload Secret. `owner.passwordRef` must reference a precomputed bcrypt hash. The owner is seeded only when the embedded IdP database is first created; changing either value later does not reset that account.
 

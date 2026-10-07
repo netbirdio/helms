@@ -22,6 +22,20 @@ Start with the relevant example rather than copying the complete defaults:
 - Embedded identity provider and local ingress: [`../examples/kind/values.yaml`](../examples/kind/values.yaml)
 - External identity providers: [`../examples/nginx-ingress`](../examples/nginx-ingress), [`../examples/traefik-ingress`](../examples/traefik-ingress), and [`../examples/istio`](../examples/istio)
 
+## Create the credentials
+
+The chart does not generate credentials. Create them once, before the first install, and keep them: a new datastore key makes the stored data unreadable.
+
+```bash
+kubectl create namespace netbird
+kubectl --namespace netbird create secret generic netbird-external-credentials \
+  --from-literal=datastore-encryption-key="$(openssl rand -base64 32)" \
+  --from-literal=idp-session-cookie-encryption-key="$(openssl rand -hex 16)" \
+  --from-literal=relay-auth-secret="$(openssl rand -base64 32)"
+```
+
+Omit `idp-session-cookie-encryption-key` when `backend.split.management.config.embeddedIdp.enabled` is `false`. If a required credential has no value and no reference, the render stops with an error.
+
 Configure the public endpoints together:
 
 ```yaml
@@ -53,7 +67,7 @@ backend:
         exposedAddress: rels://netbird.example.com:443/relay
 ```
 
-To keep credentials out of Helm values, create or provision a Secret in the release namespace and replace inline sensitive values with their adjacent `*Ref` selectors:
+Reference the credentials Secret. Add `dashboard.config.auth.clientSecretRef` only when your identity provider uses a client secret:
 
 ```yaml
 dashboard:
