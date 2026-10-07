@@ -24,6 +24,10 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ $values.replicaCount }}
+  {{- with (or $values.strategy (and $values.persistence.enabled (dict "type" "Recreate"))) }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "netbird.selectorLabels" (dict "root" . "component" "management") | nindent 6 }}
@@ -59,6 +63,17 @@ spec:
             - --metrics-port={{ $values.metrics.port }}
             - --log-level={{ $values.log.level }}
             - --log-file={{ $values.log.file }}
+            {{- if $values.server.singleAccountModeDomain }}
+            - --single-account-mode-domain={{ $values.server.singleAccountModeDomain }}
+            {{- else }}
+            - --disable-single-account-mode=true
+            {{- end }}
+            {{- with $values.server.dnsDomain }}
+            - --dns-domain={{ . }}
+            {{- end }}
+            {{- if $values.server.disableLegacyPort }}
+            - --disable-legacy-port=true
+            {{- end }}
             {{- with $values.container.cmd.args }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
