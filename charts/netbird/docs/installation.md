@@ -109,7 +109,7 @@ helm upgrade --install netbird charts/netbird \
   --wait
 ```
 
-Use the same command for upgrades. Helm preserves chart-generated credentials by reading existing Kubernetes Secrets.
+Use the same command for upgrades. Keep the credentials Secret unchanged between upgrades: a new datastore key makes the stored data unreadable.
 
 The 0.77.0-only `pprofAddress`, `trustedProxies`, and `agentNetwork.pricingDefaultsFile` values are ignored by 0.74.0. Keep them empty unless their runtime requirements are configured.
 
