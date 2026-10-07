@@ -30,7 +30,7 @@ This setup requires Kubernetes secrets to store sensitive data. You'll need to c
 - `turnServerPassword`: `xxxxxx` # TURN server password.
 - `datastoreEncryptionKey`: `xxxxxxx` # A random encryption key for the datastore, e.g., generated via `openssl rand -base64 32`.
 
-> **Note:** The `datastoreEncryptionKey` must also be provided in a ConfigMap for the Netbird setup.
+> **Note:** The chart reads `datastoreEncryptionKey` and `relayPassword` from this Secret. Keep both values stable: a new `datastoreEncryptionKey` makes the stored data unreadable.
 
 ## Deployment
 
