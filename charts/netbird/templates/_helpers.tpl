@@ -24,6 +24,12 @@
 {{- default .Release.Namespace .Values.global.namespace -}}
 {{- end -}}
 
+{{/* Component namespace: <component>.namespace, else the release namespace. Context: root, component. */}}
+{{- define "netbird.componentNamespace" -}}
+{{- $values := ternary .root.Values.dashboard (get .root.Values.backend.split .component) (eq .component "dashboard") -}}
+{{- default (include "netbird.namespace" .root) $values.namespace -}}
+{{- end -}}
+
 {{/* Generic component metadata. Context: root, component. */}}
 {{- define "netbird.componentName" -}}
 {{- $prefixLength := sub 62 (len .component) -}}
@@ -143,7 +149,7 @@ Context: value, ref. Returns "true" or "".
 {{- $password := toString (default "" .password) -}}
 {{- if $password -}}
 {{- $checksum := sha256sum $password -}}
-{{- $existing := lookup "v1" "Secret" (include "netbird.namespace" .root) .name -}}
+{{- $existing := lookup "v1" "Secret" (include "netbird.componentNamespace" (dict "root" .root "component" "management")) .name -}}
 {{- if and $existing (hasKey $existing.data .hashKey) (hasKey $existing.data .checksumKey) (eq ((index $existing.data .checksumKey) | b64dec) $checksum) -}}
 {{- index $existing.data .hashKey | b64dec -}}
 {{- else -}}

@@ -1,3 +1,4 @@
+{{- if .Values.backend.split.relay.enabled }}
 {{- $values := .Values.backend.split.relay -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
@@ -6,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "relay") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
   {{- with $values.deployment.annotations }}
@@ -148,3 +149,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
