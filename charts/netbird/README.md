@@ -171,6 +171,15 @@ Management data is mounted at `backend.split.management.persistence.mountPath`. 
 
 Kubernetes Ingress does not expose UDP. To publish the relay's STUN endpoint, enable both `backend.split.relay.config.stun.enabled` and `backend.split.relay.stunService.enabled`, then select a suitable `LoadBalancer` or `NodePort` configuration.
 
+## Upgrade from 1.x
+
+Chart 2.0 keeps the 1.x resource names and selector labels (`app.kubernetes.io/name: <chart name>-<component>` and `app.kubernetes.io/instance: <release>`), so `helm upgrade` works for any release name. The values do not carry over:
+
+1. Move the top-level `management`, `signal` and `relay` trees to `backend.split.management`, `backend.split.signal` and `backend.split.relay`, and rewrite them against [`values.yaml`](values.yaml). A 1.x values file fails schema validation, so nothing is ignored by mistake.
+2. Point the credential references at the Secret that already holds your datastore key and relay secret (see [Secrets](#secrets)). A different datastore key makes the stored data unreadable.
+3. Keep the management volume: set `backend.split.management.persistence.size: 10Mi` (the 1.x default), or a larger size only if the storage class allows volume expansion. The claim name does not change. `persistentVolume.existingPVName` has no replacement; bind the volume to a claim and set `persistence.existingClaim`.
+4. Render with `helm template` and compare with the running objects before you upgrade.
+
 ## Local kind environment
 
 The repository Taskfile creates a dedicated kind cluster, installs ingress-nginx, creates a local TLS Secret, and deploys [`examples/kind/values.yaml`](examples/kind/values.yaml):

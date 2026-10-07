@@ -8,16 +8,21 @@
 {{- end -}}
 {{- if .Values.metrics.serviceMonitor.enabled }}
 {{- $values := .Values.metrics.serviceMonitor -}}
+{{- $components := dict
+  "management" .Values.backend.split.management.metrics.enabled
+  "signal" .Values.backend.split.signal.metrics.enabled
+  "relay" .Values.backend.split.relay.config.metrics.enabled
+-}}
+{{- range $component := keys $components | sortAlpha }}
+{{- if get $components $component }}
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "netbird.fullname" . }}
-  namespace: {{ default (include "netbird.namespace" .) $values.namespace | quote }}
+  name: {{ include "netbird.componentName" (dict "root" $ "component" $component) }}
+  namespace: {{ default (include "netbird.namespace" $) $values.namespace | quote }}
   labels:
-    helm.sh/chart: {{ include "netbird.chart" . }}
-    app.kubernetes.io/name: {{ include "netbird.name" . }}-monitor
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- include "netbird.labels" (dict "root" $ "component" $component) | nindent 4 }}
     {{- with $values.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -31,13 +36,13 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "netbird.selectorLabels" (dict "root" $ "component" $component) | nindent 6 }}
       {{- with $values.selector }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
   namespaceSelector:
     matchNames:
-      - {{ include "netbird.namespace" . | quote }}
+      - {{ include "netbird.namespace" $ | quote }}
   endpoints:
     - port: metrics
       {{- with $values.interval }}
@@ -55,4 +60,6 @@ spec:
       relabelings:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

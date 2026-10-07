@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render-only checks for credential handling. Run: charts/netbird/tests/render.sh
+# Render-only chart checks. Run: charts/netbird/tests/render.sh
 set -euo pipefail
 chart="$(cd "$(dirname "$0")/.." && pwd)"
 render() { helm template t "$chart" --namespace netbird "$@"; }
@@ -55,5 +55,18 @@ lacks "kind: Secret" "$out"
 # 7. A user env var cannot shadow a chart-managed one.
 fails_with "NB_AUTH_SECRET is set more than once" "${required[@]}" --set backend.split.relay.envFromSecret.NB_AUTH_SECRET=s/k
 fails_with "NB_RELAY_AUTH_SECRET is set more than once" "${required[@]}" --set backend.split.management.env.NB_RELAY_AUTH_SECRET=x
+
+# 8. Selectors keep the v1 form <chart>-<component>, for any release name.
+out="$(render "${required[@]}")"
+has "app.kubernetes.io/name: netbird-management" "$out"
+lacks "app.kubernetes.io/name: t-netbird" "$out"
+
+# 9. A v1 values file (top-level management/signal/relay) is rejected.
+fails_with "additional properties" "${required[@]}" --set management.enabled=true
+
+# 10. One ServiceMonitor per component with metrics, selecting only that component.
+out="$(render "${required[@]}" --set metrics.serviceMonitor.enabled=true --set backend.split.signal.metrics.enabled=true --show-only templates/monitoring/service-monitor.yaml)"
+test "$(grep -c "^kind: ServiceMonitor" <<<"$out")" = 1 || { echo "FAIL: want 1 ServiceMonitor"; exit 1; }
+has "app.kubernetes.io/name: netbird-signal" "$out"
 
 echo "render checks passed"
