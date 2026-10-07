@@ -1,10 +1,11 @@
+{{- if .Values.backend.split.management.enabled }}
 {{- if and .Values.backend.split.management.persistence.enabled (not .Values.backend.split.management.persistence.existingClaim) }}
 {{- $values := .Values.backend.split.management -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "netbird.componentName" (dict "root" . "component" "management") }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "management") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "management") | nindent 4 }}
   annotations:
@@ -21,4 +22,5 @@ spec:
   {{- with $values.persistence.storageClass }}
   storageClassName: {{ . | quote }}
   {{- end }}
+{{- end }}
 {{- end }}

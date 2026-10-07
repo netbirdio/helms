@@ -41,6 +41,29 @@ When `embeddedIdp.enabled` is `false`, the chart omits the `embeddedIdp` block f
 
 `dashboard.config.auth.redirectUri` and `silentRedirectUri` are empty by default, and the dashboard then uses `/#callback` and `/#silent-callback`. External identity providers expect these. The embedded IdP needs `/nb-auth` and `/nb-silent-auth`, as in [`../examples/kind/values.yaml`](../examples/kind/values.yaml).
 
+### Components and namespaces
+
+Each component has `enabled` (default `true`) and `namespace` (default: `global.namespace`, then the release namespace): `dashboard`, `backend.split.management`, `backend.split.signal` and `backend.split.relay`. A disabled component renders no objects, and its required values are not checked. Management still needs `backend.split.relay.config.authSecret` or `authSecretRef`, because it issues relay credentials.
+
+For example, a relay-only release in its own namespace:
+
+```yaml
+dashboard:
+  enabled: false
+backend:
+  split:
+    management:
+      enabled: false
+    signal:
+      enabled: false
+    relay:
+      namespace: netbird-edge
+      config:
+        authSecretRef:
+          name: netbird-external-credentials
+          key: relay-auth-secret
+```
+
 ## Version-specific values
 
 The following additive fields are effective on NetBird 0.77.0 or newer and ignored by 0.74.0:
@@ -77,7 +100,7 @@ For the dashboard, `dashboard.env` overrides environment values generated from `
 
 ## Typed Secret references
 
-Each secret-bearing field in the chart's default typed values has an adjacent `*Ref` alternative. A reference selects one key from a Secret in the release namespace:
+Each secret-bearing field in the chart's default typed values has an adjacent `*Ref` alternative. A reference selects one key from a Secret in the namespace of the component that uses it. `backend.split.relay.config.authSecretRef` is read by both management and relay, so with different namespaces the Secret must exist in both:
 
 ```yaml
 dashboard:
@@ -127,6 +150,7 @@ The chart manages two Secret identities:
 
 - `<fullname>-management-credentials`
   - `datastore-encryption-key`
+  - `relay-auth-secret`, a copy of the relay secret, so management works in another namespace
   - `idp-session-cookie-encryption-key`, when the embedded IdP is enabled
   - `store-dsn`, when `storeConfig.engine` is `postgres` or `mysql`
   - optional `stun-password-<index>`, `turn-password-<index>`, `turn-secret`, `signal-password` and `idp-storage-dsn`

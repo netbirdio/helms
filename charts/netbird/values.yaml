@@ -6,6 +6,9 @@ fullnameOverride: ""
 
 # The dashboard is always deployed. It is stateless and can be scaled independently.
 dashboard:
+  enabled: true
+  # Overrides global.namespace for this component.
+  namespace: ""
   replicaCount: 1
 
   image:
@@ -51,7 +54,7 @@ dashboard:
       audience: netbird-dashboard
       clientId: netbird-dashboard
       clientSecret: ""
-      # References a key in a Secret in this release namespace. Mutually exclusive with clientSecret.
+      # References a key in a Secret in this component's namespace. Mutually exclusive with clientSecret.
       clientSecretRef: {}
       authority: ""
       useAuth0: false
@@ -98,6 +101,9 @@ dashboard:
 backend:
   split:
     management:
+      enabled: true
+      # Overrides global.namespace for this component.
+      namespace: ""
       replicaCount: 1
 
       image:
@@ -197,7 +203,7 @@ backend:
           turns: []
           credentialsTTL: 12h
           secret: ""
-          # References a key in a Secret in this release namespace. Mutually exclusive with secret.
+          # References a key in a Secret in this component's namespace. Mutually exclusive with secret.
           secretRef: {}
           timeBasedCredentials: false
         relay:
@@ -210,7 +216,7 @@ backend:
           uri: netbird.example.com:443
           username: ""
           password: null
-          # References a key in a Secret in this release namespace. Mutually exclusive with password.
+          # References a key in a Secret in this component's namespace. Mutually exclusive with password.
           passwordRef: {}
         reverseProxy:
           trustedHTTPProxies: []
@@ -221,14 +227,14 @@ backend:
         datadir: /var/lib/netbird
         # Required: base64-encoded 32-byte AES key (openssl rand -base64 32), or set dataStoreEncryptionKeyRef.
         dataStoreEncryptionKey: ""
-        # References a key in a Secret in this release namespace. Mutually exclusive with dataStoreEncryptionKey.
+        # References a key in a Secret in this component's namespace. Mutually exclusive with dataStoreEncryptionKey.
         dataStoreEncryptionKeyRef: {}
         storeConfig:
           # sqlite, postgres or mysql.
           engine: sqlite
           # Required for postgres and mysql. Mutually exclusive with dsnRef.
           dsn: ""
-          # References a key in a Secret in this release namespace.
+          # References a key in a Secret in this component's namespace.
           dsnRef: {}
         idpManagerConfig:
           managerType: none
@@ -240,7 +246,7 @@ backend:
             config:
               file: /var/lib/netbird/idp.db
               dsn: ""
-              # References a key in a Secret in this release namespace. Mutually exclusive with dsn.
+              # References a key in a Secret in this component's namespace. Mutually exclusive with dsn.
               dsnRef: {}
           localAuthDisabled: false
           signKeyRefreshEnabled: true
@@ -249,7 +255,7 @@ backend:
           mfaSessionRememberMe: false
           # Required when enabled: set this value or sessionCookieEncryptionKeyRef.
           sessionCookieEncryptionKey: ""
-          # References a key in a Secret in this release namespace. Mutually exclusive with sessionCookieEncryptionKey.
+          # References a key in a Secret in this component's namespace. Mutually exclusive with sessionCookieEncryptionKey.
           sessionCookieEncryptionKeyRef: {}
           dashboardRedirectURIs:
             - https://dashboard.netbird.example.com/nb-auth
@@ -299,6 +305,9 @@ backend:
           tls: []
 
     signal:
+      enabled: true
+      # Overrides global.namespace for this component.
+      namespace: ""
       replicaCount: 1
 
       image:
@@ -385,6 +394,9 @@ backend:
         tls: []
 
     relay:
+      enabled: true
+      # Overrides global.namespace for this component.
+      namespace: ""
       replicaCount: 1
 
       image:
@@ -426,7 +438,7 @@ backend:
         exposedAddress: rels://netbird.example.com:443/relay
         # Required: set this value or authSecretRef.
         authSecret: ""
-        # References a key in a Secret in this release namespace. Mutually exclusive with authSecret.
+        # References a key in a Secret in this component's namespace. Mutually exclusive with authSecret.
         authSecretRef: {}
         log:
           level: info
