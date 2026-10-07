@@ -69,4 +69,24 @@ out="$(render "${required[@]}" --set metrics.serviceMonitor.enabled=true --set b
 test "$(grep -c "^kind: ServiceMonitor" <<<"$out")" = 1 || { echo "FAIL: want 1 ServiceMonitor"; exit 1; }
 has "app.kubernetes.io/name: netbird-signal" "$out"
 
+# 11. Embedded IdP disabled: no embeddedIdp block in management.json.
+out="$(render "${required[@]:0:2}" "${required[@]:4:2}" --set backend.split.management.config.embeddedIdp.enabled=false --show-only templates/split/management/configmap.yaml)"
+lacks '"embeddedIdp"' "$out"
+
+# 12. Single-account mode is a typed value; "" turns it off.
+out="$(render "${required[@]}" --set backend.split.management.server.singleAccountModeDomain= --show-only templates/split/management/deployment.yaml)"
+has "--disable-single-account-mode=true" "$out"
+lacks "--single-account-mode-domain" "$out"
+
+# 13. postgres/mysql need a DSN, served from a Secret.
+fails_with "storeConfig.dsnRef is required" "${required[@]}" --set backend.split.management.config.storeConfig.engine=postgres
+out="$(render "${required[@]}" --set backend.split.management.config.storeConfig.engine=mysql --set backend.split.management.config.storeConfig.dsn=dsn-value)"
+has NB_STORE_ENGINE_MYSQL_DSN "$out"
+lacks dsn-value "$(awk '/^kind: ConfigMap/,/^---/' <<<"$out")"
+
+# 14. Persistence: Recreate strategy and a kept PVC.
+out="$(render "${required[@]}")"
+has "type: Recreate" "$out"
+has "helm.sh/resource-policy: keep" "$out"
+
 echo "render checks passed"

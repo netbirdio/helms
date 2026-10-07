@@ -32,7 +32,6 @@ backend:
   split:
     management:
       envFromSecret:
-        NETBIRD_STORE_ENGINE_POSTGRES_DSN: netbird/postgresDSN
         STUN_SERVER: netbird/stunServer
         TURN_SERVER: netbird/turnServer
         TURN_SERVER_USER: netbird/turnServerUser
@@ -110,6 +109,9 @@ backend:
               - http://localhost:53000
         storeConfig:
           engine: postgres
+          dsnRef:
+            name: netbird
+            key: postgresDSN
       ingress:
         http:
           enabled: true
