@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/credentials: {{ dict "authSecret" $values.config.authSecret "authSecretRef" $authSecretRef | toJson | sha256sum }}
+        checksum/credentials: {{ include "netbird.credentialsChecksum" (dict "root" . "data" (dict "authSecret" $values.config.authSecret "authSecretRef" $authSecretRef)) }}
         {{- with $values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -96,7 +96,7 @@ spec:
             - name: NB_TRUSTED_PROXIES
               value: {{ . | quote }}
             {{- end }}
-            {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
+            {{- include "netbird.env" (dict "values" $values "reserved" (ternary (list "NB_AUTH_SECRET" "NB_TRUSTED_PROXIES") (list "NB_AUTH_SECRET") (not (empty $values.config.trustedProxies)))) | nindent 12 }}
           {{- with $values.lifecycle }}
           lifecycle:
             {{- toYaml . | nindent 12 }}

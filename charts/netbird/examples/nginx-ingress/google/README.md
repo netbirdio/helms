@@ -32,7 +32,7 @@ This setup requires Kubernetes secrets to store sensitive data. You'll need to c
 
 You will also be required to set up a kubernetes secret for `netbird-gcp-service-account` which contains the `sa.json` belong to the service account generated in the prerequisites.
 
-> **Note:** The `datastoreEncryptionKey` must also be provided in a ConfigMap for the Netbird setup.
+> **Note:** The chart reads `datastoreEncryptionKey` and `relayPassword` from this Secret. Keep both values stable: a new `datastoreEncryptionKey` makes the stored data unreadable.
 
 ## Deployment
 

@@ -43,6 +43,9 @@ backend:
               uri: "{{ .TURN_SERVER }}"
               username: "{{ .TURN_SERVER_USER }}"
               password: "{{ .TURN_SERVER_PASSWORD }}"
+        dataStoreEncryptionKeyRef:
+          name: netbird
+          key: datastoreEncryptionKey
         embeddedIdp:
           enabled: false
         httpConfig:
@@ -99,6 +102,9 @@ backend:
 
     relay:
       config:
+        authSecretRef:
+          name: netbird
+          key: relayPassword
         exposedAddress: rels://netbird.example.com:443/relay
         log:
           level: info

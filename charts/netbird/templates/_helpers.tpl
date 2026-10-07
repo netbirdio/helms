@@ -55,8 +55,19 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
-{{/* User-supplied environment entries. Context: values. */}}
+{{/* User-supplied environment entries. Context: values, reserved (names the chart sets). */}}
 {{- define "netbird.env" -}}
+{{- $names := list -}}
+{{- range $key := keys .values.env -}}{{- $names = append $names $key -}}{{- end -}}
+{{- range .values.envRaw -}}{{- $names = append $names (get . "name") -}}{{- end -}}
+{{- range $key := keys .values.envFromSecret -}}{{- $names = append $names $key -}}{{- end -}}
+{{- $seen := default list .reserved -}}
+{{- range $name := $names -}}
+{{- if has $name $seen -}}
+{{- fail (printf "environment variable %s is set more than once; it is either set by the chart or repeated across env, envRaw and envFromSecret" $name) -}}
+{{- end -}}
+{{- $seen = append $seen $name -}}
+{{- end -}}
 {{- range $key := keys .values.env | sortAlpha }}
 - name: {{ $key }}
   value: {{ index $.values.env $key | quote }}
@@ -103,19 +114,27 @@ name: {{ get .ref "name" | quote }}
 key: {{ get .ref "key" | quote }}
 {{- end -}}
 
-{{/* Preserve generated credentials across upgrades unless a value is configured. */}}
-{{- define "netbird.persistedSecret" -}}
-{{- $configured := toString (default "" .value) -}}
-{{- if $configured -}}
-{{- $configured -}}
-{{- else -}}
-{{- $existing := lookup "v1" "Secret" (include "netbird.namespace" .root) .name -}}
-{{- if and $existing (hasKey $existing.data .key) -}}
-{{- index $existing.data .key | b64dec -}}
-{{- else -}}
-{{- if .base64 -}}{{- randBytes (default 32 .length) -}}{{- else -}}{{- randAlphaNum (default 32 .length) -}}{{- end -}}
+{{/* Fail unless an inline value or a reference is set. Context: value, ref, path. */}}
+{{- define "netbird.requireSecret" -}}
+{{- if and (empty .value) (empty .ref) -}}
+{{- fail (printf "%s or %sRef is required; generate one with: openssl rand -base64 32" .path .path) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Whether a secret field is served from a Secret instead of the ConfigMap.
+Inline values that are already management placeholders ({{ .ENV }}) stay inline.
+Context: value, ref. Returns "true" or "".
+*/}}
+{{- define "netbird.externalize" -}}
+{{- $value := toString (default "" .value) -}}
+{{- if or .ref (and $value (not (regexMatch "^\\s*\\{\\{.*\\}\\}\\s*$" $value))) -}}true{{- end -}}
+{{- end -}}
+
+{{/* Pod checksum over values that may hold inline secrets. Context: root, data. */}}
+{{- define "netbird.credentialsChecksum" -}}
+{{- /* ponytail: release-scoped salt stops precomputed lookups only; weak inline secrets stay guessable, use *Ref for those. */ -}}
+{{- printf "%s/%s/%s" (include "netbird.namespace" .root) .root.Release.Name (toJson .data) | sha256sum -}}
 {{- end -}}
 
 {{/* The split management embedded-IDP owner field consumes a bcrypt hash. */}}
