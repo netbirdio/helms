@@ -109,7 +109,7 @@ helm upgrade --install netbird charts/netbird \
   --wait
 ```
 
-Use the same command for upgrades. Keep the credentials Secret unchanged between upgrades: a new datastore key makes the stored data unreadable.
+Use the same command for upgrades. To upgrade from chart 1.x, read [Upgrade from 1.x](../README.md#upgrade-from-1x) first. Keep the credentials Secret unchanged between upgrades: a new datastore key makes the stored data unreadable.
 
 The 0.77.0-only `pprofAddress`, `trustedProxies`, and `agentNetwork.pricingDefaultsFile` values are ignored by 0.74.0. Keep them empty unless their runtime requirements are configured.
 
