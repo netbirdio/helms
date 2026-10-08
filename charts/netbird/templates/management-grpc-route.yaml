@@ -1,0 +1,36 @@
+{{- if .Values.management.enabled -}}
+{{- if .Values.management.grpcRoute.enabled -}}
+{{- $fullName := printf "%s-management-grpc" (include "netbird.fullname" .) -}}
+{{- $useBackwardsGrpcService := .Values.management.useBackwardsGrpcService -}}
+{{- $svcNameGrpc := printf "%s-management-grpc" (include "netbird.fullname" .) -}}
+{{- $svcPortGrpc := .Values.management.serviceGrpc.port -}}
+{{- $svcName := printf "%s-management" (include "netbird.fullname" .) -}}
+{{- $svcPort := .Values.management.service.port -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: {{ $fullName }}-grpc-route
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.management.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.management.grpcRoute.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.management.grpcRoute.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - name: {{ if $useBackwardsGrpcService }}{{ $svcNameGrpc }}{{ else }}{{ $svcName }}{{ end }}
+          port: {{ if $useBackwardsGrpcService }}{{ $svcPortGrpc }}{{ else }}{{ $svcPort }}{{ end }}
+      matches:
+        - headers:
+            - name: Content-Type
+              value: application/grpc
+          method:
+            service: management.ManagementService
+{{- end }}
+{{- end }}

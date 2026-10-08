@@ -1,0 +1,32 @@
+{{- if .Values.signal.enabled -}}
+{{- if .Values.signal.grpcRoute.enabled -}}
+{{- $fullName := printf "%s-signal" (include "netbird.fullname" .) -}}
+{{- $svcPort := .Values.signal.service.port -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: {{ $fullName }}-grpc-route
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.signal.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.signal.grpcRoute.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.signal.grpcRoute.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - name: {{ $fullName }}
+          port: {{ $svcPort }}
+      matches:
+        - headers:
+            - name: Content-Type
+              value: application/grpc
+          method:
+            service: signalexchange.SignalExchange
+{{- end }}
+{{- end }}

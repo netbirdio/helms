@@ -203,6 +203,22 @@ management:
     #    hosts:
     #      - chart-example.local
 
+  httpRoute:
+    ## @param management.httpRoute.enabled Enable or disable Gateway API for the management component.
+    ##
+    enabled: false
+
+    ## @param management.httpRoute.parentRefs Parent references for the Gateway API resource.
+    ##
+    parentRefs: []
+    # - name: external
+    #   namespace: gateway
+
+    ## @param management.httpRoute.hostnames Hostnames for the Gateway API resource.
+    ##
+    hostnames: []
+    # - example.com
+
   ingressGrpc:
     ## @param management.ingressGrpc.enabled Enable or disable GRPC ingress.
     ##
@@ -231,6 +247,22 @@ management:
     ## @param management.ingressGrpc.tls TLS settings for GRPC ingress.
     ##
     tls: []
+
+  grpcRoute:
+    ## @param management.grpcRoute.enabled Enable or disable Gateway API for the management GRPC component.
+    ##
+    enabled: false
+
+    ## @param management.grpcRoute.parentRefs Parent references for the Gateway API GRPC resource.
+    ##
+    parentRefs: []
+    # - name: external
+    #   namespace: gateway
+
+    ## @param management.grpcRoute.hostnames Hostnames for the Gateway API GRPC resource.
+    ##
+    hostnames: []
+    # - example.com
 
   ## @param management.resources Resource requests and limits for the management pod.
   ##
@@ -434,6 +466,22 @@ signal:
     ##
     tls: []
 
+  grpcRoute:
+    ## @param signal.grpcRoute.enabled Enable or disable Gateway API for the signal component.
+    ##
+    enabled: false
+
+    ## @param signal.grpcRoute.parentRefs Parent references for the Gateway API resource.
+    ##
+    parentRefs: []
+    # - name: external
+    #   namespace: gateway
+
+    ## @param signal.grpcRoute.hostnames Hostnames for the Gateway API resource.
+    ##
+    hostnames: []
+    # - example.com
+
   ## @
 
   ## param signal.resources Resource requests and limits for the signal pod.
@@ -627,6 +675,22 @@ relay:
     ##
     tls: []
 
+  httpRoute:
+    ## @param relay.httpRoute.enabled Enable or disable Gateway API for the relay component.
+    ##
+    enabled: false
+
+    ## @param relay.httpRoute.parentRefs Parent references for the Gateway API resource.
+    ##
+    parentRefs: []
+    # - name: external
+    #   namespace: gateway
+
+    ## @param relay.httpRoute.hostnames Hostnames for the Gateway API resource.
+    ##
+    hostnames: []
+    # - example.com
+
   ## @param relay.resources Resource requests and limits for the relay pod.
   ##
   resources: {}
@@ -789,6 +853,22 @@ dashboard:
     #  - secretName: chart-example-tls
     #    hosts:
     #      - chart-example.local
+
+  httpRoute:
+    ## @param dashboard.httpRoute.enabled Enable or disable Gateway API for the dashboard component.
+    ##
+    enabled: false
+
+    ## @param dashboard.httpRoute.parentRefs Parent references for the Gateway API resource.
+    ##
+    parentRefs: []
+    # - name: external
+    #   namespace: gateway
+
+    ## @param dashboard.httpRoute.hostnames Hostnames for the Gateway API resource.
+    ##
+    hostnames: []
+    # - example.com
 
   ## @param dashboard.resources
   resources: {}
