@@ -34,7 +34,7 @@ kubectl --namespace netbird create secret generic netbird-external-credentials \
   --from-literal=relay-auth-secret="$(openssl rand -base64 32)"
 ```
 
-Omit `idp-session-cookie-encryption-key` when `backend.split.management.config.embeddedIdp.enabled` is `false`. If a required credential has no value and no reference, the render stops with an error.
+Omit `idp-session-cookie-encryption-key` when `backend.split.management.config.embeddedIdp.enabled` is `false`. If your identity provider gives the dashboard a client secret, also add `--from-literal=dashboard-client-secret=<secret>`; the `clientSecretRef` below needs that key. If a required credential has no value and no reference, the render stops with an error.
 
 Configure the public endpoints together:
 
