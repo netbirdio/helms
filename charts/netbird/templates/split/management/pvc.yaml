@@ -7,10 +7,11 @@ metadata:
   namespace: {{ include "netbird.namespace" . }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "management") | nindent 4 }}
-  {{- with $values.persistence.annotations }}
   annotations:
+    helm.sh/resource-policy: keep
+    {{- with $values.persistence.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   accessModes:
     {{- toYaml $values.persistence.accessModes | nindent 4 }}
