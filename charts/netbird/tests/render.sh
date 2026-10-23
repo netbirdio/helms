@@ -122,5 +122,7 @@ has 'image: "reg.example.com/netbirdio/relay@sha256:abc"' "$out"
 # 19. Fixed STUN node ports.
 out="$(render "${required[@]}" --set backend.split.relay.config.stun.enabled=true --set backend.split.relay.stunService.enabled=true --set backend.split.relay.stunService.type=NodePort --set-json 'backend.split.relay.stunService.nodePorts={"3478":30478}' --show-only templates/split/relay/stun-service.yaml)"
 has "nodePort: 30478" "$out"
+out="$(render "${required[@]}" --set backend.split.relay.config.stun.enabled=true --set backend.split.relay.stunService.enabled=true --set backend.split.relay.stunService.type=ClusterIP --set-json 'backend.split.relay.stunService.nodePorts={"3478":30478}' --show-only templates/split/relay/stun-service.yaml)"
+lacks "nodePort" "$out"
 
 echo "render checks passed"
