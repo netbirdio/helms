@@ -24,6 +24,9 @@
 {{- $_ := set $generated "AUTH_CLIENT_SECRET" $auth.clientSecret -}}
 {{- end -}}
 {{- $environment := mergeOverwrite $generated (deepCopy .Values.dashboard.env) -}}
+{{- /* envFromSecret and envRaw win: drop the plain entry so the name appears once. */ -}}
+{{- range $key := keys .Values.dashboard.envFromSecret }}{{ $_ := unset $environment $key }}{{ end -}}
+{{- range .Values.dashboard.envRaw }}{{ $_ := unset $environment .name }}{{ end -}}
 {{- range $key := keys $environment | sortAlpha }}
 - name: {{ $key }}
   value: {{ index $environment $key | quote }}

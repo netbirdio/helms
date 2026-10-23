@@ -56,7 +56,7 @@ backend:
         idpManagerConfig:
           managerType: authentik
           clientConfig:
-            issuer: https://idp.example.com/application/o/totmicro-traefik-netbird
+            issuer: https://idp.example.com/application/o/netbird/
             tokenEndpoint: https://idp.example.com/application/o/token/
             clientID: "{{ .IDP_CLIENT_ID }}"
             clientSecret: ""
