@@ -45,6 +45,8 @@ When `embeddedIdp.enabled` is `false`, the chart omits the `embeddedIdp` block f
 
 Each component has `enabled` (default `true`) and `namespace` (default: `global.namespace`, then the release namespace): `dashboard`, `backend.split.management`, `backend.split.signal` and `backend.split.relay`. A disabled component renders no objects, and its required values are not checked. Management still needs `backend.split.relay.config.authSecret` or `authSecretRef`, because it issues relay credentials.
 
+Do not change the management namespace of an existing persistent installation without moving its data. The chart creates a new, empty claim in the new namespace, and management starts with an empty datastore; the old claim is kept but not used. Copy the data first, or point `persistence.existingClaim` at a claim in the new namespace that holds it.
+
 For example, a relay-only release in its own namespace:
 
 ```yaml

@@ -24,7 +24,7 @@
 {{- default .Release.Namespace .Values.global.namespace -}}
 {{- end -}}
 
-{{/* Component namespace: <component>.namespace, else the release namespace. Context: root, component. */}}
+{{/* Component namespace: <component>.namespace, else global.namespace, else the release namespace. Context: root, component. */}}
 {{- define "netbird.componentNamespace" -}}
 {{- $values := ternary .root.Values.dashboard (get .root.Values.backend.split .component) (eq .component "dashboard") -}}
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
