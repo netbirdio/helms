@@ -1,5 +1,7 @@
 global:
   namespace: ""
+  # Registry prefix for every image, e.g. registry.example.com.
+  imageRegistry: ""
 
 nameOverride: ""
 fullnameOverride: ""
@@ -14,6 +16,8 @@ dashboard:
   image:
     repository: netbirdio/dashboard
     tag: v2.91.1
+    # Pins the image by digest (sha256:...) and ignores tag when set.
+    digest: ""
     pullPolicy: IfNotPresent
     pullSecrets: []
 
@@ -109,6 +113,8 @@ backend:
       image:
         repository: netbirdio/management
         tag: 0.77.0
+        # Pins the image by digest (sha256:...) and ignores tag when set.
+        digest: ""
         pullPolicy: IfNotPresent
         pullSecrets: []
 
@@ -180,6 +186,8 @@ backend:
       service:
         type: ClusterIP
         port: 80
+        # gRPC through Gateway API needs HTTP/2 cleartext. Set "" to omit.
+        appProtocol: kubernetes.io/h2c
         annotations: {}
         externalIPs: []
 
@@ -313,6 +321,8 @@ backend:
       image:
         repository: netbirdio/signal
         tag: 0.77.0
+        # Pins the image by digest (sha256:...) and ignores tag when set.
+        digest: ""
         pullPolicy: IfNotPresent
         pullSecrets: []
 
@@ -379,6 +389,8 @@ backend:
       service:
         type: ClusterIP
         port: 80
+        # gRPC through Gateway API needs HTTP/2 cleartext. Set "" to omit.
+        appProtocol: kubernetes.io/h2c
         annotations: {}
         externalIPs: []
 
@@ -402,6 +414,8 @@ backend:
       image:
         repository: netbirdio/relay
         tag: 0.77.0
+        # Pins the image by digest (sha256:...) and ignores tag when set.
+        digest: ""
         pullPolicy: IfNotPresent
         pullSecrets: []
 
@@ -494,6 +508,8 @@ backend:
         externalIPs: []
         loadBalancerIP: ""
         externalTrafficPolicy: Cluster
+        # Fixed node ports for type NodePort, by STUN port, e.g. {"3478": 30478}.
+        nodePorts: {}
 
       ingress:
         enabled: false
