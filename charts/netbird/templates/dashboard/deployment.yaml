@@ -1,10 +1,11 @@
+{{- if .Values.dashboard.enabled }}
 {{- $values := .Values.dashboard -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "dashboard") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "dashboard") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "dashboard") | nindent 4 }}
   {{- with $values.deployment.annotations }}
@@ -86,3 +87,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

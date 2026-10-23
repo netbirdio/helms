@@ -1,9 +1,10 @@
+{{- if .Values.backend.split.signal.enabled }}
 {{- $values := .Values.backend.split.signal -}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "netbird.componentName" (dict "root" . "component" "signal") }}
-  namespace: {{ include "netbird.namespace" . }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "signal") }}
   labels:
     {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
   {{- with $values.service.annotations }}
@@ -29,3 +30,4 @@ spec:
   externalIPs:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
