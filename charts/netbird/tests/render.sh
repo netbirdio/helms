@@ -79,10 +79,17 @@ has "app.kubernetes.io/name: netbird-signal" "$out"
 out="$(render "${required[@]:0:2}" "${required[@]:4:2}" --set backend.split.management.config.embeddedIdp.enabled=false --show-only templates/split/management/configmap.yaml)"
 lacks '"embeddedIdp"' "$out"
 
-# 12. Single-account mode is a typed value; "" turns it off.
-out="$(render "${required[@]}" --set backend.split.management.server.singleAccountModeDomain= --show-only templates/split/management/deployment.yaml)"
+# 12. Single-account mode is a typed value; "" turns it off, which the embedded IdP does not support.
+fails_with "required while the embedded IdP is enabled" "${required[@]}" --set backend.split.management.server.singleAccountModeDomain=
+out="$(render "${required[@]:0:2}" "${required[@]:4:2}" --set backend.split.management.config.embeddedIdp.enabled=false --set backend.split.management.server.singleAccountModeDomain= --show-only templates/split/management/deployment.yaml)"
 has "--disable-single-account-mode=true" "$out"
 lacks "--single-account-mode-domain" "$out"
+
+# 12b. Empty dashboard redirects follow the IdP mode.
+out="$(render "${required[@]}" --show-only templates/dashboard/deployment.yaml)"
+has '/nb-silent-auth' "$out"
+out="$(render "${required[@]:0:2}" "${required[@]:4:2}" --set backend.split.management.config.embeddedIdp.enabled=false --show-only templates/dashboard/deployment.yaml)"
+lacks '/nb-auth' "$out"
 
 # 13. postgres/mysql need a DSN, served from a Secret.
 fails_with "storeConfig.dsnRef is required" "${required[@]}" --set backend.split.management.config.storeConfig.engine=postgres

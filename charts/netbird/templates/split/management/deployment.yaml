@@ -66,6 +66,9 @@ spec:
             {{- if $values.server.singleAccountModeDomain }}
             - --single-account-mode-domain={{ $values.server.singleAccountModeDomain }}
             {{- else }}
+            {{- if $values.config.embeddedIdp.enabled }}
+            {{- fail "backend.split.management.server.singleAccountModeDomain is required while the embedded IdP is enabled: NetBird does not support multi-account mode with the embedded IdP" }}
+            {{- end }}
             - --disable-single-account-mode=true
             {{- end }}
             {{- with $values.server.dnsDomain }}

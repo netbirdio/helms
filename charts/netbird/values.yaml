@@ -56,8 +56,8 @@ dashboard:
       authority: ""
       useAuth0: false
       supportedScopes: "openid profile email groups"
-      # Empty uses the dashboard defaults (/#callback, /#silent-callback) for
-      # external IdPs. The embedded IdP needs /nb-auth and /nb-silent-auth.
+      # Empty follows the IdP: /nb-auth and /nb-silent-auth with the embedded IdP,
+      # the dashboard defaults (/#callback, /#silent-callback) otherwise.
       redirectUri: ""
       silentRedirectUri: ""
       tokenSource: accessToken

@@ -39,7 +39,7 @@ When `embeddedIdp.enabled` is `false`, the chart omits the `embeddedIdp` block f
 
 ### Dashboard redirect URIs
 
-`dashboard.config.auth.redirectUri` and `silentRedirectUri` are empty by default, and the dashboard then uses `/#callback` and `/#silent-callback`. External identity providers expect these. The embedded IdP needs `/nb-auth` and `/nb-silent-auth`, as in [`../examples/kind/values.yaml`](../examples/kind/values.yaml).
+`dashboard.config.auth.redirectUri` and `silentRedirectUri` are empty by default. With the embedded IdP enabled the chart then sets `/nb-auth` and `/nb-silent-auth`; otherwise the dashboard uses `/#callback` and `/#silent-callback`, which external identity providers expect. Set them explicitly to override either default.
 
 ## Version-specific values
 

@@ -8,6 +8,10 @@
   "value" $auth.clientSecret
   "path" "dashboard.config.auth.clientSecretRef"
 ) -}}
+{{- /* Empty redirects follow the IdP: the embedded IdP serves /nb-auth, external IdPs use the dashboard defaults. */ -}}
+{{- $embedded := .Values.backend.split.management.config.embeddedIdp.enabled -}}
+{{- $redirectUri := default (ternary "/nb-auth" "" $embedded) $auth.redirectUri -}}
+{{- $silentRedirectUri := default (ternary "/nb-silent-auth" "" $embedded) $auth.silentRedirectUri -}}
 {{- $generated := dict
   "NETBIRD_MGMT_API_ENDPOINT" $api.httpEndpoint
   "NETBIRD_MGMT_GRPC_API_ENDPOINT" $api.grpcEndpoint
@@ -16,8 +20,8 @@
   "AUTH_AUTHORITY" $auth.authority
   "USE_AUTH0" (toString $auth.useAuth0)
   "AUTH_SUPPORTED_SCOPES" $auth.supportedScopes
-  "AUTH_REDIRECT_URI" $auth.redirectUri
-  "AUTH_SILENT_REDIRECT_URI" $auth.silentRedirectUri
+  "AUTH_REDIRECT_URI" $redirectUri
+  "AUTH_SILENT_REDIRECT_URI" $silentRedirectUri
   "NETBIRD_TOKEN_SOURCE" $auth.tokenSource
 -}}
 {{- if not $clientSecretRef -}}
