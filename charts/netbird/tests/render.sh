@@ -63,6 +63,12 @@ lacks "app.kubernetes.io/name: t-netbird" "$out"
 
 # 9. A v1 values file (top-level management/signal/relay) is rejected.
 fails_with "additional propert" "${required[@]}" --set management.enabled=true
+fails_with "imagePullSecrets" "${required[@]}" --set "dashboard.imagePullSecrets[0].name=r"
+
+# 9b. A long nameOverride keeps the component suffix, so selectors stay distinct.
+out="$(render "${required[@]}" --set nameOverride=$(printf 'n%.0s' {1..70}))"
+[ "$(grep -o 'app.kubernetes.io/name: .*' <<<"$out" | sort -u | wc -l)" -ge 4 ] || { echo "FAIL: selectors collide with a long nameOverride"; exit 1; }
+has "nnnnnn-management" "$out"
 
 # 10. One ServiceMonitor per component with metrics, selecting only that component.
 out="$(render "${required[@]}" --set metrics.serviceMonitor.enabled=true --set backend.split.signal.metrics.enabled=true --show-only templates/monitoring/service-monitor.yaml)"

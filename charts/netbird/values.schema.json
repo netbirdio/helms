@@ -7,7 +7,11 @@
     "global": { "type": "object" },
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
-    "dashboard": { "type": "object" },
+    "dashboard": {
+      "type": "object",
+      "description": "1.x dashboard.imagePullSecrets moved to dashboard.image.pullSecrets.",
+      "properties": { "imagePullSecrets": false }
+    },
     "backend": {
       "type": "object",
       "additionalProperties": false,

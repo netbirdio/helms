@@ -33,7 +33,7 @@
 
 {{/* Selectors are immutable: keep the v1 form <chart name>-<component>, without the release name. */}}
 {{- define "netbird.selectorLabels" -}}
-app.kubernetes.io/name: {{ printf "%s-%s" (include "netbird.name" .root) .component | trunc 63 | trimSuffix "-" }}
+app.kubernetes.io/name: {{ printf "%s-%s" (include "netbird.name" .root | trunc (int (sub 62 (len .component))) | trimSuffix "-") .component }}
 app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- end -}}
 
