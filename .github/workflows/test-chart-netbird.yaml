@@ -41,7 +41,10 @@ jobs:
         run: helm version
 
       - name: Lint Helm chart
-        run: helm lint --strict ./charts/netbird
+        run: helm lint --strict ./charts/netbird --values charts/netbird/tests/values/secret-refs.yaml
+
+      - name: Run render checks
+        run: charts/netbird/tests/render.sh
 
       - name: Render external Secret references
         run: helm template test-chart ./charts/netbird --namespace netbird --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
