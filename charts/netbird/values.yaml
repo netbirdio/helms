@@ -1,838 +1,71 @@
-## @section NetBird Parameters
-
-## @param global.namespace Kubernetes namespace for the NetBird components.
-##
 global:
   namespace: ""
 
-## @param nameOverride Override the name of the chart.
-##
 nameOverride: ""
-
-## @param fullnameOverride Override the full name of the chart.
-##
 fullnameOverride: ""
 
-## @section NetBird Management
-
-management:
-  ## @param management.enabled Enable or disable NetBird management component.
-  ##
-  enabled: true
-
-  ## @param management.podCommand Define the arguments for the management pod.
-  ##
-  podCommand:
-    args:
-      - --port=80
-      - --log-file=console
-      - --log-level=info
-      - --disable-anonymous-metrics=false
-      - --single-account-mode-domain=netbird.selfhosted
-      - --dns-domain=netbird.selfhosted
-
-  configmap: |- # Placeholder for ConfigMap data
-
-  lifecycle: {} # Define lifecycle hooks (preStop, postStart) if needed.
-
-  ## @param management.replicaCount Number of management pod replicas.
-  ##
-  replicaCount: 1
-
-  ## @param management.env Environment variables for the management pod.
-  ##
-  env: {}
-
-  ## @param management.envRaw Raw environment variables for the management pod.
-  ##
-  envRaw: []
-  #- name: NETBIRD_STORE_ENGINE_POSTGRES_DSN
-  #  valueFrom:
-  #    secretKeyRef:
-  #      name: netbird-management
-  #      key: postgresDSN
-
-  ## @param management.envFromSecret Environment variables from secrets.
-  ##
-  envFromSecret: {}
-  #ENV_VAR: secretName/secretKey
-
-  image:
-    ## @param management.image.repository Docker image repository for the management component.
-    ##
-    repository: netbirdio/management
-
-    ## @param management.image.pullPolicy Docker image pull policy.
-    ##
-    pullPolicy: IfNotPresent
-
-    ## @param management.image.tag Docker image tag. Overrides the default tag.
-    ##
-    tag: ""
-
-  ## @param management.imagePullSecrets Docker registry credentials for pulling the management image.
-  ##
-  imagePullSecrets: []
-
-  serviceAccount:
-    ## @param management.serviceAccount.create Whether to create a service account.
-    ##
-    create: true
-
-    ## @param management.serviceAccount.annotations Annotations for the service account.
-    ##
-    annotations: {}
-
-    ## @param management.serviceAccount.name Name of the service account to use.
-    ##
-    name: ""
-
-  ## @param management.deploymentAnnotations Annotations for the management deployment.
-  ##
-  deploymentAnnotations: {}
-
-  ## @param management.podAnnotations Annotations for the management pod(s).
-  ##
-  podAnnotations: {}
-
-  ## @param management.podSecurityContext Security context for the management pod(s).
-  ##
-  podSecurityContext: {}
-  # fsGroup: 2000
-
-  ## @param management.securityContext Security context for the management container.
-  ##
-  securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-  ## @param management.useBackwardsGrpcService Use the backwards-compatible GRPC service.
-  useBackwardsGrpcService: false
-
-  metrics:
-    ## @param signal.metrics.enabled enables/disables metrics
-    ##
-    enabled: false
-    ## @param signal.metrics.port target metrics port
-    ##
-    port: 9090
-
-  ## @param management.containerPort Container port for the management service.
-  ##
-  containerPort: 80
-
-  service:
-    ## @param management.service.type Service type for the management component.
-    ##
-    type: ClusterIP
-
-    ## @param management.service.port Port for the management service.
-    ##
-    port: 80
-
-    ## @param management.service.name Name for the management service port.
-    ##
-    name: http
-
-    ## @param management.service.externalIPs External IPs for the management service.
-    ##
-    externalIPs: []
-
-    ## @param management.service.annotations Annotations for the management service.
-    ##
-    annotations: {}
-
-  ## @param management.grpcContainerPort Container port for the management service.
-  ##
-  grpcContainerPort: 33073
-
-  serviceGrpc:
-    ## @param management.serviceGrpc.type Service type for the management GRPC component.
-    ##
-    type: ClusterIP
-
-    ## @param management.serviceGrpc.port Port for the management GRPC service.
-    ##
-    port: 33073
-
-    ## @param management.serviceGrpc.name Name for the management GRPC service port.
-    ##
-    name: grpc
-
-    ## @param management.serviceGrpc.externalIPs External IPs for the management GRPC service.
-    ##
-    externalIPs: []
-
-    ## @param management.serviceGrpc.annotations Annotations for the management service.
-    ##
-    annotations: {}
-
-  ingress:
-    ## @param management.ingress.enabled Enable or disable ingress for the management component.
-    ##
-    enabled: false
-
-    ## @param management.ingress.className Ingress class name.
-    ##
-    className: ""
-
-    ## @param management.ingress.annotations Annotations for the ingress resource.
-    ##
-    annotations: {}
-
-    hosts:
-      ## @param management.ingress.hosts[0].host Host for the ingress.
-      ##
-      - host: example.com
-        paths:
-          ## @param management.ingress.hosts[0].paths[0].path Path for the ingress.
-          ##
-          - path: /
-            ## @param management.ingress.hosts[0].paths[0].pathType Path type for the ingress.
-            ##
-            pathType: ImplementationSpecific
-
-    ## @param management.ingress.tls TLS settings for the ingress.
-    ##
-    tls: []
-    #  - secretName: chart-example-tls
-    #    hosts:
-    #      - chart-example.local
-
-  ingressGrpc:
-    ## @param management.ingressGrpc.enabled Enable or disable GRPC ingress.
-    ##
-    enabled: false
-
-    ## @param management.ingressGrpc.className Ingress class name for GRPC.
-    ##
-    className: ""
-
-    ## @param management.ingressGrpc.annotations Annotations for the GRPC ingress resource.
-    ##
-    annotations: {}
-
-    hosts:
-      ## @param management.ingressGrpc.hosts[0].host Host for GRPC ingress.
-      ##
-      - host: example.com
-        paths:
-          ## @param management.ingressGrpc.hosts[0].paths[0].path Path for GRPC ingress.
-          ##
-          - path: /
-            ## @param management.ingressGrpc.hosts[0].paths[0].pathType Path type for GRPC ingress.
-            ##
-            pathType: ImplementationSpecific
-
-    ## @param management.ingressGrpc.tls TLS settings for GRPC ingress.
-    ##
-    tls: []
-
-  ## @param management.resources Resource requests and limits for the management pod.
-  ##
-  resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-  ## @param management.nodeSelector Node selector for scheduling the management pod.
-  ##
-  nodeSelector: {}
-
-  ## @param management.tolerations Tolerations for scheduling the management pod.
-  ##
-  tolerations: []
-
-  ## @param management.affinity Affinity rules for scheduling the management pod.
-  ##
-  affinity: {}
-
-  persistentVolume:
-    ## @param management.persistentVolume.enabled Enable or disable persistent volume for the management pod.
-    ##
-    enabled: true
-
-    ## @param management.persistentVolume.accessModes Access modes for the persistent volume.
-    ##
-    accessModes:
-      - ReadWriteOnce
-
-    ## @param management.persistentVolume.size Size of the persistent volume.
-    ##
-    size: 10Mi
-
-    ## @param management.persistentVolume.storageClass Storage Class of the persistent volume.
-    ##
-    storageClass: null
-
-    ## @param management.persistentVolume.existingPVName The name of an existing persistent volume which should be claimed and used for the management pod.
-    ##
-    existingPVName: ""
-
-  ## @param management.livenessProbe for the management component.
-  ##
-  livenessProbe:
-    failureThreshold: 3
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    timeoutSeconds: 3
-    tcpSocket:
-      port: http
-
-  ## @param management.readinessProbe for the management component.
-  ##
-  readinessProbe:
-    failureThreshold: 3
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    timeoutSeconds: 3
-    tcpSocket:
-      port: http
-
-  ## @param management.volumeMounts Volume mounts for the management pod.
-  volumeMounts: []
-  # - name: tmp
-  #   mountPath: /tmp
-
-  ## @param management.volumes volumes for the management pod.
-  volumes: []
-  # - name: tmp
-  #   emptyDir: {}
-
-## @section NetBird Signal
-
-signal:
-  enabled: true
-  ## @param signal.logLevel Log level for the signal component.
-  ##
-  logLevel: info
-
-  ## @param signal.replicaCount Number of signal pod replicas.
-  ##
-  replicaCount: 1
-
-  image:
-    ## @param signal.image.repository Docker image repository for the signal component.
-    ##
-    repository: netbirdio/signal
-
-    ## @param signal.image.pullPolicy Docker image pull policy for the signal component.
-    ##
-    pullPolicy: IfNotPresent
-
-    ## @param signal.image.tag Docker image tag for the signal component.
-    ##
-    tag: ""
-
-  ## @param signal.imagePullSecrets Docker registry credentials for pulling the signal image.
-  ##
-  imagePullSecrets: []
-
-  serviceAccount:
-    ## @param signal.serviceAccount.create Whether to create a service account for the signal component.
-    ##
-    create: true
-
-    ## @param signal.serviceAccount.annotations Annotations for the signal service account.
-    ##
-    annotations: {}
-
-    ## @param signal.serviceAccount.name Name of the signal service account.
-    ##
-    name: ""
-
-  ## @param signal.deploymentAnnotations Annotations for the signal deployment.
-  ##
-  deploymentAnnotations: {}
-
-  ## @param signal.podAnnotations Annotations for the signal pod(s).
-  ##
-  podAnnotations: {}
-
-  ## @param signal.podSecurityContext Security context for the signal pod(s).
-  ##
-  podSecurityContext: {}
-  # fsGroup: 2000
-
-  ## @param signal.securityContext Security context for the signal container.
-  ##
-  securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-  metrics:
-    ## @param signal.metrics.enabled enables/disables metrics
-    ##
-    enabled: false
-
-    ## @param signal.metrics.port target metrics port
-    ##
-    port: 9090
-
-  ## @param signal.containerPort Container port for the signal service.
-  ##
-  containerPort: 80
-
-  service:
-    ## @param signal.service.type Service type for the signal component.
-    ##
-    type: ClusterIP
-
-    ## @param signal.service.port Port for the signal service.
-    ##
-    port: 80
-
-    ## @param signal.service.name Name for the signal service port.
-    ##
-    name: grpc
-
-    ## @param signal.service.externalIPs External IPs for the signal service.
-    ##
-    externalIPs: []
-
-    ## @param signal.service.annotations Annotations for the signal service.
-    ##
-    annotations: {}
-
-  ingress:
-    ## @param signal.ingress.enabled Enable or disable ingress for the signal component.
-    ##
-    enabled: false
-
-    ## @param signal.ingress.className Ingress class name for the signal component.
-    ##
-    className: ""
-
-    ## @param signal.ingress.annotations Annotations for the signal ingress resource.
-    ##
-    annotations: {}
-
-    hosts:
-      ## @param signal.ingress.hosts[0].host Host for the signal ingress.
-      ##
-      - host: example.com
-        paths:
-          ## @param signal.ingress.hosts[0].paths[0].path Path for the signal ingress.
-          ##
-          - path: /signalexchange.SignalExchange
-            ## @param signal.ingress.hosts[0].paths[0].pathType Path type for the signal ingress.
-            ##
-            pathType: ImplementationSpecific
-
-    ## @param signal.ingress.tls TLS settings for the signal ingress.
-    ##
-    tls: []
-
-  ## @
-
-  ## param signal.resources Resource requests and limits for the signal pod.
-  resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-  ## @param signal.nodeSelector Node selector for scheduling the signal pod.
-  ##
-  nodeSelector: {}
-
-  ## @param signal.tolerations Tolerations for scheduling the signal pod.
-  ##
-  tolerations: []
-
-  ## @param signal.affinity Affinity rules for scheduling the signal pod.
-  ##
-  affinity: {}
-
-  ## @param signal.livenessProbe for the signal component.
-  ##
-
-  livenessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    tcpSocket:
-      port: grpc
-
-  ## @param signal.readinessProbe for the signal component.
-  ##
-  readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    tcpSocket:
-      port: grpc
-
-  ## @param signal.volumeMounts Volume mounts for the signal pod.
-  volumeMounts: []
-  # - name: tmp
-  #   mountPath: /tmp
-
-  ## @param signal.volumes volumes for the signal pod.
-  volumes: []
-  # - name: tmp
-  #   emptyDir: {}
-
-## @section NetBird Relay Parameters
-
-relay:
-  ## @param relay.enabled Enable or disable the NetBird relay component.
-  ##
-  enabled: true
-
-  ## @param relay.replicaCount Number of relay pod replicas.
-  ##
-  replicaCount: 1
-
-  ## @param relay.logLevel Log level for the relay component.
-  ##
-  logLevel: info
-
-  ## @param relay.env Environment variables for the management pod.
-  ##
-  env: {}
-
-  ## @param relay.envRaw Raw environment variables for the management pod.
-  ##
-  envRaw: []
-
-  ## @param relay.envFromSecret Environment variables from secrets.
-  ##
-  envFromSecret: {}
-  #ENV_VAR: secretName/secretKey
-
-  image:
-    ## @param relay.image.repository Docker image repository for the relay component.
-    ##
-    repository: netbirdio/relay
-
-    ## @param relay.image.pullPolicy Docker image pull policy for the relay component.
-    ##
-    pullPolicy: IfNotPresent
-
-    ## @param relay.image.tag Docker image tag for the relay component.
-    ##
-    tag: ""
-
-  ## @param relay.imagePullSecrets Docker registry credentials for pulling the relay image.
-  ##
-  imagePullSecrets: []
-
-  serviceAccount:
-    ## @param relay.serviceAccount.create Whether to create a service account for the relay component.
-    ##
-    create: true
-
-    ## @param relay.serviceAccount.annotations Annotations for the relay service account.
-    ##
-    annotations: {}
-
-    ## @param relay.serviceAccount.name Name of the relay service account.
-    ##
-    name: ""
-
-  ## @param relay.deploymentAnnotations Annotations for the relay deployment.
-  ##
-  deploymentAnnotations: {}
-
-  ## @param relay.podAnnotations Annotations for the relay pod(s).
-  ##
-  podAnnotations: {}
-
-  ## @param relay.podSecurityContext Security context for the relay pod(s).
-  ##
-  podSecurityContext: {}
-  # fsGroup: 2000
-
-  ## @param relay.securityContext Security context for the relay container.
-  ##
-  securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-  metrics:
-    ## @param signal.metrics.enabled enables/disables metrics
-    ##
-    enabled: false
-    ## @param signal.metrics.port target metrics port
-    ##
-    port: 9090
-
-  ## @param relay.containerPort Container port for the relay service.
-  ##
-  containerPort: 33080
-
-  service:
-    ## @param relay.service.type Service type for the relay component.
-    ##
-    type: ClusterIP
-
-    ## @param relay.service.port Port for the relay service.
-    ##
-    port: 33080
-
-    ## @param relay.service.name Name for the relay service port.
-    ##
-    name: http
-
-    ## @param relay.service.externalIPs External IPs for the relay service.
-    ##
-    externalIPs: []
-
-    ## @param relay.service.annotations Annotations for the relay service.
-    ##
-    annotations: {}
-
-  ingress:
-    ## @param relay.ingress.enabled Enable or disable ingress for the relay component.
-    ##
-    enabled: false
-
-    ## @param relay.ingress.className Ingress class name for the relay component.
-    ##
-    className: ""
-
-    ## @param relay.ingress.annotations Annotations for the relay ingress resource.
-    ##
-    annotations: {}
-
-    hosts:
-      ## @param relay.ingress.hosts[0].host Host for the relay ingress.
-      ##
-      - host: example.com
-        paths:
-          ## @param relay.ingress.hosts[0].paths[0].path Path for the relay ingress.
-          ##
-          - path: /relay
-            ## @param relay.ingress.hosts[0].paths[0].pathType Path type for the relay ingress.
-            ##
-            pathType: ImplementationSpecific
-
-    ## @param relay.ingress.tls TLS settings for the relay ingress.
-    ##
-    tls: []
-
-  ## @param relay.resources Resource requests and limits for the relay pod.
-  ##
-  resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-  ## @param relay.nodeSelector Node selector for scheduling the relay pod.
-  ##
-  nodeSelector: {}
-
-  ## @param relay.tolerations Tolerations for scheduling the relay pod.
-  ##
-  tolerations: []
-
-  ## @param relay.affinity Affinity rules for scheduling the relay pod.
-  ##
-  affinity: {}
-
-  ## @param relay.livenessProbe for the relay component.
-  ##
-  livenessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    tcpSocket:
-      port: http
-
-  ## @param relay.readinessProbe for the relay component.
-  ##
-  readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    tcpSocket:
-      port: http
-
-  ## @param relay.volumeMounts Volume mounts for the relay pod.
-  volumeMounts: []
-  # - name: tmp
-  #   mountPath: /tmp
-
-  ## @param relay.volumes volumes for the relay pod.
-  volumes: []
-  # - name: tmp
-  #   emptyDir: {}
-
+# The dashboard is always deployed. It is stateless and can be scaled independently.
 dashboard:
-  ## @param dashboard.enabled Enable or disable the NetBird dashboard component.
-  ##
-  enabled: true
-
-  ## @param management.podCommand Define the arguments for the management pod.
-  ##
-  podCommand:
-    args: []
-    #  - sed -i 's/listen \[\:\:\]\:80 default_server\;//g' /etc/nginx/http.d/default.conf && /usr/bin/supervisord -c /etc/supervisord.conf
-
-  ## @param replicaCount Number of replicas to deploy
   replicaCount: 1
 
   image:
-    ## @param image.repository image repository
     repository: netbirdio/dashboard
-
-    ## @param image.pullPolicy image pull policy
+    tag: v2.91.1
     pullPolicy: IfNotPresent
-
-    ## @param image.tag image tag (immutable tags are recommended)
-    tag: "v2.13.1"
-
-  ## @param imagePullSecrets image pull secrets
-  imagePullSecrets: []
+    pullSecrets: []
 
   serviceAccount:
-    ## @param dashboard.serviceAccount.create Specifies whether a service account should be
-    ## created
     create: true
-
-    ## @param dashboard.serviceAccount.annotations Annotations to add to the service account
     annotations: {}
-
-    ## @param serviceAccount.name The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname
-    # template
     name: ""
 
-  ## @param dashboard.podAnnotations Annotations for pods
-  ## ref:
-  ## https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-  podAnnotations: {}
+  deployment:
+    annotations: {}
 
-  ## Configure Pods Security Context
-  ## ref:
-  ## https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
-  ## @param podSecurityContext
-  podSecurityContext: {}
-  # fsGroup: 2000
+  pod:
+    annotations: {}
+    securityContext: {}
 
-  ## Configure Container Security Context
-  ## ref:
-  ## https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
-  ## @param dashboard.securityContext
-  securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-  ## @param dashboard.containerPort
-  containerPort: 80
-
-  service:
-    ## @param dashboard.service.type Service type for the dashboard component.
-    ##
-    type: ClusterIP
-
-    ## @param dashboard.service.port Port for the dashboard service.
-    ##
+  container:
     port: 80
+    cmd:
+      command: []
+      args: []
+    securityContext: {}
 
-    ## @param dashboard.service.name Name for the dashboard service port.
-    ##
-    name: http
-
-    ## @param dashboard.service.externalIPs External IPs for the dashboard service.
-    ##
-    externalIPs: []
-    
-    ## @param dashboard.service.annotations Annotations for the dashboard service.
-    ##
-    annotations: {}
-
-  ingress:
-    ## @param dashboard.ingress.enabled
-    enabled: false
-
-    ## @param dashboard.ingress.className
-    className: ""
-
-    ## @param dashboard.ingress.annotations
-    annotations: {}
-    # kubernetes.io/tls-acme: "true"
-
-    hosts:
-      ## @param dashboard.ingress.hosts[0].host
-      - host: chart-example.local
-        ## @param dashboard.ingress.hosts[0].host
-        paths:
-          ## @param dashboard.ingress.hosts[0].paths[0].path
-          - path: /
-            ## @param dashboard.ingress.hosts[0].paths[0].pathType
-            pathType: ImplementationSpecific
-
-    ## @param dashboard.ingress.tls
-    tls: []
-    #  - secretName: chart-example-tls
-    #    hosts:
-    #      - chart-example.local
-
-  ## @param dashboard.resources
   resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-  ## @param dashboard.nodeSelector
   nodeSelector: {}
-
-  ## @param dashboard.tolerations
   tolerations: []
-
-  ## @param dashboard.affinity
   affinity: {}
 
-  ## @param dashboard.env
-  ##
   env: {}
-
-  ## @param dashboard.envRaw
-  ##
   envRaw: []
-
-  ## @param dashboard.envFromSecret
-  ##
   envFromSecret: {}
-  #ENV_VAR: secretName/secretKey
+  lifecycle: {}
 
-  lifecycle: {} # Define lifecycle hooks (preStop, postStart) if needed.
+  config:
+    api:
+      httpEndpoint: ""
+      grpcEndpoint: ""
+    auth:
+      audience: netbird-dashboard
+      clientId: netbird-dashboard
+      clientSecret: ""
+      # References a key in a Secret in this release namespace. Mutually exclusive with clientSecret.
+      clientSecretRef: {}
+      authority: ""
+      useAuth0: false
+      supportedScopes: "openid profile email groups"
+      redirectUri: /nb-auth
+      silentRedirectUri: /nb-silent-auth
+      tokenSource: accessToken
 
-  ## @param dashboard.livenessProbe for the dashboard component.
-  ##
   livenessProbe:
     periodSeconds: 5
     httpGet:
       path: /
       port: http
 
-  ## @param dashboard.readinessProbe for the dashboard component.
-  ##
   readinessProbe:
     initialDelaySeconds: 5
     periodSeconds: 5
@@ -840,66 +73,420 @@ dashboard:
       path: /
       port: http
 
-  ## @param dashboard.volumeMounts Volume mounts for the dashboard pod.
   volumeMounts: []
-  # - name: tmp
-  #   mountPath: /tmp
-
-  ## @param dashboard.volumes volumes for the dashboard pod.
   volumes: []
-  # - name: tmp
-  #   emptyDir: {}
-## @section NetBird Extra Manifests to be included in the chart
 
-extraManifests: {}
-# - apiVersion: v1
-#   kind: ServiceAccount
-#   .....
+  service:
+    type: ClusterIP
+    port: 80
+    annotations: {}
+    externalIPs: []
 
-## @section Prometheus metrics
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: dashboard.netbird.example.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+
+backend:
+  split:
+    management:
+      replicaCount: 1
+
+      image:
+        repository: netbirdio/management
+        tag: 0.77.0
+        pullPolicy: IfNotPresent
+        pullSecrets: []
+
+      serviceAccount:
+        create: true
+        annotations: {}
+        name: ""
+
+      deployment:
+        annotations: {}
+
+      pod:
+        annotations: {}
+        securityContext: {}
+
+      container:
+        port: 80
+        cmd:
+          command: []
+          args:
+            - --disable-legacy-port=true
+            - --single-account-mode-domain=netbird.selfhosted
+            - --dns-domain=netbird.selfhosted
+        securityContext: {}
+
+      resources: {}
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+
+      env: {}
+      envRaw: []
+      envFromSecret: {}
+      lifecycle: {}
+
+      metrics:
+        enabled: false
+        port: 9090
+
+      log:
+        level: info
+        file: console
+
+      livenessProbe:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        tcpSocket:
+          port: http
+
+      readinessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        tcpSocket:
+          port: http
+
+      volumeMounts: []
+      volumes: []
+
+      service:
+        type: ClusterIP
+        port: 80
+        annotations: {}
+        externalIPs: []
+
+      persistence:
+        enabled: true
+        mountPath: /var/lib/netbird
+        accessModes:
+          - ReadWriteOnce
+        size: 1Gi
+        storageClass: ""
+        existingClaim: ""
+        annotations: {}
+
+      # Management still uses its established JSON schema. The chart serializes
+      # this object and expands secret fields at process start.
+      config:
+        # Each entry may set passwordRef instead of password.
+        stuns: []
+        turnConfig:
+          # Each entry may set passwordRef instead of password.
+          turns: []
+          credentialsTTL: 12h
+          secret: ""
+          # References a key in a Secret in this release namespace. Mutually exclusive with secret.
+          secretRef: {}
+          timeBasedCredentials: false
+        relay:
+          addresses:
+            - rels://netbird.example.com:443/relay
+          credentialsTTL: 24h
+          # Authentication is shared with backend.split.relay.config.authSecret.
+        signal:
+          proto: https
+          uri: netbird.example.com:443
+          username: ""
+          password: null
+          # References a key in a Secret in this release namespace. Mutually exclusive with password.
+          passwordRef: {}
+        reverseProxy:
+          trustedHTTPProxies: []
+          trustedHTTPProxiesCount: 0
+          trustedPeers: []
+          accessLogRetentionDays: 0
+          accessLogCleanupIntervalHours: 0
+        datadir: /var/lib/netbird
+        # Base64-encoded 32-byte AES key. Generated when empty.
+        dataStoreEncryptionKey: ""
+        # References a key in a Secret in this release namespace. Mutually exclusive with dataStoreEncryptionKey.
+        dataStoreEncryptionKeyRef: {}
+        storeConfig:
+          engine: sqlite
+        idpManagerConfig:
+          managerType: none
+        embeddedIdp:
+          enabled: true
+          issuer: https://netbird.example.com/oauth2
+          storage:
+            type: sqlite3
+            config:
+              file: /var/lib/netbird/idp.db
+              dsn: ""
+              # References a key in a Secret in this release namespace. Mutually exclusive with dsn.
+              dsnRef: {}
+          localAuthDisabled: false
+          signKeyRefreshEnabled: true
+          mfaSessionMaxLifetime: ""
+          mfaSessionIdleTimeout: ""
+          mfaSessionRememberMe: false
+          sessionCookieEncryptionKey: ""
+          # References a key in a Secret in this release namespace. Mutually exclusive with sessionCookieEncryptionKey.
+          sessionCookieEncryptionKeyRef: {}
+          dashboardRedirectURIs:
+            - https://dashboard.netbird.example.com/nb-auth
+            - https://dashboard.netbird.example.com/nb-silent-auth
+          cliRedirectURIs:
+            - http://localhost:53000/
+            - http://localhost:54000/
+          dashboardPostLogoutRedirectURIs:
+            - https://dashboard.netbird.example.com/
+          grantTypes: []
+          owner:
+            email: ""
+            password: ""
+            # The referenced value must be a bcrypt hash. Mutually exclusive with password.
+            passwordRef: {}
+            username: ""
+        agentNetwork:
+          # Effective on NetBird 0.77.0+; ignored by 0.74.0.
+          pricingDefaultsFile: ""
+
+      overrideConfig: ""
+
+      ingress:
+        http:
+          enabled: false
+          className: ""
+          annotations: {}
+          hosts:
+            - host: netbird.example.com
+              paths:
+                - path: /api
+                  pathType: ImplementationSpecific
+                - path: /oauth2
+                  pathType: ImplementationSpecific
+          tls: []
+        grpc:
+          enabled: false
+          className: ""
+          annotations: {}
+          hosts:
+            - host: netbird.example.com
+              paths:
+                - path: /management.ManagementService
+                  pathType: ImplementationSpecific
+                - path: /management.ProxyService
+                  pathType: ImplementationSpecific
+          tls: []
+
+    signal:
+      replicaCount: 1
+
+      image:
+        repository: netbirdio/signal
+        tag: 0.77.0
+        pullPolicy: IfNotPresent
+        pullSecrets: []
+
+      serviceAccount:
+        create: true
+        annotations: {}
+        name: ""
+
+      deployment:
+        annotations: {}
+
+      pod:
+        annotations: {}
+        securityContext: {}
+
+      container:
+        port: 80
+        cmd:
+          command: []
+          args: []
+        securityContext: {}
+
+      resources: {}
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+
+      env: {}
+      envRaw: []
+      envFromSecret: {}
+      lifecycle: {}
+
+      metrics:
+        enabled: false
+        port: 9090
+
+      config:
+        letsencryptDomain: ""
+        letsencryptEmail: ""
+        letsencryptDataDir: ""
+        certFile: ""
+        certKey: ""
+        logLevel: info
+        logFile: console
+        # Effective on NetBird 0.77.0+; ignored by 0.74.0.
+        pprofAddress: ""
+
+
+      livenessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        tcpSocket:
+          port: grpc
+
+      readinessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        tcpSocket:
+          port: grpc
+
+      volumeMounts: []
+      volumes: []
+
+      service:
+        type: ClusterIP
+        port: 80
+        annotations: {}
+        externalIPs: []
+
+      ingress:
+        enabled: false
+        className: ""
+        annotations: {}
+        hosts:
+          - host: netbird.example.com
+            paths:
+              - path: /signalexchange.SignalExchange
+                pathType: ImplementationSpecific
+        tls: []
+
+    relay:
+      replicaCount: 1
+
+      image:
+        repository: netbirdio/relay
+        tag: 0.77.0
+        pullPolicy: IfNotPresent
+        pullSecrets: []
+
+      serviceAccount:
+        create: true
+        annotations: {}
+        name: ""
+
+      deployment:
+        annotations: {}
+
+      pod:
+        annotations: {}
+        securityContext: {}
+
+      container:
+        port: 33080
+        cmd:
+          command: []
+          args: []
+        securityContext: {}
+
+      resources: {}
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+
+      env: {}
+      envRaw: []
+      envFromSecret: {}
+      lifecycle: {}
+
+      config:
+        exposedAddress: rels://netbird.example.com:443/relay
+        authSecret: ""
+        # References a key in a Secret in this release namespace. Mutually exclusive with authSecret.
+        authSecretRef: {}
+        log:
+          level: info
+          file: console
+        metrics:
+          enabled: false
+          port: 9090
+        health:
+          enabled: true
+          port: 9000
+        # Effective on NetBird 0.77.0+; ignored by 0.74.0.
+        trustedProxies: ""
+        letsencrypt:
+          email: ""
+          dataDir: ""
+          domains: []
+          awsRoute53: false
+        tls:
+          certFile: ""
+          keyFile: ""
+        stun:
+          enabled: false
+          ports:
+            - 3478
+          logLevel: info
+
+
+      livenessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        tcpSocket:
+          port: http
+
+      readinessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        tcpSocket:
+          port: http
+
+      volumeMounts: []
+      volumes: []
+
+      service:
+        type: ClusterIP
+        port: 33080
+        annotations: {}
+        externalIPs: []
+
+      stunService:
+        enabled: false
+        type: LoadBalancer
+        annotations: {}
+        externalIPs: []
+        loadBalancerIP: ""
+        externalTrafficPolicy: Cluster
+
+      ingress:
+        enabled: false
+        className: ""
+        annotations: {}
+        hosts:
+          - host: netbird.example.com
+            paths:
+              - path: /relay
+                pathType: ImplementationSpecific
+        tls: []
+
+extraManifests: []
 
 metrics:
-  ## Prometheus Operator ServiceMonitor configuration
-  ##
   serviceMonitor:
-    ## @param metrics.serviceMonitor.enabled if `true`, creates a Prometheus Operator ServiceMonitor (also requires `metrics.enabled` to be `true`)
-    ##
     enabled: false
-    ## @param metrics.serviceMonitor.namespace Namespace in which Prometheus is running
-    ##
     namespace: ""
-    ## @param metrics.serviceMonitor.annotations Additional custom annotations for the ServiceMonitor
-    ##
     annotations: {}
-    ## @param metrics.serviceMonitor.labels Extra labels for the ServiceMonitor
-    ##
     labels: {}
-    ## @param metrics.serviceMonitor.jobLabel The name of the label on the target service to use as the job name in Prometheus
-    ##
     jobLabel: ""
-    ## @param metrics.serviceMonitor.honorLabels honorLabels chooses the metric's labels on collisions with target labels
-    ##
     honorLabels: false
-    ## @param metrics.serviceMonitor.interval Interval at which metrics should be scraped.
-    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
-    ## e.g:
-    ## interval: 10s
-    ##
     interval: ""
-    ## @param metrics.serviceMonitor.scrapeTimeout Timeout after which the scrape is ended
-    ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
-    ## e.g:
-    ## scrapeTimeout: 10s
-    ##
     scrapeTimeout: ""
-    ## @param metrics.serviceMonitor.metricRelabelings Specify additional relabeling of metrics
-    ##
     metricRelabelings: []
-    ## @param metrics.serviceMonitor.relabelings Specify general relabeling
-    ##
     relabelings: []
-    ## @param metrics.serviceMonitor.selector Prometheus instance selector labels
-    ## selector:
-    ##   prometheus: my-prometheus
-    ##
     selector: {}

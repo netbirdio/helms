@@ -1,0 +1,116 @@
+{{- $values := .Values.backend.split.signal -}}
+{{- $name := include "netbird.componentName" (dict "root" . "component" "signal") -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "netbird.namespace" . }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "signal") | nindent 4 }}
+  {{- with $values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 6 }}
+  template:
+    metadata:
+      {{- with $values.pod.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "netbird.selectorLabels" (dict "root" . "component" "signal") | nindent 8 }}
+    spec:
+      {{- with $values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "signal" "values" $values) }}
+      securityContext:
+        {{- toYaml $values.pod.securityContext | nindent 8 }}
+      containers:
+        - name: signal
+          image: "{{ $values.image.repository }}:{{ $values.image.tag }}"
+          imagePullPolicy: {{ $values.image.pullPolicy }}
+          {{- with $values.container.cmd.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - --port={{ $values.container.port }}
+            - --metrics-port={{ $values.metrics.port }}
+            - --log-level={{ $values.config.logLevel }}
+            - --log-file={{ $values.config.logFile }}
+            {{- with $values.config.letsencryptDomain }}
+            - --letsencrypt-domain={{ . }}
+            {{- end }}
+            {{- with $values.config.letsencryptEmail }}
+            - --letsencrypt-email={{ . }}
+            {{- end }}
+            {{- with $values.config.letsencryptDataDir }}
+            - --letsencrypt-data-dir={{ . }}
+            {{- end }}
+            {{- with $values.config.certFile }}
+            - --cert-file={{ . }}
+            {{- end }}
+            {{- with $values.config.certKey }}
+            - --cert-key={{ . }}
+            {{- end }}
+            {{- with $values.container.cmd.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          securityContext:
+            {{- toYaml $values.container.securityContext | nindent 12 }}
+          {{- if or $values.config.pprofAddress $values.env $values.envRaw $values.envFromSecret }}
+          env:
+            {{- with $values.config.pprofAddress }}
+            - name: NB_PPROF_ADDR
+              value: {{ . | quote }}
+            {{- end }}
+            {{- include "netbird.env" (dict "values" $values) | nindent 12 }}
+          {{- end }}
+          {{- with $values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: grpc
+              containerPort: {{ $values.container.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ $values.metrics.port }}
+              protocol: TCP
+          {{- with $values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $values.resources | nindent 12 }}
+          {{- with $values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

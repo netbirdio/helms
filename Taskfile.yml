@@ -1,0 +1,205 @@
+version: "3"
+
+vars:
+  CHART_DIR: charts/netbird
+  DEV_VALUES: charts/netbird/examples/kind/values.yaml
+  KIND_CONFIG: charts/netbird/examples/kind/kind.yaml
+  INGRESS_NGINX_VERSION: 1.12.1
+  INGRESS_NGINX_COMMIT: 64780b1fed3af99f4eccbc3fdad7ad785e8a83b6
+  INGRESS_NGINX_MANIFEST_SHA256: cb84b0ea747c9149cce08aef4e95b1e55f183f07299f40e7009043e960a0133f
+  LOCAL_HOST: netbird.localhost
+  DASHBOARD_HOST: dashboard.netbird.localhost
+  CLUSTER_NAME: '{{default "netbird-chart-dev" .CLUSTER_NAME}}'
+  LOCAL_CERT_DIR: /tmp/{{.CLUSTER_NAME}}
+  LOCAL_CA_DIR: '{{.HOME}}/.local/share/mkcert/{{.CLUSTER_NAME}}'
+  KUBE_CONTEXT: kind-{{.CLUSTER_NAME}}
+  NAMESPACE: '{{default "netbird" .NAMESPACE}}'
+  RELEASE_NAME: '{{default "netbird" .RELEASE_NAME}}'
+  HELM_TIMEOUT: '{{default "5m" .HELM_TIMEOUT}}'
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  chart:lint:
+    desc: Lint the NetBird chart
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+    cmds:
+      - helm lint {{.CHART_DIR}}
+
+  chart:template:
+    desc: Render the NetBird chart locally
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+    cmds:
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} {{.CLI_ARGS}}
+
+  chart:verify:
+    desc: Lint and render supported NetBird chart configurations
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+    cmds:
+      - helm lint --strict {{.CHART_DIR}}
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} >/dev/null
+      - >-
+        helm template {{.RELEASE_NAME}} {{.CHART_DIR}}
+        --namespace {{.NAMESPACE}}
+        --set backend.split.management.image.tag=0.74.0
+        --set backend.split.signal.image.tag=0.74.0
+        --set backend.split.relay.image.tag=0.74.0
+        >/dev/null
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
+      - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
+      - |
+        for values in charts/netbird/examples/nginx-ingress/auth0/values.yaml charts/netbird/examples/nginx-ingress/authentik/values.yaml charts/netbird/examples/nginx-ingress/google/values.yaml charts/netbird/examples/nginx-ingress/okta/values.yaml charts/netbird/examples/traefik-ingress/authentik/values.yaml charts/netbird/examples/istio/zitadel/values.yaml; do
+          helm template netbird charts/netbird --namespace netbird --values "$values" >/dev/null
+        done
+
+  cluster:create:
+    desc: Create the dedicated kind cluster
+    preconditions:
+      - sh: command -v kind
+        msg: kind is required
+    status:
+      - kind get kubeconfig --name {{.CLUSTER_NAME}}
+    cmds:
+      - kind create cluster --name {{.CLUSTER_NAME}} --config {{.KIND_CONFIG}} --wait 2m
+
+  cluster:delete:
+    desc: Delete the dedicated kind cluster
+    preconditions:
+      - sh: command -v kind
+        msg: kind is required
+    cmds:
+      - kind delete cluster --name {{.CLUSTER_NAME}}
+
+
+  ingress:install:
+    desc: Install ingress-nginx in the kind cluster
+    preconditions:
+      - sh: command -v kubectl
+        msg: kubectl is required
+      - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
+        msg: Run "task cluster:create" first
+    cmds:
+      - |
+        set -eu
+        manifest="$(mktemp)"
+        trap 'rm -f "$manifest"' EXIT
+        curl --fail --location --silent --show-error \
+          --output "$manifest" \
+          https://raw.githubusercontent.com/kubernetes/ingress-nginx/{{.INGRESS_NGINX_COMMIT}}/deploy/static/provider/kind/deploy.yaml
+        printf '%s  %s\n' \
+          '{{.INGRESS_NGINX_MANIFEST_SHA256}}' \
+          "$manifest" | shasum -a 256 --check -
+        kubectl --context {{.KUBE_CONTEXT}} apply --filename "$manifest"
+      - >-
+        kubectl --context {{.KUBE_CONTEXT}}
+        --namespace ingress-nginx
+        rollout status deployment/ingress-nginx-controller
+        --timeout 2m
+
+  local:certificate:
+    internal: true
+    preconditions:
+      - sh: command -v mkcert
+        msg: mkcert is required
+    cmds:
+      - mkdir -p {{.LOCAL_CERT_DIR}} {{.LOCAL_CA_DIR}}
+      - CAROOT={{.LOCAL_CA_DIR}} mkcert -install
+      - >-
+        CAROOT={{.LOCAL_CA_DIR}} mkcert
+        -cert-file {{.LOCAL_CERT_DIR}}/tls.crt
+        -key-file {{.LOCAL_CERT_DIR}}/tls.key
+        {{.LOCAL_HOST}} {{.DASHBOARD_HOST}}
+
+  dev:tls:
+    desc: Create the locally trusted certificate used by local ingresses
+    preconditions:
+      - sh: command -v kubectl
+        msg: kubectl is required
+      - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
+        msg: Run "task cluster:create" first
+    cmds:
+      - task: local:certificate
+      - >-
+        kubectl --context {{.KUBE_CONTEXT}} create namespace {{.NAMESPACE}}
+        --dry-run=client
+        --output yaml
+        | kubectl --context {{.KUBE_CONTEXT}} apply --filename -
+      - >-
+        kubectl --context {{.KUBE_CONTEXT}}
+        --namespace {{.NAMESPACE}}
+        create secret tls netbird-local-tls
+        --cert {{.LOCAL_CERT_DIR}}/tls.crt
+        --key {{.LOCAL_CERT_DIR}}/tls.key
+        --dry-run=client
+        --output yaml
+        | kubectl --context {{.KUBE_CONTEXT}} apply --filename -
+
+  dev:deploy:
+    desc: Install or upgrade the chart in the kind cluster
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+      - sh: command -v kind
+        msg: kind is required
+      - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
+        msg: Run "task cluster:create" first
+    cmds:
+      - >-
+        helm upgrade --install {{.RELEASE_NAME}} {{.CHART_DIR}}
+        --kube-context {{.KUBE_CONTEXT}}
+        --namespace {{.NAMESPACE}}
+        --create-namespace
+        --values {{.DEV_VALUES}}
+        --wait
+        --timeout {{.HELM_TIMEOUT}}
+        {{.CLI_ARGS}}
+
+  dev:up:
+    desc: Create the local kind platform with HTTPS ingress
+    cmds:
+      - task: cluster:create
+      - task: ingress:install
+      - task: dev:tls
+      - task: dev:deploy
+        vars:
+          CLI_ARGS: '{{.CLI_ARGS}}'
+
+  dev:status:
+    desc: Show the development release and workloads
+    preconditions:
+      - sh: command -v helm
+        msg: helm is required
+      - sh: command -v kind
+        msg: kind is required
+      - sh: command -v kubectl
+        msg: kubectl is required
+      - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
+        msg: Run "task dev:up" first
+    cmds:
+      - helm status {{.RELEASE_NAME}} --kube-context {{.KUBE_CONTEXT}} --namespace {{.NAMESPACE}}
+      - kubectl --context {{.KUBE_CONTEXT}} --namespace {{.NAMESPACE}} get pods,services,persistentvolumeclaims,ingresses
+      - task: dev:urls
+
+  dev:urls:
+    desc: Print the local platform URLs
+    silent: true
+    cmds:
+      - echo "Dashboard  https://{{.DASHBOARD_HOST}}"
+      - echo "API        https://{{.LOCAL_HOST}}/api"
+      - echo "User       admin@netbird.local"
+      - echo "Password   Netbird1!"
+
+  dev:down:
+    desc: Delete the development kind cluster
+    cmds:
+      - task: cluster:delete
