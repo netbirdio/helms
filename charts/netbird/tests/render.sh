@@ -125,20 +125,38 @@ has "nodePort: 30478" "$out"
 out="$(render "${required[@]}" --set backend.split.relay.config.stun.enabled=true --set backend.split.relay.stunService.enabled=true --set backend.split.relay.stunService.type=ClusterIP --set-json 'backend.split.relay.stunService.nodePorts={"3478":30478}' --show-only templates/split/relay/stun-service.yaml)"
 lacks "nodePort" "$out"
 
-# 20. Restricted Pod Security by default; OpenShift drops the fixed IDs.
+# 20. rootless is off by default: no security context, port 80.
 out="$(render "${required[@]}")"
+lacks "runAsNonRoot" "$out"
+test "$(grep -c "containerPort: 80$" <<<"$out")" = 3 || { echo "FAIL: want port 80 on dashboard, management and signal"; exit 1; }
+has 'image: "netbirdio/dashboard:v2.96.0"' "$out"
+
+# 20b. examples/rootless: restricted Pod Security; OpenShift drops the fixed IDs.
+rootless=(--values "$chart/examples/rootless/values.yaml")
+out="$(render "${required[@]}" "${rootless[@]}")"
 test "$(grep -c "runAsNonRoot: true" <<<"$out")" = 4 || { echo "FAIL: want runAsNonRoot on 4 pods"; exit 1; }
 test "$(grep -c "allowPrivilegeEscalation: false" <<<"$out")" = 4 || { echo "FAIL: want allowPrivilegeEscalation false on 4 containers"; exit 1; }
 test "$(grep -c "runAsUser: 65532" <<<"$out")" = 3 || { echo "FAIL: want runAsUser on 3 backend pods"; exit 1; }
-has "containerPort: 8080" "$out"
+test "$(grep -c "containerPort: 8080$" <<<"$out")" = 2 || { echo "FAIL: want port 8080 on dashboard and management"; exit 1; }
+has "containerPort: 10000" "$out"
+has 'image: "netbirdio/dashboard:v2.96.0-rootless"' "$out"
 ! grep -qE "containerPort: (80|443)$" <<<"$out" || { echo "FAIL: privileged container port"; exit 1; }
-out="$(render "${required[@]}" --api-versions security.openshift.io/v1)"
+out="$(render "${required[@]}" "${rootless[@]}" --api-versions security.openshift.io/v1)"
 lacks "runAsUser" "$out"; lacks "runAsGroup" "$out"; lacks "fsGroup" "$out"
 has "runAsNonRoot: true" "$out"
-out="$(render "${required[@]}" --api-versions security.openshift.io/v1 --set global.compatibility.openshift.adaptSecurityContext=disabled)"
+out="$(render "${required[@]}" "${rootless[@]}" --api-versions security.openshift.io/v1 --set global.compatibility.openshift.adaptSecurityContext=disabled)"
 has "runAsUser: 65532" "$out"
-lacks "runAsUser" "$(render "${required[@]}" --set global.compatibility.openshift.adaptSecurityContext=force)"
+lacks "runAsUser" "$(render "${required[@]}" "${rootless[@]}" --set global.compatibility.openshift.adaptSecurityContext=force)"
 fails_with "adaptSecurityContext must be auto, force or disabled" "${required[@]}" --set global.compatibility.openshift.adaptSecurityContext=yes
+
+# 20c. rootless per component; user keys replace defaults, null removes one, a numeric port wins.
+out="$(render "${required[@]}" --set backend.split.relay.rootless=true)"
+test "$(grep -c "runAsNonRoot: true" <<<"$out")" = 1 || { echo "FAIL: want runAsNonRoot on relay only"; exit 1; }
+out="$(render "${required[@]}" --set backend.split.signal.rootless=true \
+  --set backend.split.signal.pod.securityContext.runAsUser=1000 --set backend.split.signal.pod.securityContext.fsGroup=null \
+  --set backend.split.signal.container.port=9999 --show-only templates/split/signal/deployment.yaml)"
+has "runAsUser: 1000" "$out"; has "runAsGroup: 65532" "$out"; lacks "fsGroup" "$out"
+has "containerPort: 9999" "$out"; has "--port=9999" "$out"
 
 # 21. Without persistence, management still gets a writable data directory.
 out="$(render "${required[@]}" --set backend.split.management.persistence.enabled=false --show-only templates/split/management/deployment.yaml)"

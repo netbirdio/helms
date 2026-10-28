@@ -19,11 +19,14 @@ dashboard:
   # Overrides global.namespace for this component.
   namespace: ""
   replicaCount: 1
+  # Restricted Pod Security Standard defaults, merged under pod and container
+  # securityContext, and container port 8080. Needs a *-rootless image tag.
+  # See examples/rootless.
+  rootless: false
 
   image:
     repository: netbirdio/dashboard
-    # The rootless variant listens on 8080 as a non-root user.
-    tag: v2.96.0-rootless
+    tag: v2.96.0
     # Pins the image by digest (sha256:...) and ignores tag when set.
     digest: ""
     pullPolicy: IfNotPresent
@@ -39,22 +42,17 @@ dashboard:
 
   pod:
     annotations: {}
-    # Restricted Pod Security Standard. The rootless image runs as 10001:0.
-    securityContext:
-      runAsNonRoot: true
-      seccompProfile:
-        type: RuntimeDefault
+    # Keys set here replace the rootless defaults; null removes one.
+    securityContext: {}
 
   container:
-    port: 8080
+    # null: 8080 when rootless, 80 otherwise.
+    port: null
     cmd:
       command: []
       args: []
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
+    # Keys set here replace the rootless defaults; null removes one.
+    securityContext: {}
 
   resources: {}
   nodeSelector: {}
@@ -125,6 +123,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup, and container port 8080.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/management
@@ -144,27 +146,18 @@ backend:
 
       pod:
         annotations: {}
-        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
-        # fsGroup are dropped (see global.compatibility.openshift).
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
-          fsGroup: 65532
-          seccompProfile:
-            type: RuntimeDefault
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       container:
-        port: 8080
+        # null: 8080 when rootless, 80 otherwise.
+        port: null
         cmd:
           command: []
           # Extra arguments, appended after the flags from server.
           args: []
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       # Management server flags.
       server:
@@ -345,6 +338,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup, and container port 10000.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/signal
@@ -364,26 +361,17 @@ backend:
 
       pod:
         annotations: {}
-        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
-        # fsGroup are dropped (see global.compatibility.openshift).
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
-          fsGroup: 65532
-          seccompProfile:
-            type: RuntimeDefault
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       container:
-        port: 10000
+        # null: 10000 when rootless, 80 otherwise.
+        port: null
         cmd:
           command: []
           args: []
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       resources: {}
       nodeSelector: {}
@@ -450,6 +438,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/relay
@@ -469,26 +461,16 @@ backend:
 
       pod:
         annotations: {}
-        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
-        # fsGroup are dropped (see global.compatibility.openshift).
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
-          fsGroup: 65532
-          seccompProfile:
-            type: RuntimeDefault
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       container:
         port: 33080
         cmd:
           command: []
           args: []
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+        # Keys set here replace the rootless defaults; null removes one.
+        securityContext: {}
 
       resources: {}
       nodeSelector: {}

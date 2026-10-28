@@ -11,7 +11,7 @@ Run the commands in this guide from the repository root.
 
 ## Workloads and supported versions
 
-The dashboard is always deployed with separate management, signal, and relay Deployments. Chart `2.0.0` tests the three backend images from NetBird `0.74.0` through the default `0.77.0`. The dashboard is independently pinned to `netbirdio/dashboard:v2.96.0-rootless`. Every workload runs under the `restricted` Pod Security Standard; see [Pod security](configuration.md#pod-security).
+The dashboard is always deployed with separate management, signal, and relay Deployments. Chart `2.0.0` tests the three backend images from NetBird `0.74.0` through the default `0.77.0`. The dashboard is independently pinned to `netbirdio/dashboard:v2.96.0`. To run every workload under the `restricted` Pod Security Standard, see [Pod security](configuration.md#pod-security).
 
 Management uses its stable JSON configuration loader. Signal and relay use portable command-line flags; relay also receives its authentication secret through the environment. This runtime contract works at both tested backend boundaries without detecting the selected image tag.
 

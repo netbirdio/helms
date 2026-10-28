@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The defaults must run under the restricted Pod Security Standard.
+          # examples/rootless must run under the restricted Pod Security Standard.
           kubectl create namespace netbird
           kubectl label namespace netbird \
             pod-security.kubernetes.io/enforce=restricted \
@@ -63,6 +63,7 @@ jobs:
           helm upgrade --install test-chart ./charts/netbird \
             --namespace netbird \
             --values charts/netbird/examples/kind/values.yaml \
+            --values charts/netbird/examples/rootless/values.yaml \
             --set backend.split.management.image.tag=0.74.0 \
             --set backend.split.signal.image.tag=0.74.0 \
             --set backend.split.relay.image.tag=0.74.0 \
@@ -88,6 +89,7 @@ jobs:
           helm upgrade test-chart ./charts/netbird \
             --namespace netbird \
             --values charts/netbird/examples/kind/values.yaml \
+            --values charts/netbird/examples/rootless/values.yaml \
             --set backend.split.management.persistence.enabled=false \
             --set-string backend.split.signal.config.pprofAddress=127.0.0.1:6061 \
             --set-string backend.split.relay.config.trustedProxies=10.0.0.0/8 \

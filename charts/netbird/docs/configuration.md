@@ -13,7 +13,7 @@ Use the structured configuration trees whenever the chart supports the setting:
 | Signal | `backend.split.signal.config` | Stable command-line flags |
 | Relay | `backend.split.relay.config` | Stable command-line flags and Secret-backed environment |
 
-The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`; `0.77.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.96.0-rootless`.
+The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`; `0.77.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.96.0`.
 
 Kubernetes settings sit beside each component's configuration. Common examples include `image`, `replicaCount`, `resources`, `pod`, `container`, `service`, `ingress`, probes, scheduling values, and management persistence.
 
@@ -72,13 +72,30 @@ Each component renders `repository:tag`. Set `image.digest` (`sha256:...`) to re
 
 ### Pod security
 
-Every workload meets the `restricted` Pod Security Standard by default: `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation, and no capabilities. The containers listen on unprivileged ports (dashboard and management `8080`, signal `10000`, relay `33080`); the Service ports are unchanged.
+Each component has a `rootless` value, `false` by default. Setting it to `true` applies the `restricted` Pod Security Standard to that component: `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation, and no capabilities. The container also moves to an unprivileged port (dashboard and management `8080`, signal `10000`; relay always uses `33080`). The Service ports do not change.
 
-The backend images default to root, so management, signal and relay set `runAsUser`, `runAsGroup` and `fsGroup` to `65532`. The dashboard uses the rootless image variant (`*-rootless` tags), which runs as `10001:0` and listens on `8080`. A dashboard image without the `-rootless` suffix needs `dashboard.container.port: 80` and a security context that allows root.
+The backend images default to root, so rootless management, signal and relay run as `65532:65532` with `fsGroup: 65532`. A rootless dashboard needs a `*-rootless` image tag (published from `v2.95.0`), which runs as `10001:0` and listens on `8080`; the chart does not rewrite the tag. [`examples/rootless`](../examples/rootless) enables every component:
 
-On OpenShift, `restricted-v2` assigns the user and group from the namespace range and rejects fixed IDs outside it. `global.compatibility.openshift.adaptSecurityContext` drops `runAsUser`, `runAsGroup` and `fsGroup` from the pod security contexts: `auto` (the default) when the cluster serves `security.openshift.io/v1`, `force` always, `disabled` never. `helm template` has no cluster to ask, so GitOps renders for OpenShift should set `force`.
+```yaml
+dashboard:
+  rootless: true
+  image:
+    tag: v2.96.0-rootless
+backend:
+  split:
+    management:
+      rootless: true
+    signal:
+      rootless: true
+    relay:
+      rootless: true
+```
 
-To relax a default, set the key to `null`, for example `backend.split.signal.pod.securityContext.runAsUser: null`. Without persistence, management mounts an `emptyDir` at its data directory, because the directory in the image is owned by root.
+Keys in `pod.securityContext` and `container.securityContext` replace the rootless default of the same name, and `null` removes one, for example `backend.split.signal.pod.securityContext.fsGroup: null`. A numeric `container.port` wins over the rootless port.
+
+On OpenShift, `restricted-v2` assigns the user and group from the namespace range and rejects fixed IDs outside it, and the stock images cannot bind port 80 as a non-root user, so set `rootless: true` on every component. `global.compatibility.openshift.adaptSecurityContext` drops `runAsUser`, `runAsGroup` and `fsGroup` from the pod security contexts: `auto` (the default) when the cluster serves `security.openshift.io/v1`, `force` always, `disabled` never. `helm template` has no cluster to ask, so GitOps renders for OpenShift should set `force`.
+
+Without persistence, management mounts an `emptyDir` at its data directory, so a non-root user can write to it.
 
 ## Version-specific values
 
