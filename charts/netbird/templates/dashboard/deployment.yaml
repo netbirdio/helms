@@ -36,7 +36,7 @@ spec:
         {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "pod" "securityContext" $values.pod.securityContext) | nindent 8 }}
       containers:
         - name: dashboard
-          image: {{ include "netbird.image" (dict "root" . "image" $values.image) | quote }}
+          image: {{ include "netbird.image" (dict "root" . "image" $values.image "tagSuffix" (ternary "-rootless" "" (eq $values.rootless true))) | quote }}
           imagePullPolicy: {{ $values.image.pullPolicy }}
           {{- with $values.container.cmd.command }}
           command:

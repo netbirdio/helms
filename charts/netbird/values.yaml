@@ -20,8 +20,8 @@ dashboard:
   namespace: ""
   replicaCount: 1
   # Restricted Pod Security Standard defaults, merged under pod and container
-  # securityContext, and container port 8080. Needs a *-rootless image tag.
-  # See examples/rootless.
+  # securityContext, container port 8080, and the image tag's -rootless variant
+  # (image.digest must already be one). See examples/rootless.
   rootless: false
 
   image:

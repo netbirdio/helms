@@ -4,7 +4,7 @@ This example runs every component under the [restricted Pod Security Standard](h
 
 | Component | User | Container port |
 | --- | --- | --- |
-| dashboard | `10001:0` from the image (needs a `*-rootless` tag) | `8080` |
+| dashboard | `10001:0` from the `-rootless` image variant | `8080` |
 | management | `65532:65532`, `fsGroup: 65532` | `8080` |
 | signal | `65532:65532`, `fsGroup: 65532` | `10000` |
 | relay | `65532:65532`, `fsGroup: 65532` | `33080` |
@@ -29,7 +29,7 @@ helm upgrade --install netbird ./charts/netbird \
 
 The label is optional: it makes Kubernetes reject any pod that does not meet the standard.
 
-The dashboard tag must be a `*-rootless` variant (published from `v2.95.0`). The chart does not rewrite the tag, so set it whenever you change `dashboard.image.tag` or `dashboard.image.digest`.
+A rootless dashboard runs the `-rootless` variant of `dashboard.image.tag`: `v2.96.0` renders `v2.96.0-rootless`, and a tag that already ends in `-rootless` is used as is. The variants are published from `v2.95.0`. `dashboard.image.digest` is used as given, so it must be the digest of a rootless image.
 
 `rootless` can be set per component, for example to keep a custom root dashboard image while the backend runs rootless.
 

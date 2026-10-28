@@ -74,13 +74,11 @@ Each component renders `repository:tag`. Set `image.digest` (`sha256:...`) to re
 
 Each component has a `rootless` value, `false` by default. Setting it to `true` applies the `restricted` Pod Security Standard to that component: `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation, and no capabilities. The container also moves to an unprivileged port (dashboard and management `8080`, signal `10000`; relay always uses `33080`). The Service ports do not change.
 
-The backend images default to root, so rootless management, signal and relay run as `65532:65532` with `fsGroup: 65532`. A rootless dashboard needs a `*-rootless` image tag (published from `v2.95.0`), which runs as `10001:0` and listens on `8080`; the chart does not rewrite the tag. [`examples/rootless`](../examples/rootless) enables every component:
+The backend images default to root, so rootless management, signal and relay run as `65532:65532` with `fsGroup: 65532`. A rootless dashboard runs the `-rootless` variant of its tag (`v2.96.0` renders `v2.96.0-rootless`; published from `v2.95.0`), which runs as `10001:0` and listens on `8080`. A tag that already ends in `-rootless` is used as is, and `image.digest` is used as given, so it must be a rootless image's digest. [`examples/rootless`](../examples/rootless) enables every component:
 
 ```yaml
 dashboard:
   rootless: true
-  image:
-    tag: v2.96.0-rootless
 backend:
   split:
     management:

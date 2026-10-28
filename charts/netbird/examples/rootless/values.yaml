@@ -2,10 +2,8 @@
 # Layer this file over your own values:
 #   helm upgrade --install netbird ./charts/netbird -f my-values.yaml -f ./charts/netbird/examples/rootless/values.yaml
 dashboard:
+  # Uses the image tag's -rootless variant, which runs as 10001:0 on 8080.
   rootless: true
-  image:
-    # The rootless variant runs as 10001:0 and listens on 8080.
-    tag: v2.96.0-rootless
 
 backend:
   split:

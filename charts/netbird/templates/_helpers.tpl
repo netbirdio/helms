@@ -30,14 +30,16 @@
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
 {{- end -}}
 
-{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag. Context: root, image. */}}
+{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag, with tagSuffix appended unless the tag already ends with it. Context: root, image, tagSuffix (optional). */}}
 {{- define "netbird.image" -}}
 {{- $repository := .image.repository -}}
 {{- with .root.Values.global.imageRegistry -}}{{- $repository = printf "%s/%s" (trimSuffix "/" .) $repository -}}{{- end -}}
 {{- if .image.digest -}}
 {{- printf "%s@%s" $repository .image.digest -}}
 {{- else -}}
-{{- printf "%s:%s" $repository (toString .image.tag) -}}
+{{- $tag := toString .image.tag -}}
+{{- with .tagSuffix -}}{{- if not (hasSuffix . $tag) -}}{{- $tag = printf "%s%s" $tag . -}}{{- end -}}{{- end -}}
+{{- printf "%s:%s" $repository $tag -}}
 {{- end -}}
 {{- end -}}
 

@@ -158,6 +158,12 @@ out="$(render "${required[@]}" --set backend.split.signal.rootless=true \
 has "runAsUser: 1000" "$out"; has "runAsGroup: 65532" "$out"; lacks "fsGroup" "$out"
 has "containerPort: 9999" "$out"; has "--port=9999" "$out"
 
+# 20d. A rootless dashboard runs the -rootless tag variant; an explicit variant or a digest is kept.
+out="$(render "${required[@]}" --set dashboard.rootless=true --set dashboard.image.tag=v2.96.0-rootless --show-only templates/dashboard/deployment.yaml)"
+has 'image: "netbirdio/dashboard:v2.96.0-rootless"' "$out"
+out="$(render "${required[@]}" --set dashboard.rootless=true --set dashboard.image.digest=sha256:abc --show-only templates/dashboard/deployment.yaml)"
+has 'image: "netbirdio/dashboard@sha256:abc"' "$out"
+
 # 21. Without persistence, management still gets a writable data directory.
 out="$(render "${required[@]}" --set backend.split.management.persistence.enabled=false --show-only templates/split/management/deployment.yaml)"
 has "emptyDir: {}" "$out"
