@@ -54,9 +54,14 @@ jobs:
         run: |
           set -euo pipefail
 
+          # The defaults must run under the restricted Pod Security Standard.
+          kubectl create namespace netbird
+          kubectl label namespace netbird \
+            pod-security.kubernetes.io/enforce=restricted \
+            pod-security.kubernetes.io/enforce-version=latest
+
           helm upgrade --install test-chart ./charts/netbird \
             --namespace netbird \
-            --create-namespace \
             --values charts/netbird/examples/kind/values.yaml \
             --set backend.split.management.image.tag=0.74.0 \
             --set backend.split.signal.image.tag=0.74.0 \
@@ -71,7 +76,7 @@ jobs:
           actual_deployments="$(kubectl --namespace netbird get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sort)"
           test "$actual_deployments" = "$expected_deployments"
 
-          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.91.1"
+          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.96.0-rootless"
           test "$(kubectl --namespace netbird get deployment netbird-management -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/management:0.74.0"
           test "$(kubectl --namespace netbird get deployment netbird-signal -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/signal:0.74.0"
           test "$(kubectl --namespace netbird get deployment netbird-relay -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/relay:0.74.0"
@@ -91,7 +96,7 @@ jobs:
 
           kubectl --namespace netbird wait --for=condition=Available deployment/netbird-dashboard deployment/netbird-management deployment/netbird-signal deployment/netbird-relay --timeout=5m
 
-          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.91.1"
+          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.96.0-rootless"
           test "$(kubectl --namespace netbird get deployment netbird-management -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/management:0.77.0"
           test "$(kubectl --namespace netbird get deployment netbird-signal -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/signal:0.77.0"
           test "$(kubectl --namespace netbird get deployment netbird-relay -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/relay:0.77.0"

@@ -41,6 +41,19 @@
 {{- end -}}
 {{- end -}}
 
+{{/* Pod security context, without runAsUser, runAsGroup and fsGroup on OpenShift. Context: root, securityContext. */}}
+{{- define "netbird.podSecurityContext" -}}
+{{- $mode := .root.Values.global.compatibility.openshift.adaptSecurityContext -}}
+{{- if not (has $mode (list "auto" "force" "disabled")) -}}
+{{- fail (printf "global.compatibility.openshift.adaptSecurityContext must be auto, force or disabled, got %q" $mode) -}}
+{{- end -}}
+{{- $context := deepCopy (default dict .securityContext) -}}
+{{- if or (eq $mode "force") (and (eq $mode "auto") (.root.Capabilities.APIVersions.Has "security.openshift.io/v1")) -}}
+{{- $context = omit $context "runAsUser" "runAsGroup" "fsGroup" -}}
+{{- end -}}
+{{- toYaml $context -}}
+{{- end -}}
+
 {{/* Generic component metadata. Context: root, component. */}}
 {{- define "netbird.componentName" -}}
 {{- $prefixLength := sub 62 (len .component) -}}

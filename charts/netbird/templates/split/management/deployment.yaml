@@ -46,7 +46,7 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "netbird.serviceAccountName" (dict "root" . "component" "management" "values" $values) }}
       securityContext:
-        {{- toYaml $values.pod.securityContext | nindent 8 }}
+        {{- include "netbird.podSecurityContext" (dict "root" . "securityContext" $values.pod.securityContext) | nindent 8 }}
       containers:
         - name: management
           image: {{ include "netbird.image" (dict "root" . "image" $values.image) | quote }}
@@ -122,10 +122,8 @@ spec:
             - name: config
               mountPath: /etc/netbird/management.json
               subPath: management.json
-            {{- if $values.persistence.enabled }}
             - name: data
               mountPath: {{ $values.persistence.mountPath }}
-            {{- end }}
             {{- with $values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -133,11 +131,14 @@ spec:
         - name: config
           configMap:
             name: {{ $name }}
-        {{- if $values.persistence.enabled }}
         - name: data
+          {{- if $values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ default $name $values.persistence.existingClaim }}
-        {{- end }}
+          {{- else }}
+          {{- /* The image's data directory is root-owned; give the non-root user a writable one. */}}
+          emptyDir: {}
+          {{- end }}
         {{- with $values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

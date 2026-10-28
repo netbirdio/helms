@@ -2,6 +2,13 @@ global:
   namespace: ""
   # Registry prefix for every image, e.g. registry.example.com.
   imageRegistry: ""
+  compatibility:
+    openshift:
+      # Drop runAsUser, runAsGroup and fsGroup from pod security contexts, so
+      # OpenShift's restricted-v2 SCC assigns them from the namespace range.
+      # auto detects OpenShift (needs a cluster, so helm template never does),
+      # force always drops them, disabled never does.
+      adaptSecurityContext: auto
 
 nameOverride: ""
 fullnameOverride: ""
@@ -15,7 +22,8 @@ dashboard:
 
   image:
     repository: netbirdio/dashboard
-    tag: v2.91.1
+    # The rootless variant listens on 8080 as a non-root user.
+    tag: v2.96.0-rootless
     # Pins the image by digest (sha256:...) and ignores tag when set.
     digest: ""
     pullPolicy: IfNotPresent
@@ -31,14 +39,22 @@ dashboard:
 
   pod:
     annotations: {}
-    securityContext: {}
+    # Restricted Pod Security Standard. The rootless image runs as 10001:0.
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
 
   container:
-    port: 80
+    port: 8080
     cmd:
       command: []
       args: []
-    securityContext: {}
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
 
   resources: {}
   nodeSelector: {}
@@ -128,15 +144,27 @@ backend:
 
       pod:
         annotations: {}
-        securityContext: {}
+        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
+        # fsGroup are dropped (see global.compatibility.openshift).
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          fsGroup: 65532
+          seccompProfile:
+            type: RuntimeDefault
 
       container:
-        port: 80
+        port: 8080
         cmd:
           command: []
           # Extra arguments, appended after the flags from server.
           args: []
-        securityContext: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
 
       # Management server flags.
       server:
@@ -336,14 +364,26 @@ backend:
 
       pod:
         annotations: {}
-        securityContext: {}
+        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
+        # fsGroup are dropped (see global.compatibility.openshift).
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          fsGroup: 65532
+          seccompProfile:
+            type: RuntimeDefault
 
       container:
-        port: 80
+        port: 10000
         cmd:
           command: []
           args: []
-        securityContext: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
 
       resources: {}
       nodeSelector: {}
@@ -429,14 +469,26 @@ backend:
 
       pod:
         annotations: {}
-        securityContext: {}
+        # Restricted Pod Security Standard. On OpenShift, runAsUser, runAsGroup and
+        # fsGroup are dropped (see global.compatibility.openshift).
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          fsGroup: 65532
+          seccompProfile:
+            type: RuntimeDefault
 
       container:
         port: 33080
         cmd:
           command: []
           args: []
-        securityContext: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
 
       resources: {}
       nodeSelector: {}

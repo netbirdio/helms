@@ -125,4 +125,24 @@ has "nodePort: 30478" "$out"
 out="$(render "${required[@]}" --set backend.split.relay.config.stun.enabled=true --set backend.split.relay.stunService.enabled=true --set backend.split.relay.stunService.type=ClusterIP --set-json 'backend.split.relay.stunService.nodePorts={"3478":30478}' --show-only templates/split/relay/stun-service.yaml)"
 lacks "nodePort" "$out"
 
+# 20. Restricted Pod Security by default; OpenShift drops the fixed IDs.
+out="$(render "${required[@]}")"
+test "$(grep -c "runAsNonRoot: true" <<<"$out")" = 4 || { echo "FAIL: want runAsNonRoot on 4 pods"; exit 1; }
+test "$(grep -c "allowPrivilegeEscalation: false" <<<"$out")" = 4 || { echo "FAIL: want allowPrivilegeEscalation false on 4 containers"; exit 1; }
+test "$(grep -c "runAsUser: 65532" <<<"$out")" = 3 || { echo "FAIL: want runAsUser on 3 backend pods"; exit 1; }
+has "containerPort: 8080" "$out"
+! grep -qE "containerPort: (80|443)$" <<<"$out" || { echo "FAIL: privileged container port"; exit 1; }
+out="$(render "${required[@]}" --api-versions security.openshift.io/v1)"
+lacks "runAsUser" "$out"; lacks "runAsGroup" "$out"; lacks "fsGroup" "$out"
+has "runAsNonRoot: true" "$out"
+out="$(render "${required[@]}" --api-versions security.openshift.io/v1 --set global.compatibility.openshift.adaptSecurityContext=disabled)"
+has "runAsUser: 65532" "$out"
+lacks "runAsUser" "$(render "${required[@]}" --set global.compatibility.openshift.adaptSecurityContext=force)"
+fails_with "adaptSecurityContext must be auto, force or disabled" "${required[@]}" --set global.compatibility.openshift.adaptSecurityContext=yes
+
+# 21. Without persistence, management still gets a writable data directory.
+out="$(render "${required[@]}" --set backend.split.management.persistence.enabled=false --show-only templates/split/management/deployment.yaml)"
+has "emptyDir: {}" "$out"
+has "mountPath: /var/lib/netbird" "$out"
+
 echo "render checks passed"
