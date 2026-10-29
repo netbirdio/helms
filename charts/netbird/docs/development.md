@@ -77,3 +77,25 @@ helm template netbird charts/netbird \
 ```
 
 For an end-to-end local installation, use `task dev:up`, inspect it with `task dev:status`, redeploy it with `task dev:deploy`, and remove the dedicated cluster with `task dev:down`.
+
+## End-to-end tests
+
+[`tests/e2e`](../tests/e2e) installs the chart from `examples/kind` into its own Kind cluster behind ingress-nginx and connects real NetBird peers through it. It needs Docker, Go and helm:
+
+```bash
+task chart:e2e
+```
+
+The peers run in Docker containers on Kind's network, outside the cluster. The suite checks that:
+
+- the dashboard, the API and the embedded IdP answer through the ingress;
+- two peers connect directly, which needs management and signal;
+- an upgrade from `NB_E2E_FROM_VERSION` (default `0.74.0`) to the chart's backends keeps the peers and their connection;
+- two peers forced onto the relay connect through it. This runs after the upgrade: a 0.74.0 management sends peers no relay URLs in the updates it pushes when another peer joins, so relayed connections drop;
+- management keeps every peer across a pod restart, so its store persisted.
+
+The peers run the client release of `NB_E2E_FROM_VERSION` and keep it through the upgrade, as clients do when their server is upgraded.
+
+`NB_E2E_ROOTLESS=true` layers `examples/rootless` into a namespace that enforces the `restricted` Pod Security Standard. `NB_E2E_KIND_NODE_IMAGE` picks the Kubernetes version, `NB_E2E_KEEP=true` leaves the cluster and peers running, and `NB_E2E_ARTIFACTS_DIR` collects logs on failure. [`main_test.go`](../tests/e2e/main_test.go) lists every knob.
+
+CI runs the newest Kubernetes with and without rootless on pull requests, and every supported version on `main`.
