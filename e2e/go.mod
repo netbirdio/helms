@@ -1,4 +1,4 @@
-module github.com/netbirdio/helms/charts/netbird/tests/e2e
+module github.com/netbirdio/helms/e2e
 
 go 1.26.0
 

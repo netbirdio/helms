@@ -17,16 +17,17 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
-// ingressForward is a port-forward to the ingress controller's HTTPS port. The
-// suite reaches the chart through it: the host cannot route to Kind's network
-// on every platform, and the ingress is what the peers use too.
-type ingressForward struct {
+// IngressForward is a port-forward to the ingress controller's HTTPS port. The
+// tests reach a chart through it: the host cannot route to Kind's network on
+// every platform, and the ingress is what clients outside the cluster use too.
+type IngressForward struct {
 	port     uint16
 	stopChan chan struct{}
 }
 
-func (e *Env) forwardIngress(ctx context.Context) (*ingressForward, error) {
-	pods, err := e.Kube.CoreV1().Pods(ingressNamespace).List(ctx, metav1.ListOptions{
+// ForwardIngress forwards a free local port to ingress-nginx's HTTPS port.
+func (c *Cluster) ForwardIngress(ctx context.Context) (*IngressForward, error) {
+	pods, err := c.Kube.CoreV1().Pods(IngressNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=controller",
 	})
 	if err != nil {
@@ -40,18 +41,18 @@ func (e *Env) forwardIngress(ctx context.Context) (*ingressForward, error) {
 		}
 	}
 	if pod == "" {
-		return nil, fmt.Errorf("no running ingress controller pod in %s", ingressNamespace)
+		return nil, fmt.Errorf("no running ingress controller pod in %s", IngressNamespace)
 	}
 
-	transport, upgrader, err := spdy.RoundTripperFor(e.restConfig)
+	transport, upgrader, err := spdy.RoundTripperFor(c.restConfig)
 	if err != nil {
 		return nil, err
 	}
-	url := e.Kube.CoreV1().RESTClient().Post().
-		Resource("pods").Namespace(ingressNamespace).Name(pod).SubResource("portforward").URL()
+	url := c.Kube.CoreV1().RESTClient().Post().
+		Resource("pods").Namespace(IngressNamespace).Name(pod).SubResource("portforward").URL()
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, url)
 
-	f := &ingressForward{stopChan: make(chan struct{})}
+	f := &IngressForward{stopChan: make(chan struct{})}
 	ready := make(chan struct{})
 	fw, err := portforward.New(dialer, []string{"0:443"}, f.stopChan, ready, io.Discard, io.Discard)
 	if err != nil {
@@ -75,9 +76,9 @@ func (e *Env) forwardIngress(ctx context.Context) (*ingressForward, error) {
 	return f, nil
 }
 
-// client returns an HTTP client that sends every request to the ingress, with
+// Client returns an HTTP client that sends every request to the ingress, with
 // the host name of its URL for SNI and Host, trusting only ca.
-func (f *ingressForward) client(ca *certAuthority) *http.Client {
+func (f *IngressForward) Client(ca *CertAuthority) *http.Client {
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
 	return &http.Client{
 		Timeout: 30 * time.Second,
@@ -85,14 +86,15 @@ func (f *ingressForward) client(ca *certAuthority) *http.Client {
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				return dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", f.port))
 			},
-			TLSClientConfig:   &tls.Config{RootCAs: ca.pool(), MinVersion: tls.VersionTLS12},
+			TLSClientConfig:   &tls.Config{RootCAs: ca.Pool(), MinVersion: tls.VersionTLS12},
 			ForceAttemptHTTP2: true,
 		},
-		// The dashboard and the IdP redirect; the tests check the first answer.
+		// Tests check the first answer, not where a redirect leads.
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 }
 
-func (f *ingressForward) stop() {
+// Stop closes the port-forward.
+func (f *IngressForward) Stop() {
 	close(f.stopChan)
 }

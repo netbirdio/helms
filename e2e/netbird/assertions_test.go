@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e
+package netbird_test
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/netbirdio/helms/charts/netbird/tests/e2e/framework"
+	"github.com/netbirdio/helms/e2e/framework/netbird"
 )
 
 // The connection types `netbird status` reports.
@@ -29,20 +29,20 @@ const (
 // endpoint, so each check waits for its answer.
 func requireHTTPRoutes(t *testing.T) {
 	t.Helper()
-	if code, body := get(t, "https://"+framework.DashboardDomain+"/", http.StatusOK); code != http.StatusOK || !strings.Contains(body, "<html") {
+	if code, body := get(t, "https://"+netbird.DashboardDomain+"/", http.StatusOK); code != http.StatusOK || !strings.Contains(body, "<html") {
 		t.Errorf("dashboard: got %d, want 200 with an HTML page", code)
 	}
-	if code, _ := get(t, "https://"+framework.Domain+"/api/users", http.StatusUnauthorized); code != http.StatusUnauthorized {
+	if code, _ := get(t, "https://"+netbird.Domain+"/api/users", http.StatusUnauthorized); code != http.StatusUnauthorized {
 		t.Errorf("GET /api/users without a token: got %d, want 401", code)
 	}
-	code, body := get(t, "https://"+framework.Domain+"/oauth2/.well-known/openid-configuration", http.StatusOK)
+	code, body := get(t, "https://"+netbird.Domain+"/oauth2/.well-known/openid-configuration", http.StatusOK)
 	var discovery struct {
 		Issuer string `json:"issuer"`
 	}
 	if code != http.StatusOK || json.Unmarshal([]byte(body), &discovery) != nil {
 		t.Fatalf("OIDC discovery: got %d: %.200s", code, body)
 	}
-	if want := "https://" + framework.Domain + "/oauth2"; discovery.Issuer != want {
+	if want := "https://" + netbird.Domain + "/oauth2"; discovery.Issuer != want {
 		t.Errorf("OIDC issuer: got %q, want %q", discovery.Issuer, want)
 	}
 }
@@ -81,7 +81,7 @@ func get(t *testing.T, url string, want int) (int, string) {
 // Clients connect to a peer lazily, on its first packet, and may drop the first
 // packets after connecting while their firewall catches up, so every attempt
 // pings.
-func requireConnected(t *testing.T, a, b *framework.Peer, connType string) {
+func requireConnected(t *testing.T, a, b *netbird.Peer, connType string) {
 	t.Helper()
 	ctx := t.Context()
 	bIP, err := b.IP(ctx)
@@ -89,7 +89,7 @@ func requireConnected(t *testing.T, a, b *framework.Peer, connType string) {
 		t.Fatal(err)
 	}
 
-	var last framework.Status
+	var last netbird.Status
 	var lastErr, pingErr error
 	var pingOut string
 	err = wait.PollUntilContextTimeout(ctx, 3*time.Second, 4*time.Minute, true, func(ctx context.Context) (bool, error) {
@@ -116,7 +116,7 @@ func requireConnected(t *testing.T, a, b *framework.Peer, connType string) {
 
 // requirePeersListed checks that management still lists every peer, which it
 // only can if its store survived.
-func requirePeersListed(t *testing.T, want ...*framework.Peer) {
+func requirePeersListed(t *testing.T, want ...*netbird.Peer) {
 	t.Helper()
 	var listed []string
 	var last error

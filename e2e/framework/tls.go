@@ -14,22 +14,25 @@ import (
 	"time"
 )
 
-// certAuthority signs the ingress certificate. The peers and the suite trust it
-// instead of the system roots.
-type certAuthority struct {
-	cert    *x509.Certificate
-	key     *ecdsa.PrivateKey
-	certPEM []byte
+// CertAuthority signs the ingress certificates. The tests and the clients they
+// run trust it instead of the system roots.
+type CertAuthority struct {
+	// CertPEM is the CA's certificate, for clients to trust.
+	CertPEM []byte
+
+	cert *x509.Certificate
+	key  *ecdsa.PrivateKey
 }
 
-func newCertAuthority() (*certAuthority, error) {
+// NewCertAuthority creates a CA valid for a day.
+func NewCertAuthority(name string) (*CertAuthority, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "netbird-chart-e2e CA"},
+		Subject:               pkix.Name{CommonName: name + " CA"},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
 		IsCA:                  true,
@@ -44,15 +47,15 @@ func newCertAuthority() (*certAuthority, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &certAuthority{
+	return &CertAuthority{
+		CertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
 		cert:    cert,
 		key:     key,
-		certPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
 	}, nil
 }
 
-// issue returns a serving certificate and key for hosts, in PEM.
-func (ca *certAuthority) issue(hosts ...string) (certPEM, keyPEM []byte, err error) {
+// Issue returns a serving certificate and key for hosts, in PEM.
+func (ca *CertAuthority) Issue(hosts ...string) (certPEM, keyPEM []byte, err error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -78,7 +81,8 @@ func (ca *certAuthority) issue(hosts ...string) (certPEM, keyPEM []byte, err err
 		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), nil
 }
 
-func (ca *certAuthority) pool() *x509.CertPool {
+// Pool returns a pool holding only the CA.
+func (ca *CertAuthority) Pool() *x509.CertPool {
 	pool := x509.NewCertPool()
 	pool.AddCert(ca.cert)
 	return pool

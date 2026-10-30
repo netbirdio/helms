@@ -64,7 +64,7 @@ tasks:
 
   chart:e2e:
     desc: Install the chart into a fresh Kind cluster and connect NetBird peers through it
-    dir: '{{.CHART_DIR}}/tests/e2e'
+    dir: e2e
     preconditions:
       - sh: command -v docker
         msg: docker is required
@@ -73,7 +73,7 @@ tasks:
       - sh: command -v helm
         msg: helm is required
     cmds:
-      - go test -tags e2e ./... -v -count 1 -timeout 30m {{.CLI_ARGS}}
+      - go test -tags e2e ./netbird/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
 
   cluster:create:
     desc: Create the dedicated kind cluster

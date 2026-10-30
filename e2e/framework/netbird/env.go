@@ -1,10 +1,10 @@
 //go:build e2e
 
-// Package framework is the plumbing behind the chart's end-to-end tests. It
-// brings up a Kind cluster with ingress-nginx and the chart, runs NetBird peers
-// in Docker next to it, and talks to management through the ingress. It asserts
-// nothing: the tests in the parent package decide what passes.
-package framework
+// Package netbird is the plumbing behind the netbird chart's end-to-end tests.
+// It installs the chart into a framework.Cluster, runs NetBird peers in Docker
+// next to it, and talks to management through the ingress. It asserts nothing:
+// the tests in e2e/netbird decide what passes.
+package netbird
 
 import (
 	"context"
@@ -13,11 +13,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/kind/pkg/cluster"
+	"github.com/netbirdio/helms/e2e/framework"
 )
 
 const (
@@ -33,12 +32,15 @@ const (
 	// BootstrapTimeout bounds Bootstrap.
 	BootstrapTimeout = 20 * time.Minute
 
+	clusterName = "netbird-chart-e2e"
+
+	// tlsSecretName is the Secret examples/kind's ingresses reference.
+	tlsSecretName = "netbird-local-tls"
+
 	defaultFromVersion = "0.74.0"
 
-	envFromVersion  = "NB_E2E_FROM_VERSION"
-	envRootless     = "NB_E2E_ROOTLESS"
-	envKeep         = "NB_E2E_KEEP"
-	envArtifactsDir = "NB_E2E_ARTIFACTS_DIR"
+	envFromVersion = "NB_E2E_FROM_VERSION"
+	envRootless    = "NB_E2E_ROOTLESS"
 )
 
 // Env is a Kind cluster with ingress-nginx and the chart installed, and the
@@ -51,19 +53,14 @@ type Env struct {
 	// Rootless is whether examples/rootless is layered in.
 	Rootless bool
 
-	// Kube is a client for the cluster.
-	Kube kubernetes.Interface
+	// Cluster is the Kind cluster the chart runs in.
+	Cluster *framework.Cluster
 	// API is the management REST API as the account owner.
 	API *APIClient
 
-	kind       *cluster.Provider
-	kubeconfig string
-	restConfig *rest.Config
-	workDir    string
-	// nodeIP is the Kind node's address on Kind's Docker network.
-	nodeIP  string
-	ca      *certAuthority
-	ingress *ingressForward
+	workDir string
+	ca      *framework.CertAuthority
+	ingress *framework.IngressForward
 	peers   []*Peer
 }
 
@@ -87,17 +84,18 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 	e := &Env{
 		workDir:        workDir,
 		DefaultVersion: defaultVersion,
-		FromVersion:    envOr(envFromVersion, defaultFromVersion),
-		Rootless:       envBool(envRootless),
+		FromVersion:    framework.EnvOr(envFromVersion, defaultFromVersion),
+		Rootless:       framework.EnvBool(envRootless),
 	}
 	log.Printf("e2e: backends %s, then %s; rootless %t", e.FromVersion, e.DefaultVersion, e.Rootless)
 
 	log.Print("e2e: creating the Kind cluster")
-	if err := e.createCluster(ctx); err != nil {
+	e.Cluster, err = framework.CreateCluster(ctx, clusterName, workDir)
+	if err != nil {
 		return e, err
 	}
 	log.Print("e2e: installing ingress-nginx")
-	if err := e.installIngress(ctx); err != nil {
+	if err := e.Cluster.InstallIngressNginx(ctx); err != nil {
 		return e, err
 	}
 	if err := e.prepareNamespace(ctx); err != nil {
@@ -107,7 +105,7 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 	if err := e.InstallChart(ctx, e.FromVersion); err != nil {
 		return e, err
 	}
-	e.ingress, err = e.forwardIngress(ctx)
+	e.ingress, err = e.Cluster.ForwardIngress(ctx)
 	if err != nil {
 		return e, err
 	}
@@ -119,28 +117,54 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 	return e, nil
 }
 
+// prepareNamespace creates the chart's namespace, enforcing the restricted Pod
+// Security Standard when rootless, and the TLS Secret its ingresses reference.
+// The peers trust the CA through the file it writes.
+func (e *Env) prepareNamespace(ctx context.Context) error {
+	if err := e.Cluster.CreateNamespace(ctx, Namespace, e.Rootless); err != nil {
+		return err
+	}
+	var err error
+	e.ca, err = framework.NewCertAuthority(clusterName)
+	if err != nil {
+		return err
+	}
+	if err := e.Cluster.CreateTLSSecret(ctx, Namespace, tlsSecretName, e.ca, Domain, DashboardDomain); err != nil {
+		return err
+	}
+	return os.WriteFile(e.caPath(), e.ca.CertPEM, 0o644)
+}
+
+func (e *Env) caPath() string {
+	return filepath.Join(e.workDir, "ca.crt")
+}
+
 // HTTPClient returns a client that reaches the chart's ingress for any of its
 // hostnames, trusting the suite's CA.
 func (e *Env) HTTPClient() *http.Client {
-	return e.ingress.client(e.ca)
+	return e.ingress.Client(e.ca)
 }
 
 // Teardown removes the peers and the cluster, unless NB_E2E_KEEP is set.
 func (e *Env) Teardown() {
-	if envBool(envKeep) {
-		log.Printf("e2e: %s is set, leaving the environment running; kubeconfig: %s", envKeep, e.kubeconfig)
+	if framework.Keep() {
+		kubeconfig := ""
+		if e.Cluster != nil {
+			kubeconfig = e.Cluster.Kubeconfig
+		}
+		log.Printf("e2e: NB_E2E_KEEP is set, leaving the environment running; kubeconfig: %s", kubeconfig)
 		return
 	}
 	if e.ingress != nil {
-		e.ingress.stop()
+		e.ingress.Stop()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	for _, p := range e.peers {
 		p.remove(ctx)
 	}
-	if e.kind != nil {
-		if err := e.kind.Delete(kindClusterName, e.kubeconfig); err != nil {
+	if e.Cluster != nil {
+		if err := e.Cluster.Delete(); err != nil {
 			log.Printf("e2e: delete the Kind cluster: %v", err)
 		}
 	}

@@ -1,5 +1,5 @@
 # End-to-end tests: the netbird chart in a Kind cluster, with real NetBird peers
-# connecting through it. charts/netbird/tests/e2e/README.md describes the setup.
+# connecting through it. e2e/README.md describes the setup.
 #
 # Kubernetes and rootless are the dimensions worth a deployment each: a pull
 # request runs the newest Kubernetes with and without rootless, and main and a
@@ -10,12 +10,20 @@ on:
   pull_request:
     paths:
       - 'charts/netbird/**'
+      - 'e2e/go.mod'
+      - 'e2e/go.sum'
+      - 'e2e/framework/**'
+      - 'e2e/netbird/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   push:
     branches:
       - main
     paths:
       - 'charts/netbird/**'
+      - 'e2e/go.mod'
+      - 'e2e/go.sum'
+      - 'e2e/framework/**'
+      - 'e2e/netbird/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   workflow_dispatch:
     inputs:
@@ -37,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Node images published with the Kind version in tests/e2e/go.mod.
+        # Node images published with the Kind version in e2e/go.mod.
         kubernetes: ${{ fromJSON((github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_matrix)) && '[{"version":"1.34","image":"kindest/node:v1.34.11@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d"},{"version":"1.35","image":"kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0"},{"version":"1.36","image":"kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"},{"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}]' || '[{"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}]') }}
         rootless: [false, true]
     steps:
@@ -47,8 +55,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: charts/netbird/tests/e2e/go.mod
-          cache-dependency-path: charts/netbird/tests/e2e/go.sum
+          go-version-file: e2e/go.mod
+          cache-dependency-path: e2e/go.sum
 
       - name: Install Helm
         run: |
@@ -64,7 +72,7 @@ jobs:
           DESIRED_VERSION=v3.17.3 bash "$installer"
 
       - name: Run e2e tests
-        working-directory: charts/netbird/tests/e2e
+        working-directory: e2e
         # Above the go test timeout plus the bootstrap before it. Killing the
         # step first would lose the panic trace that names the hung test.
         timeout-minutes: 45
@@ -72,7 +80,7 @@ jobs:
           NB_E2E_KIND_NODE_IMAGE: ${{ matrix.kubernetes.image }}
           NB_E2E_ROOTLESS: ${{ matrix.rootless }}
           NB_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
-        run: go test -tags e2e ./... -v -count 1 -timeout 30m
+        run: go test -tags e2e ./netbird/... -v -count 1 -timeout 30m
 
       - name: Upload diagnostics
         if: failure()

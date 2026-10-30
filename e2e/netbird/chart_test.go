@@ -1,11 +1,11 @@
 //go:build e2e
 
-package e2e
+package netbird_test
 
 import (
 	"testing"
 
-	"github.com/netbirdio/helms/charts/netbird/tests/e2e/framework"
+	"github.com/netbirdio/helms/e2e/framework/netbird"
 )
 
 // TestChart walks one installation through its life. The steps run in order and
@@ -30,7 +30,7 @@ func TestChart(t *testing.T) {
 }
 
 // The peers the steps start, in the order they start them.
-var alpha, beta, gamma, delta *framework.Peer
+var alpha, beta, gamma, delta *netbird.Peer
 
 // testHTTPRoutes checks what a browser uses: the dashboard, the API and the
 // embedded IdP, all through the ingress.
@@ -90,7 +90,7 @@ func testManagementRestart(t *testing.T) {
 
 // startPeers starts two peers with one setup key; forceRelay keeps them off
 // direct connections.
-func startPeers(t *testing.T, forceRelay bool, a, b string) (*framework.Peer, *framework.Peer) {
+func startPeers(t *testing.T, forceRelay bool, a, b string) (*netbird.Peer, *netbird.Peer) {
 	t.Helper()
 	peers, err := env.StartPeers(t.Context(), forceRelay, a, b)
 	if err != nil {

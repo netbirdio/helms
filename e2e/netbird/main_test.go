@@ -1,9 +1,10 @@
 //go:build e2e
 
-// Package e2e installs the chart into a Kind cluster and connects real NetBird
-// peers through it. Start with TestChart in chart_test.go; README.md describes
-// the setup and the knobs, and the framework package holds the plumbing.
-package e2e
+// Package netbird_test installs the netbird chart into a Kind cluster and
+// connects real NetBird peers through it. Start with TestChart in
+// chart_test.go; e2e/README.md describes the setup and the knobs, and
+// e2e/framework/netbird holds the plumbing.
+package netbird_test
 
 import (
 	"context"
@@ -11,11 +12,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/netbirdio/helms/charts/netbird/tests/e2e/framework"
+	"github.com/netbirdio/helms/e2e/framework/netbird"
 )
 
 // env is the environment TestMain brought up, shared by every test.
-var env *framework.Env
+var env *netbird.Env
 
 // TestMain brings the environment up once, runs the tests against it, and tears
 // it down. Logs are collected when anything fails.
@@ -24,8 +25,8 @@ func TestMain(m *testing.M) {
 }
 
 func run(m *testing.M) int {
-	ctx, cancel := context.WithTimeout(context.Background(), framework.BootstrapTimeout)
-	e, err := framework.Bootstrap(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), netbird.BootstrapTimeout)
+	e, err := netbird.Bootstrap(ctx)
 	cancel()
 	if e != nil {
 		defer e.Teardown()

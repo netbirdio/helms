@@ -1,6 +1,6 @@
 //go:build e2e
 
-package framework
+package netbird
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/netbirdio/helms/e2e/framework"
 )
 
 const (
@@ -86,13 +88,13 @@ func (e *Env) StartPeers(ctx context.Context, forceRelay bool, names ...string) 
 }
 
 func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay bool) (*Peer, error) {
-	p := &Peer{Name: name, container: kindClusterName + "-" + name}
+	p := &Peer{Name: name, container: clusterName + "-" + name}
 	p.remove(ctx)
 
 	args := []string{"create", "--name", p.container, "--hostname", name,
-		"--network", kindNetwork,
-		"--add-host", Domain + ":" + e.nodeIP,
-		"--add-host", DashboardDomain + ":" + e.nodeIP,
+		"--network", framework.KindNetwork,
+		"--add-host", Domain + ":" + e.Cluster.NodeIP,
+		"--add-host", DashboardDomain + ":" + e.Cluster.NodeIP,
 		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--cap-add", "SYS_RESOURCE",
 		"--env", "NB_MANAGEMENT_URL=https://" + Domain,
 		"--env", "NB_SETUP_KEY=" + setupKey,
@@ -103,14 +105,14 @@ func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay b
 		args = append(args, "--env", "NB_FORCE_RELAY=true")
 	}
 	args = append(args, e.clientImage())
-	if _, err := command(ctx, "docker", args...); err != nil {
+	if _, err := framework.Command(ctx, "docker", args...); err != nil {
 		return nil, fmt.Errorf("create peer %s: %w", name, err)
 	}
 	e.peers = append(e.peers, p)
-	if _, err := command(ctx, "docker", "cp", e.caPath(), p.container+":"+caInContainer); err != nil {
+	if _, err := framework.Command(ctx, "docker", "cp", e.caPath(), p.container+":"+caInContainer); err != nil {
 		return p, fmt.Errorf("copy the CA into peer %s: %w", name, err)
 	}
-	if _, err := command(ctx, "docker", "start", p.container); err != nil {
+	if _, err := framework.Command(ctx, "docker", "start", p.container); err != nil {
 		return p, fmt.Errorf("start peer %s: %w", name, err)
 	}
 	return p, nil
@@ -120,13 +122,13 @@ func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay b
 // of the backends installed first. The peers keep it through the upgrade, as
 // clients do when their server is upgraded.
 func (e *Env) clientImage() string {
-	return envOr(envClientImage, "netbirdio/netbird:"+e.FromVersion)
+	return framework.EnvOr(envClientImage, "netbirdio/netbird:"+e.FromVersion)
 }
 
 // Status returns the client's `netbird status`.
 func (p *Peer) Status(ctx context.Context) (Status, error) {
 	var s Status
-	out, err := command(ctx, "docker", "exec", p.container, "netbird", "status", "--json")
+	out, err := framework.Command(ctx, "docker", "exec", p.container, "netbird", "status", "--json")
 	if err != nil {
 		return s, err
 	}
@@ -157,16 +159,16 @@ func (p *Peer) IP(ctx context.Context) (string, error) {
 
 // Ping sends one ping to ip from inside the peer and returns its output.
 func (p *Peer) Ping(ctx context.Context, ip string) (string, error) {
-	return command(ctx, "docker", "exec", p.container, "ping", "-c", "1", "-W", "2", ip)
+	return framework.Command(ctx, "docker", "exec", p.container, "ping", "-c", "1", "-W", "2", ip)
 }
 
 func (p *Peer) logs(ctx context.Context) string {
-	out, _ := command(ctx, "docker", "logs", "--tail", "200", p.container)
+	out, _ := framework.Command(ctx, "docker", "logs", "--tail", "200", p.container)
 	return out
 }
 
 func (p *Peer) remove(ctx context.Context) {
-	if out, err := command(ctx, "docker", "rm", "-f", p.container); err != nil && !strings.Contains(out, "No such container") {
+	if out, err := framework.Command(ctx, "docker", "rm", "-f", p.container); err != nil && !strings.Contains(out, "No such container") {
 		log.Printf("e2e: remove peer %s: %v", p.Name, err)
 	}
 }

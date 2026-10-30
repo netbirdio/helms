@@ -1,6 +1,6 @@
 //go:build e2e
 
-package framework
+package netbird
 
 import (
 	"bytes"
