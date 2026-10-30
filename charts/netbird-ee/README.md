@@ -4,7 +4,7 @@ NetBird enterprise on Kubernetes, single instance. The chart wraps the [netbird 
 
 | Component  | Image                                        | Environment                                                                  |
 |------------|----------------------------------------------|------------------------------------------------------------------------------|
-| management | `ghcr.io/netbirdio/management-cloud:0.76.2`  | `NB_SINGLE_INSTANCE_MODE=true`, `NETBIRD_ENCRYPTION_KEY` (see below)         |
+| management | `ghcr.io/netbirdio/management-cloud:0.76.2`  | `NB_SINGLE_INSTANCE_MODE=true`, `NETBIRD_ENCRYPTION_KEY` ([see below](#encryption-key)) |
 | signal     | `ghcr.io/netbirdio/signal-cloud:0.76.2`      | `SINGLE_NODE_MODE=true`                                                      |
 | relay      | `netbirdio/relay:0.76.2` (no enterprise build) | —                                                                          |
 | dashboard  | `ghcr.io/netbirdio/dashboard-cloud:v2.96.0`  | —                                                                            |
@@ -33,7 +33,26 @@ netbird:
 
 ## Encryption key
 
-Management encrypts the enterprise integrations store with `NETBIRD_ENCRYPTION_KEY`. It must equal the datastore encryption key, so the chart sets it to `$(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)`, the variable the netbird chart fills from `config.dataStoreEncryptionKey` or `config.dataStoreEncryptionKeyRef`. Never rotate it. With `overrideConfig` that variable is not set, so set `NETBIRD_ENCRYPTION_KEY` yourself through `envFromSecret`.
+Management encrypts the enterprise integrations store with `NETBIRD_ENCRYPTION_KEY`. It must equal the datastore encryption key. Never rotate it.
+
+By default the chart sets it to `$(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)`, the variable the netbird chart fills from `config.dataStoreEncryptionKey` or `config.dataStoreEncryptionKeyRef`. With a ref, the key stays in your Secret: the manifest holds only the `$(…)` reference, and the kubelet resolves it when the pod starts.
+
+To read it from a Secret directly, for example with `overrideConfig`, where that variable is not set, override the entry:
+
+```yaml
+netbird:
+  backend:
+    split:
+      management:
+        env:
+          NETBIRD_ENCRYPTION_KEY:
+            valueFrom:
+              secretKeyRef:
+                name: netbird-credentials
+                key: datastore-encryption-key
+```
+
+Helm logs that it ignores the chart's string default for that key; that is the override taking effect.
 
 ## License
 

@@ -17,9 +17,16 @@ netbird:
           tag: 0.76.2
         env:
           NB_SINGLE_INSTANCE_MODE: "true"
-          # Encrypts the enterprise integrations store. It must stay equal to
-          # config.dataStoreEncryptionKey, so it reuses the variable the chart
-          # sets from it. Kubernetes expands $(VAR) from earlier entries.
+          # Encrypts the enterprise integrations store and must equal the
+          # datastore encryption key, so it reuses the variable the chart sets
+          # from config.dataStoreEncryptionKey(Ref); Kubernetes expands $(VAR)
+          # from earlier entries. With overrideConfig that variable is not set:
+          # read the key from a Secret instead:
+          #   NETBIRD_ENCRYPTION_KEY:
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: netbird-credentials
+          #         key: datastore-encryption-key
           NETBIRD_ENCRYPTION_KEY: $(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)
         # Optional. Without a license the core runs and the paid modules stay off:
         #   envFromSecret:

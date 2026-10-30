@@ -26,12 +26,20 @@ has 'image: "netbirdio/relay:0.76.2"' "$out"
 # 2. Single-instance env, and the integrations key follows the datastore key.
 grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: NB_SINGLE_INSTANCE_MODE"; exit 1; }
 grep -A1 "name: SINGLE_NODE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: SINGLE_NODE_MODE"; exit 1; }
-grep -A1 "name: NETBIRD_ENCRYPTION_KEY" <<<"$out" | grep -qF '"$(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)"' || { echo "FAIL: NETBIRD_ENCRYPTION_KEY"; exit 1; }
+grep -A1 "name: NETBIRD_ENCRYPTION_KEY" <<<"$out" | grep -qF '$(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)' || { echo "FAIL: NETBIRD_ENCRYPTION_KEY"; exit 1; }
 # Kubernetes only expands $(VAR) from entries listed before it.
 env_order="$(grep -oE 'name: (NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY|NETBIRD_ENCRYPTION_KEY)' <<<"$out" | tr '\n' ' ')"
 test "$env_order" = "name: NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY name: NETBIRD_ENCRYPTION_KEY " || { echo "FAIL: env order: $env_order"; exit 1; }
 
-# 3. Single instance only.
+# 3. NETBIRD_ENCRYPTION_KEY can come from a Secret, and other env entries stay.
+out="$(render "${required[@]}" \
+  --set netbird.backend.split.management.env.NETBIRD_ENCRYPTION_KEY.valueFrom.secretKeyRef.name=my-keys \
+  --set netbird.backend.split.management.env.NETBIRD_ENCRYPTION_KEY.valueFrom.secretKeyRef.key=integrations)"
+has "name: NB_SINGLE_INSTANCE_MODE" "$out"
+grep -A4 "name: NETBIRD_ENCRYPTION_KEY" <<<"$out" | grep -qF "name: my-keys" || { echo "FAIL: NETBIRD_ENCRYPTION_KEY secretKeyRef"; exit 1; }
+! grep -qF '$(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)' <<<"$out" || { echo "FAIL: default NETBIRD_ENCRYPTION_KEY left in"; exit 1; }
+
+# 4. Single instance only.
 fails_with "netbird.backend.split.management.replicaCount must be 1" "${required[@]}" --set netbird.backend.split.management.replicaCount=2
 fails_with "netbird.backend.split.signal.replicaCount must be 1" "${required[@]}" --set netbird.backend.split.signal.replicaCount=2
 
