@@ -3,6 +3,8 @@
 package netbird_test
 
 import (
+	"bytes"
+	"maps"
 	"testing"
 
 	"github.com/netbirdio/helms/e2e/framework/netbird"
@@ -47,10 +49,14 @@ func testDirectConnection(t *testing.T) {
 }
 
 // testUpgrade upgrades the backends from FromVersion to the chart's defaults
-// and checks the peers survive it.
+// and checks the peers and the credential Secrets survive it.
 func testUpgrade(t *testing.T) {
 	if env.FromVersion == env.DefaultVersion {
 		t.Skipf("installed at the chart's default %s; nothing to upgrade", env.DefaultVersion)
+	}
+	before, err := env.CredentialSecrets(t.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
 	if err := env.InstallChart(t.Context(), env.DefaultVersion); err != nil {
 		t.Fatal(err)
@@ -59,6 +65,15 @@ func testUpgrade(t *testing.T) {
 		image := "netbirdio/" + component + ":" + env.DefaultVersion
 		if err := env.WaitDeploymentImage(t.Context(), "netbird-"+component, image); err != nil {
 			t.Fatal(err)
+		}
+	}
+	after, err := env.CredentialSecrets(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name := range before {
+		if !maps.EqualFunc(before[name], after[name], bytes.Equal) {
+			t.Fatalf("the upgrade changed the Secret %s", name)
 		}
 	}
 	requireHTTPRoutes(t)

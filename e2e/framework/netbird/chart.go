@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/netbirdio/helms/e2e/framework"
 )
 
@@ -84,6 +86,20 @@ func (e *Env) RestartManagement(ctx context.Context) error {
 		return fmt.Errorf("management did not come back after its pod was deleted: %w", err)
 	}
 	return nil
+}
+
+// CredentialSecrets returns the data of the Secrets holding management's and
+// relay's credentials, by Secret name.
+func (e *Env) CredentialSecrets(ctx context.Context) (map[string]map[string][]byte, error) {
+	data := map[string]map[string][]byte{}
+	for _, name := range []string{"netbird-management-credentials", "netbird-relay-credentials"} {
+		secret, err := e.Cluster.Kube.CoreV1().Secrets(Namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("get the Secret %s: %w", name, err)
+		}
+		data[name] = secret.Data
+	}
+	return data, nil
 }
 
 var backendTag = regexp.MustCompile(`(?m)^        repository: netbirdio/management\n        tag: "?([^"\s]+)"?`)
