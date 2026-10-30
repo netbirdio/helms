@@ -38,7 +38,6 @@ backend:
         cmd:
           args:
             - --disable-anonymous-metrics=false
-            - --dns-domain=netbird.selfhosted
       envFromSecret:
         STUN_SERVER: netbird/stunServer
         TURN_SERVER: netbird/turnServer

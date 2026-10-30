@@ -115,10 +115,10 @@ name: {{ get .ref "name" | quote }}
 key: {{ get .ref "key" | quote }}
 {{- end -}}
 
-{{/* Fail unless an inline value or a reference is set. Context: value, ref, path. */}}
+{{/* Fail unless an inline value or a reference is set. Context: value, ref, path, hint (optional). */}}
 {{- define "netbird.requireSecret" -}}
 {{- if and (empty .value) (empty .ref) -}}
-{{- fail (printf "%s or %sRef is required; generate one with: openssl rand -base64 32" .path .path) -}}
+{{- fail (printf "%s or %sRef is required%s" .path .path (ternary "" (printf "; %s" .hint) (empty .hint))) -}}
 {{- end -}}
 {{- end -}}
 
