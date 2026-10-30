@@ -31,6 +31,16 @@ netbird:
             key: datastore-encryption-key
 ```
 
+## Try it in Kind
+
+[`examples/kind`](examples/kind/values.yaml) is the netbird chart's Kind example under `netbird:`, with fixed development credentials. The same tasks bring it up, on the netbird chart's Kind cluster config:
+
+```bash
+task dev:up CHART=netbird-ee
+task dev:urls
+task dev:down
+```
+
 ## Encryption key
 
 Management encrypts the enterprise integrations store with `NETBIRD_ENCRYPTION_KEY`. It must equal the datastore encryption key. Never rotate it.
@@ -71,4 +81,4 @@ Management validates the license against `https://license.netbird.io` every 12 h
 
 ## Tests
 
-`tests/render.sh` lints and renders the chart. The end-to-end suite in [`e2e/netbird`](../../e2e/netbird) runs against this chart with `NB_E2E_CHART=netbird-ee task chart:e2e`.
+`tests/render.sh` lints and renders the chart, and checks that `examples/kind` keeps the netbird chart's example settings. The end-to-end suite in [`e2e/netbird`](../../e2e/netbird) runs against this chart with `NB_E2E_CHART=netbird-ee task chart:e2e`.

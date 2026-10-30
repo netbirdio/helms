@@ -15,10 +15,12 @@ import (
 	"github.com/netbirdio/helms/e2e/framework"
 )
 
+const managementSelector = "app.kubernetes.io/name=netbird-management,app.kubernetes.io/instance=" + ReleaseName
+
 // examples/kind serves exampleDomain; the suite installs it under Domain.
 const exampleDomain = "netbird.localhost"
 
-// communityChartDir is the netbird chart; its examples serve both charts.
+// communityChartDir is the netbird chart; its examples/rootless serves both charts.
 var communityChartDir = framework.ChartDir(ChartCommunity)
 
 // Enterprise is whether the chart under test is netbird-ee.
@@ -54,16 +56,16 @@ func (e *Env) InstallChart(ctx context.Context, version string) error {
 	return err
 }
 
-// valuesFiles returns the netbird chart's examples/kind with the suite's
-// hostnames, its examples/rootless when rootless, and the suite's own additions,
-// each nested where the chart under test expects them.
+// valuesFiles returns the chart's examples/kind with the suite's hostnames,
+// the netbird chart's examples/rootless when rootless, and the suite's own
+// additions, the last two nested where the chart under test expects them.
 func (e *Env) valuesFiles() ([]string, error) {
-	example, err := os.ReadFile(filepath.Join(communityChartDir, "examples", "kind", "values.yaml"))
+	example, err := os.ReadFile(filepath.Join(framework.ChartDir(e.Chart), "examples", "kind", "values.yaml"))
 	if err != nil {
 		return nil, err
 	}
-	kindValues, err := e.writeValues("kind-values.yaml", strings.ReplaceAll(string(example), exampleDomain, Domain))
-	if err != nil {
+	kindValues := filepath.Join(e.workDir, "kind-values.yaml")
+	if err := os.WriteFile(kindValues, []byte(strings.ReplaceAll(string(example), exampleDomain, Domain)), 0o644); err != nil {
 		return nil, err
 	}
 	files := []string{kindValues}
@@ -111,11 +113,15 @@ func (e *Env) WaitDeploymentImage(ctx context.Context, name, image string) error
 	return e.Cluster.WaitDeploymentImage(ctx, Namespace, name, image)
 }
 
+// ManagementLogs returns the logs of management's pods.
+func (e *Env) ManagementLogs(ctx context.Context) (string, error) {
+	return e.Cluster.Logs(ctx, Namespace, managementSelector)
+}
+
 // RestartManagement deletes management's pod and waits for its replacement to
 // be ready.
 func (e *Env) RestartManagement(ctx context.Context) error {
-	selector := "app.kubernetes.io/name=netbird-management,app.kubernetes.io/instance=" + ReleaseName
-	if err := e.Cluster.RestartPods(ctx, Namespace, selector); err != nil {
+	if err := e.Cluster.RestartPods(ctx, Namespace, managementSelector); err != nil {
 		return fmt.Errorf("management did not come back after its pod was deleted: %w", err)
 	}
 	return nil

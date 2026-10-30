@@ -55,11 +55,11 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
 
 1. **Bootstrap** (`netbird.Bootstrap`):
    - Create a one-node Kind cluster and install ingress-nginx on it.
-   - Install the chart (`NB_E2E_CHART`) from the netbird chart's `examples/kind`, nested under `netbird:` for netbird-ee, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
+   - Install the chart (`NB_E2E_CHART`) from its own `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
    - Activate the account through `POST /api/setup` to get an API token.
 2. **TestChart** (`netbird/chart_test.go`):
    1. HTTP routes: the dashboard, the API and the IdP answer through the ingress.
-   2. netbird-ee only: the enterprise images run.
+   2. netbird-ee only: the enterprise images run, and management starts the enterprise server.
    3. Two peers connect directly.
    4. The backends are upgraded to the chart's defaults, and the peers and the credential Secrets survive it.
    5. Two peers forced onto the relay connect through it.

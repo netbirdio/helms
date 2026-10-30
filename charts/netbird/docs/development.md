@@ -76,7 +76,7 @@ helm template netbird charts/netbird \
   --show-only templates/split/management/configmap.yaml
 ```
 
-For an end-to-end local installation, use `task dev:up`, inspect it with `task dev:status`, redeploy it with `task dev:deploy`, and remove the dedicated cluster with `task dev:down`.
+For an end-to-end local installation, use `task dev:up` (`task dev:up CHART=netbird-ee` for the enterprise chart), inspect it with `task dev:status`, redeploy it with `task dev:deploy`, and remove the dedicated cluster with `task dev:down`.
 
 ## End-to-end tests
 

@@ -43,4 +43,10 @@ grep -A4 "name: NETBIRD_ENCRYPTION_KEY" <<<"$out" | grep -qF "name: my-keys" || 
 fails_with "netbird.backend.split.management.replicaCount must be 1" "${required[@]}" --set netbird.backend.split.management.replicaCount=2
 fails_with "netbird.backend.split.signal.replicaCount must be 1" "${required[@]}" --set netbird.backend.split.signal.replicaCount=2
 
+# 5. examples/kind is the netbird chart's examples/kind under netbird:, and renders.
+settings() { grep -vE '^\s*(#|$)' "$1"; }
+diff <(settings "$chart/../netbird/examples/kind/values.yaml") <(settings "$chart/examples/kind/values.yaml" | sed '1{/^netbird:$/d}; s/^  //') \
+  || { echo "FAIL: examples/kind drifted from the netbird chart's; see the diff above"; exit 1; }
+render --values "$chart/examples/kind/values.yaml" >/dev/null
+
 echo "netbird-ee render checks passed"

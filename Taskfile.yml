@@ -1,8 +1,10 @@
 version: "3"
 
 vars:
-  CHART_DIR: charts/netbird
-  DEV_VALUES: charts/netbird/examples/kind/values.yaml
+  # The dev:* tasks deploy charts/<CHART> with its examples/kind: netbird or netbird-ee.
+  CHART: '{{default "netbird" .CHART}}'
+  CHART_DIR: charts/{{.CHART}}
+  DEV_VALUES: charts/{{.CHART}}/examples/kind/values.yaml
   KIND_CONFIG: charts/netbird/examples/kind/kind.yaml
   INGRESS_NGINX_VERSION: 1.12.1
   INGRESS_NGINX_COMMIT: 64780b1fed3af99f4eccbc3fdad7ad785e8a83b6
@@ -168,6 +170,8 @@ tasks:
       - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
         msg: Run "task cluster:create" first
     cmds:
+      # netbird-ee vendors the netbird chart; a no-op for netbird.
+      - helm dependency update {{.CHART_DIR}} >/dev/null
       - >-
         helm upgrade --install {{.RELEASE_NAME}} {{.CHART_DIR}}
         --kube-context {{.KUBE_CONTEXT}}

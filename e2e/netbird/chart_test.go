@@ -5,6 +5,7 @@ package netbird_test
 import (
 	"bytes"
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/netbirdio/helms/e2e/framework/netbird"
@@ -20,6 +21,7 @@ func TestChart(t *testing.T) {
 	}{
 		{"the dashboard, the API and the IdP answer through the ingress", testHTTPRoutes},
 		{"netbird-ee runs the enterprise images", testEnterpriseImages},
+		{"netbird-ee management runs the enterprise server", testEnterpriseServer},
 		{"peers connect directly", testDirectConnection},
 		{"an upgrade to the chart's backends keeps the peers", testUpgrade},
 		{"peers connect through the relay", testRelayedConnection},
@@ -59,6 +61,21 @@ func testEnterpriseImages(t *testing.T) {
 		if err := env.WaitDeploymentImage(t.Context(), name, image); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// testEnterpriseServer checks management took the enterprise code path, which
+// the image name alone does not show.
+func testEnterpriseServer(t *testing.T) {
+	if !env.Enterprise() {
+		t.Skip("netbird-ee only")
+	}
+	logs, err := env.ManagementLogs(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(logs, "Starting CloudServer") {
+		t.Fatal(`management never logged "Starting CloudServer"`)
 	}
 }
 
