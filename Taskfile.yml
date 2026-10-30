@@ -1,8 +1,10 @@
 version: "3"
 
 vars:
-  CHART_DIR: charts/netbird
-  DEV_VALUES: charts/netbird/examples/kind/values.yaml
+  # dev:* deploy charts/<CHART> with its examples/kind, and chart:e2e runs e2e/<CHART>: netbird or netbird-ee.
+  CHART: '{{default "netbird" .CHART}}'
+  CHART_DIR: charts/{{.CHART}}
+  DEV_VALUES: charts/{{.CHART}}/examples/kind/values.yaml
   KIND_CONFIG: charts/netbird/examples/kind/kind.yaml
   INGRESS_NGINX_VERSION: 1.12.1
   INGRESS_NGINX_COMMIT: 64780b1fed3af99f4eccbc3fdad7ad785e8a83b6
@@ -57,13 +59,14 @@ tasks:
         >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
+      - charts/netbird-ee/tests/render.sh
       - |
         for values in charts/netbird/examples/nginx-ingress/auth0/values.yaml charts/netbird/examples/nginx-ingress/authentik/values.yaml charts/netbird/examples/nginx-ingress/google/values.yaml charts/netbird/examples/nginx-ingress/okta/values.yaml charts/netbird/examples/traefik-ingress/authentik/values.yaml charts/netbird/examples/istio/zitadel/values.yaml; do
           helm template netbird charts/netbird --namespace netbird --values "$values" >/dev/null
         done
 
   chart:e2e:
-    desc: Install the chart into a fresh Kind cluster and connect NetBird peers through it
+    desc: Install the chart (CHART=netbird-ee for enterprise) into a fresh Kind cluster and connect NetBird peers through it
     dir: e2e
     preconditions:
       - sh: command -v docker
@@ -73,7 +76,7 @@ tasks:
       - sh: command -v helm
         msg: helm is required
     cmds:
-      - go test -tags e2e ./netbird/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
+      - go test -tags e2e ./{{.CHART}}/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
 
   cluster:create:
     desc: Create the dedicated kind cluster
@@ -167,6 +170,8 @@ tasks:
       - sh: kind get kubeconfig --name {{.CLUSTER_NAME}}
         msg: Run "task cluster:create" first
     cmds:
+      # netbird-ee vendors the netbird chart; a no-op for netbird.
+      - helm dependency update {{.CHART_DIR}} >/dev/null
       - >-
         helm upgrade --install {{.RELEASE_NAME}} {{.CHART_DIR}}
         --kube-context {{.KUBE_CONTEXT}}

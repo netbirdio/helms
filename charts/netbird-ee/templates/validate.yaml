@@ -1,0 +1,6 @@
+{{- /* Single instance only: management and signal have no Redis or NATS to share state across replicas. */ -}}
+{{- range $component := list "management" "signal" }}
+{{- if gt (int (index $.Values.netbird.backend.split $component).replicaCount) 1 }}
+{{- fail (printf "netbird.backend.split.%s.replicaCount must be 1: netbird-ee runs single instance" $component) }}
+{{- end }}
+{{- end }}

@@ -30,6 +30,22 @@ func (c *Cluster) WaitDeploymentImage(ctx context.Context, namespace, name, imag
 	})
 }
 
+// Logs returns the logs of the pods selector matches, one after another.
+func (c *Cluster) Logs(ctx context.Context, namespace, selector string) (string, error) {
+	list, err := c.Kube.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return "", err
+	}
+	if len(list.Items) == 0 {
+		return "", fmt.Errorf("no pod matches %s", selector)
+	}
+	var logs string
+	for _, p := range list.Items {
+		logs += c.podLogs(ctx, namespace, p.Name, 10000)
+	}
+	return logs, nil
+}
+
 // RestartPods deletes the pods selector matches and waits until their
 // replacements are ready.
 func (c *Cluster) RestartPods(ctx context.Context, namespace, selector string) error {

@@ -7,6 +7,7 @@
 package netbird
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -32,20 +33,39 @@ const (
 	// BootstrapTimeout bounds Bootstrap.
 	BootstrapTimeout = 20 * time.Minute
 
-	clusterName = "netbird-chart-e2e"
-
 	// tlsSecretName is the Secret examples/kind's ingresses reference.
 	tlsSecretName = "netbird-local-tls"
 
 	defaultFromVersion = "0.74.0"
 
+	// ChartCommunity and ChartEnterprise are the charts the suite can test.
+	ChartCommunity  = "netbird"
+	ChartEnterprise = "netbird-ee"
+
 	envFromVersion = "NB_E2E_FROM_VERSION"
 	envRootless    = "NB_E2E_ROOTLESS"
 )
 
+// Config is what a test package brings up.
+type Config struct {
+	// Chart is the chart under test: ChartCommunity or ChartEnterprise.
+	Chart string
+	// FromChart is the chart installed first; empty means Chart. The only
+	// other choice is ChartCommunity before ChartEnterprise, the migration.
+	FromChart string
+	// ClusterName names the Kind cluster, and the peers' containers after it,
+	// so test packages can run side by side.
+	ClusterName string
+}
+
 // Env is a Kind cluster with ingress-nginx and the chart installed, and the
 // peers the tests started outside it.
 type Env struct {
+	// Chart is the chart under test: ChartCommunity or ChartEnterprise.
+	// FromChart is the chart installed first, Chart unless the suite tests
+	// the migration from netbird to netbird-ee.
+	Chart     string
+	FromChart string
 	// FromVersion is the backend version installed first, DefaultVersion the
 	// chart's. They are equal when there is no upgrade to test.
 	FromVersion    string
@@ -58,39 +78,63 @@ type Env struct {
 	// API is the management REST API as the account owner.
 	API *APIClient
 
-	workDir string
-	ca      *framework.CertAuthority
-	ingress *framework.IngressForward
-	peers   []*Peer
+	clusterName string
+	workDir     string
+	ca          *framework.CertAuthority
+	ingress     *framework.IngressForward
+	peers       []*Peer
 }
 
 // Bootstrap brings the environment up: the cluster, ingress-nginx, the chart at
 // FromVersion, and the account. On error it returns whatever it got as far as,
 // so the caller can still collect logs and tear it down.
-func Bootstrap(ctx context.Context) (*Env, error) {
+func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 	for _, tool := range []string{"docker", "helm"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			return nil, fmt.Errorf("%s is required: %w", tool, err)
 		}
 	}
-	defaultVersion, err := chartBackendVersion()
+	chart := cfg.Chart
+	if chart != ChartCommunity && chart != ChartEnterprise {
+		return nil, fmt.Errorf("chart must be %s or %s, not %q", ChartCommunity, ChartEnterprise, chart)
+	}
+	fromChart := cmp.Or(cfg.FromChart, chart)
+	if fromChart != chart && (fromChart != ChartCommunity || chart != ChartEnterprise) {
+		return nil, fmt.Errorf("cannot go from %s to %s: the only migration is from %s to %s", fromChart, chart, ChartCommunity, ChartEnterprise)
+	}
+	defaultVersion, err := chartBackendVersion(chart)
 	if err != nil {
 		return nil, err
 	}
-	workDir, err := os.MkdirTemp("", "netbird-chart-e2e-*")
+	// netbird-ee has no earlier release to upgrade from yet, and a migration
+	// keeps the backend version: the enterprise store must not be older.
+	fromVersion := defaultFromVersion
+	if chart == ChartEnterprise {
+		fromVersion = defaultVersion
+	}
+	workDir, err := os.MkdirTemp("", cfg.ClusterName+"-*")
 	if err != nil {
 		return nil, fmt.Errorf("create work dir: %w", err)
 	}
 	e := &Env{
+		clusterName:    cfg.ClusterName,
 		workDir:        workDir,
+		Chart:          chart,
+		FromChart:      fromChart,
 		DefaultVersion: defaultVersion,
-		FromVersion:    framework.EnvOr(envFromVersion, defaultFromVersion),
+		FromVersion:    framework.EnvOr(envFromVersion, fromVersion),
 		Rootless:       framework.EnvBool(envRootless),
 	}
-	log.Printf("e2e: backends %s, then %s; rootless %t", e.FromVersion, e.DefaultVersion, e.Rootless)
+	log.Printf("e2e: chart %s with backends %s, then %s with %s; rootless %t", e.FromChart, e.FromVersion, e.Chart, e.DefaultVersion, e.Rootless)
+	if e.Enterprise() {
+		log.Print("e2e: vendoring the netbird chart into netbird-ee")
+		if _, err := framework.Command(ctx, "helm", "dependency", "update", framework.ChartDir(ChartEnterprise)); err != nil {
+			return e, err
+		}
+	}
 
 	log.Print("e2e: creating the Kind cluster")
-	e.Cluster, err = framework.CreateCluster(ctx, clusterName, workDir)
+	e.Cluster, err = framework.CreateCluster(ctx, e.clusterName, workDir)
 	if err != nil {
 		return e, err
 	}
@@ -101,8 +145,8 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 	if err := e.prepareNamespace(ctx); err != nil {
 		return e, err
 	}
-	log.Printf("e2e: installing the chart with backends %s", e.FromVersion)
-	if err := e.InstallChart(ctx, e.FromVersion); err != nil {
+	log.Printf("e2e: installing %s with backends %s", e.FromChart, e.FromVersion)
+	if err := e.InstallChart(ctx, e.FromChart, e.FromVersion); err != nil {
 		return e, err
 	}
 	e.ingress, err = e.Cluster.ForwardIngress(ctx)
@@ -125,7 +169,7 @@ func (e *Env) prepareNamespace(ctx context.Context) error {
 		return err
 	}
 	var err error
-	e.ca, err = framework.NewCertAuthority(clusterName)
+	e.ca, err = framework.NewCertAuthority(e.clusterName)
 	if err != nil {
 		return err
 	}

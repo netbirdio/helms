@@ -1,0 +1,45 @@
+# Every value of the netbird chart is set under netbird:. This chart only swaps
+# in the enterprise images and the environment they need; see README.md.
+#
+# This is the single-instance build: management and signal run one replica each
+# with no Redis, NATS or flow components. HA is not supported yet.
+netbird:
+  dashboard:
+    image:
+      repository: ghcr.io/netbirdio/dashboard-cloud
+      tag: v2.96.0
+
+  backend:
+    split:
+      management:
+        image:
+          repository: ghcr.io/netbirdio/management-cloud
+          tag: 0.76.2
+        env:
+          NB_SINGLE_INSTANCE_MODE: "true"
+          # Encrypts the enterprise integrations store and must equal the
+          # datastore encryption key, so it reuses the variable the chart sets
+          # from config.dataStoreEncryptionKey(Ref); Kubernetes expands $(VAR)
+          # from earlier entries. With overrideConfig that variable is not set:
+          # read the key from a Secret instead:
+          #   NETBIRD_ENCRYPTION_KEY:
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: netbird-credentials
+          #         key: datastore-encryption-key
+          NETBIRD_ENCRYPTION_KEY: $(NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY)
+        # Optional. Without a license the core runs and the paid modules stay off:
+        #   envFromSecret:
+        #     NB_LICENSE_KEY: netbird-license/license-key
+
+      signal:
+        image:
+          repository: ghcr.io/netbirdio/signal-cloud
+          tag: 0.76.2
+        env:
+          SINGLE_NODE_MODE: "true"
+
+      # There is no enterprise relay; it runs the community image at the same version.
+      relay:
+        image:
+          tag: 0.76.2

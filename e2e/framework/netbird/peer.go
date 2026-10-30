@@ -88,7 +88,7 @@ func (e *Env) StartPeers(ctx context.Context, forceRelay bool, names ...string) 
 }
 
 func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay bool) (*Peer, error) {
-	p := &Peer{Name: name, container: clusterName + "-" + name}
+	p := &Peer{Name: name, container: e.clusterName + "-" + name}
 	p.remove(ctx)
 
 	args := []string{"create", "--name", p.container, "--hostname", name,
