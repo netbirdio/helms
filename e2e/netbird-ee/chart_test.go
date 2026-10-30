@@ -55,9 +55,13 @@ func testEnterpriseServer(t *testing.T) {
 	}
 }
 
+// relayImage is netbird-ee's relay. The suite leaves it at the chart's
+// default, since there is no enterprise relay to version with the backends.
+const relayImage = "netbirdio/relay:0.76.2"
+
 func backendImage(component, version string) string {
 	if component == "relay" {
-		return "netbirdio/relay:" + version
+		return relayImage
 	}
 	return "ghcr.io/netbirdio/" + component + "-cloud:" + version
 }

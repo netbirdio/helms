@@ -16,10 +16,10 @@ required=(
 
 helm lint --strict "$chart" "${required[@]}"
 
-# 1. Enterprise images; relay stays community at the same version.
+# 1. Enterprise images; relay stays community.
 out="$(render "${required[@]}")"
-has 'image: "ghcr.io/netbirdio/management-cloud:0.76.2"' "$out"
-has 'image: "ghcr.io/netbirdio/signal-cloud:0.76.2"' "$out"
+has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.1"' "$out"
+has 'image: "ghcr.io/netbirdio/signal-cloud:0.82.0-enterprise.1"' "$out"
 has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0"' "$out"
 has 'image: "netbirdio/relay:0.76.2"' "$out"
 

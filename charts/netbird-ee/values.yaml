@@ -14,7 +14,7 @@ netbird:
       management:
         image:
           repository: ghcr.io/netbirdio/management-cloud
-          tag: 0.76.2
+          tag: 0.82.0-enterprise.1
         env:
           NB_SINGLE_INSTANCE_MODE: "true"
           # Encrypts the enterprise integrations store and must equal the
@@ -35,11 +35,11 @@ netbird:
       signal:
         image:
           repository: ghcr.io/netbirdio/signal-cloud
-          tag: 0.76.2
+          tag: 0.82.0-enterprise.1
         env:
           SINGLE_NODE_MODE: "true"
 
-      # There is no enterprise relay; it runs the community image at the same version.
+      # There is no enterprise relay; it runs the community image.
       relay:
         image:
           tag: 0.76.2
