@@ -26,6 +26,11 @@ spec:
       port: {{ . }}
       targetPort: stun-{{ . }}
       protocol: UDP
+      {{- if has $values.stunService.type (list "LoadBalancer" "NodePort") }}
+      {{- with get $values.stunService.nodePorts (toString .) }}
+      nodePort: {{ . }}
+      {{- end }}
+      {{- end }}
     {{- end }}
   selector:
     {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 4 }}
