@@ -122,7 +122,7 @@ func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay b
 // of the backends installed first. The peers keep it through the upgrade, as
 // clients do when their server is upgraded.
 func (e *Env) clientImage() string {
-	return framework.EnvOr(envClientImage, "netbirdio/netbird:"+e.FromVersion)
+	return framework.EnvOr(envClientImage, "netbirdio/netbird:"+CommunityVersion(e.FromVersion))
 }
 
 // Status returns the client's `netbird status`.

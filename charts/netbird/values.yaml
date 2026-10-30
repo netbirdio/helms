@@ -130,7 +130,7 @@ backend:
 
       image:
         repository: netbirdio/management
-        tag: 0.77.0
+        tag: 0.82.0
         # Pins the image by digest (sha256:...) and ignores tag when set.
         digest: ""
         pullPolicy: IfNotPresent
@@ -345,7 +345,7 @@ backend:
 
       image:
         repository: netbirdio/signal
-        tag: 0.77.0
+        tag: 0.82.0
         # Pins the image by digest (sha256:...) and ignores tag when set.
         digest: ""
         pullPolicy: IfNotPresent
@@ -445,7 +445,7 @@ backend:
 
       image:
         repository: netbirdio/relay
-        tag: 0.77.0
+        tag: 0.82.0
         # Pins the image by digest (sha256:...) and ignores tag when set.
         digest: ""
         pullPolicy: IfNotPresent

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/netbirdio/helms/e2e/framework/netbird"
 	"github.com/netbirdio/helms/e2e/shared"
 )
 
@@ -57,7 +58,7 @@ func testEnterpriseServer(t *testing.T) {
 
 func backendImage(component, version string) string {
 	if component == "relay" {
-		return "netbirdio/relay:" + version
+		return "netbirdio/relay:" + netbird.CommunityVersion(version)
 	}
 	return "ghcr.io/netbirdio/" + component + "-cloud:" + version
 }

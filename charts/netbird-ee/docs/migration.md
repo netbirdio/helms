@@ -6,7 +6,15 @@ The end-to-end suite runs this migration: `NB_E2E_FROM_CHART=netbird task chart:
 
 ## Before you start
 
-- **Same backend version.** Management, signal and relay must run the version netbird-ee ships (`0.76.2`, see [`values.yaml`](../values.yaml)). If your release is older, upgrade it within the netbird chart first. If it is newer, for example the netbird chart's default `0.77.0`, wait for a netbird-ee release at that version; never move the store to an older management.
+- **Same backend version.** Management and signal must run the version netbird-ee's enterprise build is based on before you switch charts: `0.82.0` for `0.82.0-enterprise.1` (see [`values.yaml`](../values.yaml)). The netbird chart's default is `0.82.0`. If your release pins an older version, upgrade it within the netbird chart first:
+
+  ```bash
+  helm upgrade netbird charts/netbird --namespace netbird --reuse-values \
+    --set backend.split.management.image.tag=0.82.0 \
+    --set backend.split.signal.image.tag=0.82.0
+  ```
+
+  If your release runs a newer version than netbird-ee ships, wait for a netbird-ee release at that version; never move the store to an older management.
 - **Single instance.** netbird-ee runs one replica of management and of signal. Set `replicaCount` to 1 for both before migrating.
 - **Back up the store.** With the default SQLite store, snapshot the management volume (`<release>-management` PersistentVolumeClaim). With Postgres or MySQL, dump the database. Going back to the netbird chart after the migration is not supported; restoring this backup is the way back.
 
