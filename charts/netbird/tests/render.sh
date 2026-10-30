@@ -174,4 +174,14 @@ out="$(render "${required[@]}" --set-string backend.split.signal.config.pprofAdd
 grep -A1 "name: NB_PPROF_ADDR" <<<"$out" | grep -qF '"127.0.0.1:6061"' || { echo "FAIL: NB_PPROF_ADDR"; exit 1; }
 grep -A1 "name: NB_TRUSTED_PROXIES" <<<"$out" | grep -qF '"10.0.0.0/8"' || { echo "FAIL: NB_TRUSTED_PROXIES"; exit 1; }
 
+# 23. env takes a valueFrom map, for backends and the dashboard, and rejects anything else in a map.
+out="$(render "${required[@]}" \
+  --set backend.split.management.env.FROM_SECRET.valueFrom.secretKeyRef.name=s \
+  --set backend.split.management.env.FROM_SECRET.valueFrom.secretKeyRef.key=k \
+  --set dashboard.env.AUTH_AUDIENCE.valueFrom.secretKeyRef.name=dash \
+  --set dashboard.env.AUTH_AUDIENCE.valueFrom.secretKeyRef.key=aud)"
+grep -A4 "name: FROM_SECRET" <<<"$out" | grep -qF "name: s" || { echo "FAIL: env valueFrom"; exit 1; }
+grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL: dashboard env valueFrom"; exit 1; }
+fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
+
 echo "render checks passed"

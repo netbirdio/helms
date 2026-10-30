@@ -27,13 +27,13 @@
 {{- if not $clientSecretRef -}}
 {{- $_ := set $generated "AUTH_CLIENT_SECRET" $auth.clientSecret -}}
 {{- end -}}
-{{- $environment := mergeOverwrite $generated (deepCopy .Values.dashboard.env) -}}
+{{- $environment := $generated -}}
+{{- range $key, $value := .Values.dashboard.env }}{{ $_ := set $environment $key $value }}{{ end -}}
 {{- /* envFromSecret and envRaw win: drop the plain entry so the name appears once. */ -}}
 {{- range $key := keys .Values.dashboard.envFromSecret }}{{ $_ := unset $environment $key }}{{ end -}}
 {{- range .Values.dashboard.envRaw }}{{ $_ := unset $environment .name }}{{ end -}}
 {{- range $key := keys $environment | sortAlpha }}
-- name: {{ $key }}
-  value: {{ index $environment $key | quote }}
+{{ include "netbird.envEntry" (dict "name" $key "value" (index $environment $key)) }}
 {{- end }}
 {{- if and $clientSecretRef (not (hasKey .Values.dashboard.env "AUTH_CLIENT_SECRET")) (not (hasKey .Values.dashboard.envFromSecret "AUTH_CLIENT_SECRET")) }}
 - name: AUTH_CLIENT_SECRET

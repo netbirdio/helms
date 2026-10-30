@@ -136,6 +136,19 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
+{{/* One env entry: a literal, or a map holding only valueFrom, so a parent chart's default can be replaced per key. Context: name, value. */}}
+{{- define "netbird.envEntry" -}}
+- name: {{ .name }}
+{{- if kindIs "map" .value }}
+{{- if or (ne (len .value) 1) (not (hasKey .value "valueFrom")) }}
+{{- fail (printf "env.%s must be a string or a map with only valueFrom" .name) }}
+{{- end }}
+  {{- toYaml .value | nindent 2 }}
+{{- else }}
+  value: {{ .value | quote }}
+{{- end }}
+{{- end -}}
+
 {{/* User-supplied environment entries. Context: values, reserved (names the chart sets). */}}
 {{- define "netbird.env" -}}
 {{- $names := list -}}
@@ -150,8 +163,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- $seen = append $seen $name -}}
 {{- end -}}
 {{- range $key := keys .values.env | sortAlpha }}
-- name: {{ $key }}
-  value: {{ index $.values.env $key | quote }}
+{{ include "netbird.envEntry" (dict "name" $key "value" (index $.values.env $key)) }}
 {{- end }}
 {{- with .values.envRaw }}
 {{ toYaml . }}
