@@ -114,6 +114,11 @@ Every component accepts literal, structured, and Secret-backed environment entri
 ```yaml
 env:
   STATIC_NAME: static-value
+  SECRET_NAME:
+    valueFrom:
+      secretKeyRef:
+        name: provider-credentials
+        key: client-secret
 
 envRaw:
   - name: POD_NAME
@@ -124,6 +129,8 @@ envRaw:
 envFromSecret:
   PROVIDER_CLIENT_ID: provider-credentials/client-id
 ```
+
+An `env` value is a string or a map with only `valueFrom`. Unlike `envRaw`, a list that replaces as a whole, `env` merges per key, so one layered values file, or a chart that depends on this one, can turn a default literal into a Secret reference without touching other entries.
 
 `envFromSecret` references use `secret-name/secret-key` syntax. Provider examples use this mechanism for identity-provider, STUN, TURN, and database credentials.
 
