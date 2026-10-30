@@ -2,7 +2,7 @@
 
 A release of the [netbird chart](../../netbird) becomes a netbird-ee release with one `helm upgrade` of the same release. netbird-ee renders the same resources under the same names and selectors, so Helm patches them in place: management keeps its volume or database, the credentials Secrets keep their values, and connected peers stay enrolled. The enterprise tables are created when management-cloud first starts. There is no separate schema migration.
 
-The end-to-end suite runs this migration: `NB_E2E_CHART=netbird-ee NB_E2E_FROM_CHART=netbird task chart:e2e`.
+The end-to-end suite runs this migration: `NB_E2E_FROM_CHART=netbird task chart:e2e CHART=netbird-ee`.
 
 ## Before you start
 

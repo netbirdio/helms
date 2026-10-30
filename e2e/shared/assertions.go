@@ -1,6 +1,9 @@
 //go:build e2e
 
-package netbird_test
+// Package shared holds what the netbird and netbird-ee test packages share:
+// the steps of a release's life and the checks behind them, written against a
+// netbird.Env.
+package shared
 
 import (
 	"context"
@@ -19,23 +22,23 @@ import (
 
 // The connection types `netbird status` reports.
 const (
-	connP2P     = "P2P"
-	connRelayed = "Relayed"
+	ConnP2P     = "P2P"
+	ConnRelayed = "Relayed"
 )
 
-// requireHTTPRoutes checks the dashboard, the API, which refuses a request
+// RequireHTTPRoutes checks the dashboard, the API, which refuses a request
 // without a token, and the embedded IdP's discovery document. The ingress
 // answers 503 for a moment after a rollout, until it sees the new pod's
 // endpoint, so each check waits for its answer.
-func requireHTTPRoutes(t *testing.T) {
+func RequireHTTPRoutes(t *testing.T, env *netbird.Env) {
 	t.Helper()
-	if code, body := get(t, "https://"+netbird.DashboardDomain+"/", http.StatusOK); code != http.StatusOK || !strings.Contains(body, "<html") {
+	if code, body := get(t, env, "https://"+netbird.DashboardDomain+"/", http.StatusOK); code != http.StatusOK || !strings.Contains(body, "<html") {
 		t.Errorf("dashboard: got %d, want 200 with an HTML page", code)
 	}
-	if code, _ := get(t, "https://"+netbird.Domain+"/api/users", http.StatusUnauthorized); code != http.StatusUnauthorized {
+	if code, _ := get(t, env, "https://"+netbird.Domain+"/api/users", http.StatusUnauthorized); code != http.StatusUnauthorized {
 		t.Errorf("GET /api/users without a token: got %d, want 401", code)
 	}
-	code, body := get(t, "https://"+netbird.Domain+"/oauth2/.well-known/openid-configuration", http.StatusOK)
+	code, body := get(t, env, "https://"+netbird.Domain+"/oauth2/.well-known/openid-configuration", http.StatusOK)
 	var discovery struct {
 		Issuer string `json:"issuer"`
 	}
@@ -49,7 +52,7 @@ func requireHTTPRoutes(t *testing.T) {
 
 // get fetches url through the ingress until it answers want or two minutes
 // pass, and returns the last answer.
-func get(t *testing.T, url string, want int) (int, string) {
+func get(t *testing.T, env *netbird.Env, url string, want int) (int, string) {
 	t.Helper()
 	client := env.HTTPClient()
 	var code int
@@ -76,12 +79,12 @@ func get(t *testing.T, url string, want int) (int, string) {
 	return code, body
 }
 
-// requireConnected waits until a reports b as connected with connType, with
+// RequireConnected waits until a reports b as connected with connType, with
 // management, signal and the relay reachable, and a ping from a reaches b.
 // Clients connect to a peer lazily, on its first packet, and may drop the first
 // packets after connecting while their firewall catches up, so every attempt
 // pings.
-func requireConnected(t *testing.T, a, b *netbird.Peer, connType string) {
+func RequireConnected(t *testing.T, a, b *netbird.Peer, connType string) {
 	t.Helper()
 	ctx := t.Context()
 	bIP, err := b.IP(ctx)
@@ -114,9 +117,9 @@ func requireConnected(t *testing.T, a, b *netbird.Peer, connType string) {
 	}
 }
 
-// requirePeersListed checks that management still lists every peer, which it
+// RequirePeersListed checks that management still lists every peer, which it
 // only can if its store survived.
-func requirePeersListed(t *testing.T, want ...*netbird.Peer) {
+func RequirePeersListed(t *testing.T, env *netbird.Env, want ...*netbird.Peer) {
 	t.Helper()
 	var listed []string
 	var last error

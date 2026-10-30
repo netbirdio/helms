@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  # The dev:* tasks deploy charts/<CHART> with its examples/kind: netbird or netbird-ee.
+  # dev:* deploy charts/<CHART> with its examples/kind, and chart:e2e runs e2e/<CHART>: netbird or netbird-ee.
   CHART: '{{default "netbird" .CHART}}'
   CHART_DIR: charts/{{.CHART}}
   DEV_VALUES: charts/{{.CHART}}/examples/kind/values.yaml
@@ -66,7 +66,7 @@ tasks:
         done
 
   chart:e2e:
-    desc: Install the chart (NB_E2E_CHART=netbird-ee for enterprise) into a fresh Kind cluster and connect NetBird peers through it
+    desc: Install the chart (CHART=netbird-ee for enterprise) into a fresh Kind cluster and connect NetBird peers through it
     dir: e2e
     preconditions:
       - sh: command -v docker
@@ -76,7 +76,7 @@ tasks:
       - sh: command -v helm
         msg: helm is required
     cmds:
-      - go test -tags e2e ./netbird/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
+      - go test -tags e2e ./{{.CHART}}/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
 
   cluster:create:
     desc: Create the dedicated kind cluster

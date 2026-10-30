@@ -1,9 +1,10 @@
 # End-to-end tests
 
-These tests install the repository's charts into Kind clusters and check them the way users run them. Today that is the netbird chart, with real NetBird peers connecting through it.
+These tests install the repository's charts into Kind clusters and check them the way users run them. Today that is the netbird and netbird-ee charts, with real NetBird peers connecting through them.
 
 ```bash
-task chart:e2e     # or, from this directory: go test -tags e2e ./netbird/... -v -count 1 -timeout 30m
+task chart:e2e                  # or, from this directory: go test -tags e2e ./netbird/... -v -count 1 -timeout 30m
+task chart:e2e CHART=netbird-ee # go test -tags e2e ./netbird-ee/... ...
 ```
 
 You need Docker, Go and helm. A run takes about three minutes and removes everything it created.
@@ -14,21 +15,25 @@ You need Docker, Go and helm. A run takes about three minutes and removes everyt
 e2e/
 ├── go.mod, go.sum        one module for every chart's tests
 ├── framework/            plumbing every chart shares; knows no chart
-│   └── netbird/          plumbing for the netbird chart
-└── netbird/              the netbird chart's tests
+│   └── netbird/          plumbing for the netbird and netbird-ee charts
+├── shared/               the steps and checks the netbird and netbird-ee tests share
+├── netbird/              the netbird chart's tests
+└── netbird-ee/           the netbird-ee chart's tests, and the migration to it
 ```
 
-The rule: a top-level package such as `netbird/` holds only `_test.go` files and decides what passes. Everything under `framework/` sets things up and reports state, and never asserts.
+The rule: a chart's package, such as `netbird/`, holds only `_test.go` files and decides which steps run. `shared/` holds the steps and checks the two netbird packages share; it asserts, so it is not under `framework/`. Everything under `framework/` sets things up and reports state, and never asserts. Each chart's package brings up its own Kind cluster, named after it, so packages can run side by side.
 
 ## Where to start
 
-Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the steps in the order they run, and each step is a short function below it.
+Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the steps in the order they run; [`netbird-ee/chart_test.go`](netbird-ee/chart_test.go) is the same for netbird-ee, with its own steps added.
 
 | File | What it holds |
 | --- | --- |
-| [`netbird/chart_test.go`](netbird/chart_test.go) | The test: `TestChart` and its steps |
-| [`netbird/assertions_test.go`](netbird/assertions_test.go) | What the steps check: `requireConnected`, `requireHTTPRoutes`, `requirePeersListed` |
-| [`netbird/main_test.go`](netbird/main_test.go) | `TestMain`: brings the environment up once for every test, then tears it down |
+| [`netbird/chart_test.go`](netbird/chart_test.go), [`netbird-ee/chart_test.go`](netbird-ee/chart_test.go) | The tests: `TestChart` and the steps each chart runs |
+| [`netbird/main_test.go`](netbird/main_test.go), [`netbird-ee/main_test.go`](netbird-ee/main_test.go) | `TestMain`: which chart and cluster the package brings up |
+| [`shared/lifecycle.go`](shared/lifecycle.go) | The shared steps: `Lifecycle`'s methods, and `Run` |
+| [`shared/assertions.go`](shared/assertions.go) | What the steps check: `RequireConnected`, `RequireHTTPRoutes`, `RequirePeersListed` |
+| [`shared/main.go`](shared/main.go) | `Main`: brings the environment up once for every test, then tears it down |
 
 [`framework/`](framework) is shared, one file per concern:
 
@@ -51,16 +56,16 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
 | `api.go` | The few management API calls the tests make |
 | `diagnostics.go` | What to log and save for this chart when something fails |
 
-## What happens in a netbird run
+## What happens in a run
 
 1. **Bootstrap** (`netbird.Bootstrap`):
    - Create a one-node Kind cluster and install ingress-nginx on it.
-   - Install the first chart (`NB_E2E_FROM_CHART`, default `NB_E2E_CHART`) from its own `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
+   - Install the first chart (the package's, or netbird when netbird-ee runs with `NB_E2E_FROM_CHART=netbird`) from its own `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
    - Activate the account through `POST /api/setup` to get an API token.
-2. **TestChart** (`netbird/chart_test.go`):
+2. **TestChart** (`netbird/chart_test.go` or `netbird-ee/chart_test.go`):
    1. HTTP routes: the dashboard, the API and the IdP answer through the ingress.
    2. Two peers connect directly.
-   3. The release is upgraded to the chart under test (`NB_E2E_FROM_CHART` → `NB_E2E_CHART`) and its backends to the chart's defaults, and the peers and the credential Secrets survive it.
+   3. The release is upgraded to the chart under test (netbird to netbird-ee, when migrating) and its backends to the chart's defaults, and the peers and the credential Secrets survive it.
    4. netbird-ee only: the enterprise images run, and management starts the enterprise server.
    5. Two peers forced onto the relay connect through it.
    6. Management's pod is deleted, and every peer is still listed and reconnects.
@@ -72,8 +77,7 @@ The peers run in Docker containers on Kind's network, outside the cluster. They 
 
 | Variable | Effect |
 | --- | --- |
-| `NB_E2E_CHART` | netbird: the chart under test, `netbird` (default) or `netbird-ee` |
-| `NB_E2E_FROM_CHART` | netbird: the chart installed first. `netbird` with `NB_E2E_CHART=netbird-ee` tests the migration in `charts/netbird-ee/docs/migration.md` (default: `NB_E2E_CHART`) |
+| `NB_E2E_FROM_CHART` | netbird-ee: `netbird` installs the netbird chart first and tests the migration in `charts/netbird-ee/docs/migration.md` |
 | `NB_E2E_KIND_NODE_IMAGE` | Kind node image, which picks the Kubernetes version |
 | `NB_E2E_KEEP` | Leave the cluster running. The kubeconfig path is logged |
 | `NB_E2E_ARTIFACTS_DIR` | On failure, write the cluster, chart and client logs here |
@@ -83,7 +87,7 @@ The peers run in Docker containers on Kind's network, outside the cluster. They 
 
 ## Adding a chart
 
-A chart that wraps the netbird chart, like netbird-ee, is a value of `NB_E2E_CHART` instead: it reuses `framework/netbird` and the tests in `netbird/`, which skip what does not apply to it.
+A chart that wraps the netbird chart, like netbird-ee, gets its own package that reuses `framework/netbird` and `shared`: a `TestMain` calling `shared.Main` with its chart and cluster name, and a `TestChart` listing the shared steps plus its own. It also needs a `netbird.Chart*` constant.
 
 Any other chart:
 

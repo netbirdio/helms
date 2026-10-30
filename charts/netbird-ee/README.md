@@ -85,4 +85,4 @@ Management validates the license against `https://license.netbird.io` every 12 h
 
 ## Tests
 
-`tests/render.sh` lints and renders the chart, and checks that `examples/kind` keeps the netbird chart's example settings. The end-to-end suite in [`e2e/netbird`](../../e2e/netbird) runs against this chart with `NB_E2E_CHART=netbird-ee task chart:e2e`.
+`tests/render.sh` lints and renders the chart, and checks that `examples/kind` keeps the netbird chart's example settings. The end-to-end tests in [`e2e/netbird-ee`](../../e2e/netbird-ee) install it into Kind and connect peers through it: `task chart:e2e CHART=netbird-ee`.

@@ -14,7 +14,9 @@ on:
       - 'e2e/go.mod'
       - 'e2e/go.sum'
       - 'e2e/framework/**'
+      - 'e2e/shared/**'
       - 'e2e/netbird/**'
+      - 'e2e/netbird-ee/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   push:
     branches:
@@ -25,7 +27,9 @@ on:
       - 'e2e/go.mod'
       - 'e2e/go.sum'
       - 'e2e/framework/**'
+      - 'e2e/shared/**'
       - 'e2e/netbird/**'
+      - 'e2e/netbird-ee/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   workflow_dispatch:
     inputs:
@@ -87,12 +91,11 @@ jobs:
         # step first would lose the panic trace that names the hung test.
         timeout-minutes: 45
         env:
-          NB_E2E_CHART: ${{ matrix.chart }}
           NB_E2E_FROM_CHART: ${{ matrix.from_chart }}
           NB_E2E_KIND_NODE_IMAGE: ${{ matrix.kubernetes.image }}
           NB_E2E_ROOTLESS: ${{ matrix.rootless }}
           NB_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
-        run: go test -tags e2e ./netbird/... -v -count 1 -timeout 30m
+        run: go test -tags e2e ./${{ matrix.chart }}/... -v -count 1 -timeout 30m
 
       - name: Upload diagnostics
         if: failure()
