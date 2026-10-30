@@ -67,6 +67,9 @@ backend:
           trustedPeers:
             # Replace with your Kubernetes cluster's pod CIDR.
             - 10.244.0.0/16
+        dataStoreEncryptionKeyRef:
+          name: netbird
+          key: datastoreEncryptionKey
         embeddedIdp:
           enabled: false
         httpConfig:
@@ -183,6 +186,9 @@ backend:
           cpu: 1000m
           memory: 256Mi
       config:
+        authSecretRef:
+          name: netbird
+          key: relayPassword
         exposedAddress: rels://netbird.example.com:443/relay
         log:
           level: info
