@@ -124,7 +124,7 @@ backend:
           key: relay-auth-secret
 ```
 
-References select a Secret key in the release namespace and are mutually exclusive with the corresponding inline value. Management expands referenced values into its JSON at process start, so their data is not copied into the management ConfigMap. See [configuration and secrets](docs/configuration.md) for every supported pair, including dashboard client credentials, TURN/STUN credentials, datastore and embedded-IdP values, and the initial owner hash.
+References select a Secret key in the namespace of the component that uses them and are mutually exclusive with the corresponding inline value. Management expands referenced values into its JSON at process start, so their data is not copied into the management ConfigMap. See [configuration and secrets](docs/configuration.md) for every supported pair, including dashboard client credentials, TURN/STUN credentials, datastore and embedded-IdP values, and the initial owner hash.
 
 The chart does not generate credentials. Create them once before the first install:
 
