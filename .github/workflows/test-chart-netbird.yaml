@@ -5,24 +5,12 @@ on:
   pull_request:
 
 jobs:
-  test-e2e:
-    name: Run on Ubuntu
+  render:
+    name: Lint and render
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
         uses: actions/checkout@v4
-
-      - name: Install the latest version of kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-
-      - name: Verify kind installation
-        run: kind version
-
-      - name: Create kind cluster
-        run: kind create cluster --config charts/netbird/examples/kind/kind.yaml
 
       - name: Install Helm
         run: |
@@ -48,64 +36,3 @@ jobs:
 
       - name: Render external Secret references
         run: helm template test-chart ./charts/netbird --namespace netbird --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
-
-      - name: Test minimum-to-default backend upgrade
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # examples/rootless must run under the restricted Pod Security Standard.
-          kubectl create namespace netbird
-          kubectl label namespace netbird \
-            pod-security.kubernetes.io/enforce=restricted \
-            pod-security.kubernetes.io/enforce-version=latest
-
-          helm upgrade --install test-chart ./charts/netbird \
-            --namespace netbird \
-            --values charts/netbird/examples/kind/values.yaml \
-            --values charts/netbird/examples/rootless/values.yaml \
-            --set backend.split.management.image.tag=0.74.0 \
-            --set backend.split.signal.image.tag=0.74.0 \
-            --set backend.split.relay.image.tag=0.74.0 \
-            --set backend.split.management.persistence.enabled=false \
-            --set-string backend.split.signal.config.pprofAddress=127.0.0.1:6061 \
-            --set-string backend.split.relay.config.trustedProxies=10.0.0.0/8 \
-            --wait \
-            --timeout 5m
-
-          expected_deployments="$(printf '%s\n' netbird-dashboard netbird-management netbird-relay netbird-signal)"
-          actual_deployments="$(kubectl --namespace netbird get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sort)"
-          test "$actual_deployments" = "$expected_deployments"
-
-          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.96.0-rootless"
-          test "$(kubectl --namespace netbird get deployment netbird-management -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/management:0.74.0"
-          test "$(kubectl --namespace netbird get deployment netbird-signal -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/signal:0.74.0"
-          test "$(kubectl --namespace netbird get deployment netbird-relay -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/relay:0.74.0"
-
-          datastore_key="$(kubectl --namespace netbird get secret netbird-management-credentials -o jsonpath='{.data.datastore-encryption-key}')"
-          session_key="$(kubectl --namespace netbird get secret netbird-management-credentials -o jsonpath='{.data.idp-session-cookie-encryption-key}')"
-          relay_secret="$(kubectl --namespace netbird get secret netbird-relay-credentials -o jsonpath='{.data.relay-auth-secret}')"
-
-          helm upgrade test-chart ./charts/netbird \
-            --namespace netbird \
-            --values charts/netbird/examples/kind/values.yaml \
-            --values charts/netbird/examples/rootless/values.yaml \
-            --set backend.split.management.persistence.enabled=false \
-            --set-string backend.split.signal.config.pprofAddress=127.0.0.1:6061 \
-            --set-string backend.split.relay.config.trustedProxies=10.0.0.0/8 \
-            --wait \
-            --timeout 5m
-
-          kubectl --namespace netbird wait --for=condition=Available deployment/netbird-dashboard deployment/netbird-management deployment/netbird-signal deployment/netbird-relay --timeout=5m
-
-          test "$(kubectl --namespace netbird get deployment netbird-dashboard -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/dashboard:v2.96.0-rootless"
-          test "$(kubectl --namespace netbird get deployment netbird-management -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/management:0.77.0"
-          test "$(kubectl --namespace netbird get deployment netbird-signal -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/signal:0.77.0"
-          test "$(kubectl --namespace netbird get deployment netbird-relay -o jsonpath='{.spec.template.spec.containers[0].image}')" = "netbirdio/relay:0.77.0"
-
-          test "$(kubectl --namespace netbird get deployment netbird-signal -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="NB_PPROF_ADDR")].value}')" = "127.0.0.1:6061"
-          test "$(kubectl --namespace netbird get deployment netbird-relay -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="NB_TRUSTED_PROXIES")].value}')" = "10.0.0.0/8"
-
-          test "$(kubectl --namespace netbird get secret netbird-management-credentials -o jsonpath='{.data.datastore-encryption-key}')" = "$datastore_key"
-          test "$(kubectl --namespace netbird get secret netbird-management-credentials -o jsonpath='{.data.idp-session-cookie-encryption-key}')" = "$session_key"
-          test "$(kubectl --namespace netbird get secret netbird-relay-credentials -o jsonpath='{.data.relay-auth-secret}')" = "$relay_secret"

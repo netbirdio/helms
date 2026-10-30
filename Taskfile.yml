@@ -62,6 +62,19 @@ tasks:
           helm template netbird charts/netbird --namespace netbird --values "$values" >/dev/null
         done
 
+  chart:e2e:
+    desc: Install the chart into a fresh Kind cluster and connect NetBird peers through it
+    dir: e2e
+    preconditions:
+      - sh: command -v docker
+        msg: docker is required
+      - sh: command -v go
+        msg: go is required
+      - sh: command -v helm
+        msg: helm is required
+    cmds:
+      - go test -tags e2e ./netbird/... -v -count 1 -timeout 30m {{.CLI_ARGS}}
+
   cluster:create:
     desc: Create the dedicated kind cluster
     preconditions:

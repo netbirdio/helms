@@ -169,4 +169,9 @@ out="$(render "${required[@]}" --set backend.split.management.persistence.enable
 has "emptyDir: {}" "$out"
 has "mountPath: /var/lib/netbird" "$out"
 
+# 22. 0.77.0 fields reach the environment.
+out="$(render "${required[@]}" --set-string backend.split.signal.config.pprofAddress=127.0.0.1:6061 --set-string backend.split.relay.config.trustedProxies=10.0.0.0/8)"
+grep -A1 "name: NB_PPROF_ADDR" <<<"$out" | grep -qF '"127.0.0.1:6061"' || { echo "FAIL: NB_PPROF_ADDR"; exit 1; }
+grep -A1 "name: NB_TRUSTED_PROXIES" <<<"$out" | grep -qF '"10.0.0.0/8"' || { echo "FAIL: NB_TRUSTED_PROXIES"; exit 1; }
+
 echo "render checks passed"
