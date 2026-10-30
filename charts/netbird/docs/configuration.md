@@ -13,7 +13,7 @@ Use the structured configuration trees whenever the chart supports the setting:
 | Signal | `backend.split.signal.config` | Stable command-line flags |
 | Relay | `backend.split.relay.config` | Stable command-line flags and Secret-backed environment |
 
-The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`; `0.77.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.96.0`.
+The chart tests management, signal, and relay versions `0.74.0` through `0.82.0`; `0.82.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.96.0`.
 
 Kubernetes settings sit beside each component's configuration. Common examples include `image`, `replicaCount`, `resources`, `pod`, `container`, `service`, `ingress`, probes, scheduling values, and management persistence.
 
