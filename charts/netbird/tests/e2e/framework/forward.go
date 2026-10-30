@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e
+package framework
 
 import (
 	"context"
@@ -25,8 +25,8 @@ type ingressForward struct {
 	stopChan chan struct{}
 }
 
-func (e *environment) forwardIngress(ctx context.Context) (*ingressForward, error) {
-	pods, err := e.clientset.CoreV1().Pods(ingressNamespace).List(ctx, metav1.ListOptions{
+func (e *Env) forwardIngress(ctx context.Context) (*ingressForward, error) {
+	pods, err := e.Kube.CoreV1().Pods(ingressNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=controller",
 	})
 	if err != nil {
@@ -47,7 +47,7 @@ func (e *environment) forwardIngress(ctx context.Context) (*ingressForward, erro
 	if err != nil {
 		return nil, err
 	}
-	url := e.clientset.CoreV1().RESTClient().Post().
+	url := e.Kube.CoreV1().RESTClient().Post().
 		Resource("pods").Namespace(ingressNamespace).Name(pod).SubResource("portforward").URL()
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, url)
 

@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e
+package framework
 
 import (
 	"crypto/ecdsa"

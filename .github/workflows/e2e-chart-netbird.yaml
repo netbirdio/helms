@@ -1,5 +1,5 @@
 # End-to-end tests: the netbird chart in a Kind cluster, with real NetBird peers
-# connecting through it. charts/netbird/tests/e2e/main_test.go describes the setup.
+# connecting through it. charts/netbird/tests/e2e/README.md describes the setup.
 #
 # Kubernetes and rootless are the dimensions worth a deployment each: a pull
 # request runs the newest Kubernetes with and without rootless, and main and a

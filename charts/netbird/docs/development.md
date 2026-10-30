@@ -96,6 +96,6 @@ The peers run in Docker containers on Kind's network, outside the cluster. The s
 
 The peers run the client release of `NB_E2E_FROM_VERSION` and keep it through the upgrade, as clients do when their server is upgraded.
 
-`NB_E2E_ROOTLESS=true` layers `examples/rootless` into a namespace that enforces the `restricted` Pod Security Standard. `NB_E2E_KIND_NODE_IMAGE` picks the Kubernetes version, `NB_E2E_KEEP=true` leaves the cluster and peers running, and `NB_E2E_ARTIFACTS_DIR` collects logs on failure. [`main_test.go`](../tests/e2e/main_test.go) lists every knob.
+`NB_E2E_ROOTLESS=true` layers `examples/rootless` into a namespace that enforces the `restricted` Pod Security Standard. `NB_E2E_KIND_NODE_IMAGE` picks the Kubernetes version, `NB_E2E_KEEP=true` leaves the cluster and peers running, and `NB_E2E_ARTIFACTS_DIR` collects logs on failure. [`tests/e2e/README.md`](../tests/e2e/README.md) explains the layout and lists every knob.
 
 CI runs the newest Kubernetes with and without rootless on pull requests, and every supported version on `main`.

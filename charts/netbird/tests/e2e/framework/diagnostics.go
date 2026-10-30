@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e
+package framework
 
 import (
 	"context"
@@ -16,16 +16,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// logDiagnostics prints what most often explains a failed bootstrap: the
+// LogDiagnostics prints what most often explains a failed bootstrap: the
 // chart's pods and the end of their logs.
-func (e *environment) logDiagnostics() {
-	if e.clientset == nil {
+func (e *Env) LogDiagnostics() {
+	if e.Kube == nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	for _, ns := range []string{namespace, ingressNamespace} {
-		pods, err := e.clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	for _, ns := range []string{Namespace, ingressNamespace} {
+		pods, err := e.Kube.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			log.Printf("e2e: list pods in %s: %v", ns, err)
 			continue
@@ -39,10 +39,10 @@ func (e *environment) logDiagnostics() {
 	}
 }
 
-// collectArtifacts writes the cluster's, the release's and the peers' state for
+// CollectArtifacts writes the cluster's, the release's and the peers' state for
 // CI to keep, when NB_E2E_ARTIFACTS_DIR asks for it. The environment is torn
 // down before the run reports, so this is the only chance to read them.
-func (e *environment) collectArtifacts() {
+func (e *Env) CollectArtifacts() {
 	dir := os.Getenv(envArtifactsDir)
 	if dir == "" {
 		return
@@ -61,20 +61,20 @@ func (e *environment) collectArtifacts() {
 
 	if e.kubeconfig != "" {
 		for name, args := range map[string][]string{
-			"helm-values.yaml":   {"get", "values", releaseName, "--namespace", namespace, "--all"},
-			"helm-manifest.yaml": {"get", "manifest", releaseName, "--namespace", namespace},
-			"helm-history.txt":   {"history", releaseName, "--namespace", namespace},
+			"helm-values.yaml":   {"get", "values", ReleaseName, "--namespace", Namespace, "--all"},
+			"helm-manifest.yaml": {"get", "manifest", ReleaseName, "--namespace", Namespace},
+			"helm-history.txt":   {"history", ReleaseName, "--namespace", Namespace},
 		} {
 			out, _ := e.helm(ctx, args...)
 			write(name, out)
 		}
 	}
-	if e.clientset != nil {
+	if e.Kube != nil {
 		write("cluster.txt", e.clusterState(ctx))
 	}
 	for _, p := range e.peers {
 		s, _ := command(ctx, "docker", "exec", p.container, "netbird", "status", "--detail")
-		write(filepath.Join("peers", p.name+".log"), p.logs(ctx)+"\n--- netbird status --detail\n"+s)
+		write(filepath.Join("peers", p.Name+".log"), p.logs(ctx)+"\n--- netbird status --detail\n"+s)
 	}
 	if e.kind != nil {
 		if err := e.kind.CollectLogs(kindClusterName, filepath.Join(dir, "kind")); err != nil {
@@ -85,10 +85,10 @@ func (e *environment) collectArtifacts() {
 
 // clusterState lists the pods and events of the chart's and the ingress's
 // namespaces, and every pod's log.
-func (e *environment) clusterState(ctx context.Context) string {
+func (e *Env) clusterState(ctx context.Context) string {
 	var b strings.Builder
-	for _, ns := range []string{namespace, ingressNamespace} {
-		pods, err := e.clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	for _, ns := range []string{Namespace, ingressNamespace} {
+		pods, err := e.Kube.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Fprintf(&b, "list pods in %s: %v\n", ns, err)
 			continue
@@ -96,7 +96,7 @@ func (e *environment) clusterState(ctx context.Context) string {
 		for _, p := range pods.Items {
 			fmt.Fprintf(&b, "=== pod %s/%s: %s\n%s\n", ns, p.Name, podSummary(p), e.podLogs(ctx, ns, p.Name, 500))
 		}
-		events, err := e.clientset.CoreV1().Events(ns).List(ctx, metav1.ListOptions{})
+		events, err := e.Kube.CoreV1().Events(ns).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			continue
 		}
@@ -109,8 +109,8 @@ func (e *environment) clusterState(ctx context.Context) string {
 	return b.String()
 }
 
-func (e *environment) podLogs(ctx context.Context, ns, pod string, lines int64) string {
-	stream, err := e.clientset.CoreV1().Pods(ns).GetLogs(pod, &corev1.PodLogOptions{TailLines: &lines}).Stream(ctx)
+func (e *Env) podLogs(ctx context.Context, ns, pod string, lines int64) string {
+	stream, err := e.Kube.CoreV1().Pods(ns).GetLogs(pod, &corev1.PodLogOptions{TailLines: &lines}).Stream(ctx)
 	if err != nil {
 		return fmt.Sprintf("(no log: %v)", err)
 	}

@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e
+package framework
 
 import (
 	"bytes"
@@ -14,30 +14,30 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// apiClient is the part of the management REST API the suite uses, against
+// APIClient is the part of the management REST API the suite uses, against
 // management's public URL. It is written out rather than imported so the suite
 // does not pin a NetBird module version apart from the images it tests.
-type apiClient struct {
+type APIClient struct {
 	http  *http.Client
 	base  string
 	token string
 }
 
-type apiPeer struct {
+type APIPeer struct {
 	ID        string `json:"id"`
 	Hostname  string `json:"hostname"`
 	IP        string `json:"ip"`
 	Connected bool   `json:"connected"`
 }
 
-func newAPIClient(client *http.Client, base string) *apiClient {
-	return &apiClient{http: client, base: base}
+func newAPIClient(client *http.Client, base string) *APIClient {
+	return &APIClient{http: client, base: base}
 }
 
 // setup creates the account and its owner through the unauthenticated
 // POST /api/setup, which returns a token while NB_SETUP_PAT_ENABLED is set.
 // Management answers through the ingress a moment after its pod is ready.
-func (a *apiClient) setup(ctx context.Context) error {
+func (a *APIClient) setup(ctx context.Context) error {
 	req := map[string]any{
 		"email":         "admin@netbird.e2e.test",
 		"password":      "Netbird-e2e-Passw0rd!",
@@ -71,8 +71,8 @@ func (a *apiClient) setup(ctx context.Context) error {
 	return nil
 }
 
-// createSetupKey returns a reusable setup key.
-func (a *apiClient) createSetupKey(ctx context.Context, name string) (string, error) {
+// CreateSetupKey returns a reusable setup key.
+func (a *APIClient) CreateSetupKey(ctx context.Context, name string) (string, error) {
 	var resp struct {
 		Key string `json:"key"`
 	}
@@ -88,8 +88,9 @@ func (a *apiClient) createSetupKey(ctx context.Context, name string) (string, er
 	return resp.Key, nil
 }
 
-func (a *apiClient) peers(ctx context.Context) ([]apiPeer, error) {
-	var peers []apiPeer
+// Peers lists the account's peers.
+func (a *APIClient) Peers(ctx context.Context) ([]APIPeer, error) {
+	var peers []APIPeer
 	if _, err := a.do(ctx, http.MethodGet, "/api/peers", nil, &peers); err != nil {
 		return nil, fmt.Errorf("list peers: %w", err)
 	}
@@ -100,7 +101,7 @@ func (a *apiClient) peers(ctx context.Context) ([]apiPeer, error) {
 // status code, 0 if there was no answer. A request that got no answer, or a
 // gateway error from the ingress, is sent again a few times: the port-forward
 // and the ingress drop the odd stream.
-func (a *apiClient) do(ctx context.Context, method, path string, body, out any) (int, error) {
+func (a *APIClient) do(ctx context.Context, method, path string, body, out any) (int, error) {
 	var raw []byte
 	if body != nil {
 		var err error
@@ -121,7 +122,7 @@ func (a *apiClient) do(ctx context.Context, method, path string, body, out any) 
 	}
 }
 
-func (a *apiClient) send(ctx context.Context, method, path string, body []byte, out any) (int, error) {
+func (a *APIClient) send(ctx context.Context, method, path string, body []byte, out any) (int, error) {
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(body)
