@@ -28,39 +28,39 @@ func (e *Env) Enterprise() bool {
 	return e.Chart == ChartEnterprise
 }
 
-// valuesPrefix is where the netbird chart's values sit in the chart under
-// test: netbird-ee wraps it as a dependency.
-func (e *Env) valuesPrefix() string {
-	if e.Enterprise() {
+// valuesPrefix is where the netbird chart's values sit in chart: netbird-ee
+// wraps it as a dependency.
+func valuesPrefix(chart string) string {
+	if chart == ChartEnterprise {
 		return "netbird."
 	}
 	return ""
 }
 
-// InstallChart installs or upgrades the chart from examples/kind under the
-// suite's hostnames, with the backends at version.
-func (e *Env) InstallChart(ctx context.Context, version string) error {
-	files, err := e.valuesFiles()
+// InstallChart installs chart, or upgrades the release to it, from its
+// examples/kind under the suite's hostnames, with the backends at version.
+func (e *Env) InstallChart(ctx context.Context, chart, version string) error {
+	files, err := e.valuesFiles(chart)
 	if err != nil {
 		return err
 	}
-	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(e.Chart), "--namespace", Namespace,
+	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(chart), "--namespace", Namespace,
 		"--wait", "--timeout", "10m"}
 	for _, f := range files {
 		args = append(args, "--values", f)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		args = append(args, "--set", fmt.Sprintf("%sbackend.split.%s.image.tag=%s", e.valuesPrefix(), component, version))
+		args = append(args, "--set", fmt.Sprintf("%sbackend.split.%s.image.tag=%s", valuesPrefix(chart), component, version))
 	}
 	_, err = e.Cluster.Helm(ctx, args...)
 	return err
 }
 
-// valuesFiles returns the chart's examples/kind with the suite's hostnames,
-// the netbird chart's examples/rootless when rootless, and the suite's own
-// additions, the last two nested where the chart under test expects them.
-func (e *Env) valuesFiles() ([]string, error) {
-	example, err := os.ReadFile(filepath.Join(framework.ChartDir(e.Chart), "examples", "kind", "values.yaml"))
+// valuesFiles returns chart's examples/kind with the suite's hostnames, the
+// netbird chart's examples/rootless when rootless, and the suite's own
+// additions, the last two nested where chart expects them.
+func (e *Env) valuesFiles(chart string) ([]string, error) {
+	example, err := os.ReadFile(filepath.Join(framework.ChartDir(chart), "examples", "kind", "values.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (e *Env) valuesFiles() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		rootlessValues, err := e.writeValues("rootless-values.yaml", string(rootless))
+		rootlessValues, err := writeValues(chart, filepath.Join(e.workDir, "rootless-values.yaml"), string(rootless))
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func (e *Env) valuesFiles() ([]string, error) {
 	}
 
 	// No owner, so POST /api/setup creates the account and returns a token.
-	suiteValues, err := e.writeValues("e2e-values.yaml", `backend:
+	suiteValues, err := writeValues(chart, filepath.Join(e.workDir, "e2e-values.yaml"), `backend:
   split:
     management:
       env:
@@ -96,14 +96,13 @@ func (e *Env) valuesFiles() ([]string, error) {
 	return append(files, suiteValues), err
 }
 
-// writeValues writes netbird chart values into the work dir, under netbird:
-// for netbird-ee, and returns the file's path. Indenting every line keeps block
-// scalars intact.
-func (e *Env) writeValues(name, values string) (string, error) {
-	if e.Enterprise() {
+// writeValues writes netbird chart values to path, under netbird: when chart
+// is netbird-ee, and returns path. Indenting every line keeps block scalars
+// intact.
+func writeValues(chart, path, values string) (string, error) {
+	if chart == ChartEnterprise {
 		values = "netbird:\n" + regexp.MustCompile(`(?m)^(.)`).ReplaceAllString(values, "  $1")
 	}
-	path := filepath.Join(e.workDir, name)
 	return path, os.WriteFile(path, []byte(values), 0o644)
 }
 

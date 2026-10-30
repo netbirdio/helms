@@ -55,13 +55,13 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
 
 1. **Bootstrap** (`netbird.Bootstrap`):
    - Create a one-node Kind cluster and install ingress-nginx on it.
-   - Install the chart (`NB_E2E_CHART`) from its own `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
+   - Install the first chart (`NB_E2E_FROM_CHART`, default `NB_E2E_CHART`) from its own `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
    - Activate the account through `POST /api/setup` to get an API token.
 2. **TestChart** (`netbird/chart_test.go`):
    1. HTTP routes: the dashboard, the API and the IdP answer through the ingress.
-   2. netbird-ee only: the enterprise images run, and management starts the enterprise server.
-   3. Two peers connect directly.
-   4. The backends are upgraded to the chart's defaults, and the peers and the credential Secrets survive it.
+   2. Two peers connect directly.
+   3. The release is upgraded to the chart under test (`NB_E2E_FROM_CHART` → `NB_E2E_CHART`) and its backends to the chart's defaults, and the peers and the credential Secrets survive it.
+   4. netbird-ee only: the enterprise images run, and management starts the enterprise server.
    5. Two peers forced onto the relay connect through it.
    6. Management's pod is deleted, and every peer is still listed and reconnects.
 3. **Teardown**: remove the peers and the cluster.
@@ -73,6 +73,7 @@ The peers run in Docker containers on Kind's network, outside the cluster. They 
 | Variable | Effect |
 | --- | --- |
 | `NB_E2E_CHART` | netbird: the chart under test, `netbird` (default) or `netbird-ee` |
+| `NB_E2E_FROM_CHART` | netbird: the chart installed first. `netbird` with `NB_E2E_CHART=netbird-ee` tests the migration in `charts/netbird-ee/docs/migration.md` (default: `NB_E2E_CHART`) |
 | `NB_E2E_KIND_NODE_IMAGE` | Kind node image, which picks the Kubernetes version |
 | `NB_E2E_KEEP` | Leave the cluster running. The kubeconfig path is logged |
 | `NB_E2E_ARTIFACTS_DIR` | On failure, write the cluster, chart and client logs here |

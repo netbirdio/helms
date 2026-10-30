@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   e2e:
-    name: e2e (${{ matrix.chart }}, Kubernetes ${{ matrix.kubernetes.version }}, rootless ${{ matrix.rootless }})
+    name: e2e (${{ matrix.from_chart && format('{0} to ', matrix.from_chart) || '' }}${{ matrix.chart }}, Kubernetes ${{ matrix.kubernetes.version }}, rootless ${{ matrix.rootless }})
     runs-on: ubuntu-latest
     # Above the test step's own budget, so an overrun fails that step with its
     # diagnostics rather than cancelling the job.
@@ -51,6 +51,13 @@ jobs:
         kubernetes: ${{ fromJSON((github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_matrix)) && '[{"version":"1.34","image":"kindest/node:v1.34.11@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d"},{"version":"1.35","image":"kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0"},{"version":"1.36","image":"kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"},{"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}]' || '[{"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}]') }}
         chart: [netbird, netbird-ee]
         rootless: [false, true]
+        # The migration from netbird to netbird-ee (charts/netbird-ee/docs/migration.md),
+        # once, on the newest Kubernetes.
+        include:
+          - chart: netbird-ee
+            from_chart: netbird
+            rootless: false
+            kubernetes: {"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}
     steps:
       - name: Clone the code
         uses: actions/checkout@v4
@@ -81,6 +88,7 @@ jobs:
         timeout-minutes: 45
         env:
           NB_E2E_CHART: ${{ matrix.chart }}
+          NB_E2E_FROM_CHART: ${{ matrix.from_chart }}
           NB_E2E_KIND_NODE_IMAGE: ${{ matrix.kubernetes.image }}
           NB_E2E_ROOTLESS: ${{ matrix.rootless }}
           NB_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
@@ -90,6 +98,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-${{ matrix.chart }}-k8s-${{ matrix.kubernetes.version }}-rootless-${{ matrix.rootless }}
+          name: e2e-${{ matrix.from_chart && format('{0}-to-', matrix.from_chart) || '' }}${{ matrix.chart }}-k8s-${{ matrix.kubernetes.version }}-rootless-${{ matrix.rootless }}
           path: ${{ runner.temp }}/e2e-artifacts
           if-no-files-found: ignore

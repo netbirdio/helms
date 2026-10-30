@@ -20,10 +20,10 @@ func TestChart(t *testing.T) {
 		run  func(t *testing.T)
 	}{
 		{"the dashboard, the API and the IdP answer through the ingress", testHTTPRoutes},
+		{"peers connect directly", testDirectConnection},
+		{"an upgrade to the chart and its backends keeps the peers", testUpgrade},
 		{"netbird-ee runs the enterprise images", testEnterpriseImages},
 		{"netbird-ee management runs the enterprise server", testEnterpriseServer},
-		{"peers connect directly", testDirectConnection},
-		{"an upgrade to the chart's backends keeps the peers", testUpgrade},
 		{"peers connect through the relay", testRelayedConnection},
 		{"management keeps its peers across a restart", testManagementRestart},
 	}
@@ -55,7 +55,7 @@ func testEnterpriseImages(t *testing.T) {
 		images["netbird-dashboard"] += "-rootless"
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		images["netbird-"+component] = backendImage(component, env.FromVersion)
+		images["netbird-"+component] = backendImage(component, env.DefaultVersion)
 	}
 	for name, image := range images {
 		if err := env.WaitDeploymentImage(t.Context(), name, image); err != nil {
@@ -95,17 +95,19 @@ func testDirectConnection(t *testing.T) {
 	requireConnected(t, beta, alpha, connP2P)
 }
 
-// testUpgrade upgrades the backends from FromVersion to the chart's defaults
-// and checks the peers and the credential Secrets survive it.
+// testUpgrade upgrades the release from FromChart to Chart and the backends
+// from FromVersion to the chart's defaults, and checks the peers and the
+// credential Secrets survive it. From netbird to netbird-ee it is the
+// migration charts/netbird-ee/docs/migration.md describes.
 func testUpgrade(t *testing.T) {
-	if env.FromVersion == env.DefaultVersion {
-		t.Skipf("installed at the chart's default %s; nothing to upgrade", env.DefaultVersion)
+	if env.FromChart == env.Chart && env.FromVersion == env.DefaultVersion {
+		t.Skipf("installed %s at its default %s; nothing to upgrade", env.Chart, env.DefaultVersion)
 	}
 	before, err := env.CredentialSecrets(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := env.InstallChart(t.Context(), env.DefaultVersion); err != nil {
+	if err := env.InstallChart(t.Context(), env.Chart, env.DefaultVersion); err != nil {
 		t.Fatal(err)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {

@@ -31,6 +31,10 @@ netbird:
             key: datastore-encryption-key
 ```
 
+## Migrate from the netbird chart
+
+An existing netbird release migrates in place with one `helm upgrade`, keeping its store and peers. See [docs/migration.md](docs/migration.md).
+
 ## Try it in Kind
 
 [`examples/kind`](examples/kind/values.yaml) is the netbird chart's Kind example under `netbird:`, with fixed development credentials. The same tasks bring it up, on the netbird chart's Kind cluster config:
