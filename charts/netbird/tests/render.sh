@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Render-only checks for credential handling. Run: charts/netbird/tests/render.sh
+# Render-only chart checks. Run: charts/netbird/tests/render.sh
 set -euo pipefail
 chart="$(cd "$(dirname "$0")/.." && pwd)"
 render() { helm template t "$chart" --namespace netbird "$@"; }
-fails_with() { local want="$1"; shift; local out; if out="$(render "$@" 2>&1)"; then echo "FAIL: render passed, want error: $want"; exit 1; fi; grep -qF -- "$want" <<<"$out" || { echo "FAIL: want error '$want', got: $out"; exit 1; }; }
+fails_with() { local want="$1"; shift; local out; if out="$(render "$@" 2>&1)"; then echo "FAIL: render passed, want error: $want"; exit 1; fi; grep -qiF -- "$want" <<<"$out" || { echo "FAIL: want error '$want', got: $out"; exit 1; }; }
 has() { grep -qF -- "$1" <<<"$2" || { echo "FAIL: missing '$1'"; exit 1; }; }
 lacks() { ! grep -qF -- "$1" <<<"$2" || { echo "FAIL: unexpected '$1'"; exit 1; }; }
 
@@ -55,5 +55,24 @@ lacks "kind: Secret" "$out"
 # 7. A user env var cannot shadow a chart-managed one.
 fails_with "NB_AUTH_SECRET is set more than once" "${required[@]}" --set backend.split.relay.envFromSecret.NB_AUTH_SECRET=s/k
 fails_with "NB_RELAY_AUTH_SECRET is set more than once" "${required[@]}" --set backend.split.management.env.NB_RELAY_AUTH_SECRET=x
+
+# 8. Selectors keep the v1 form <chart>-<component>, for any release name.
+out="$(render "${required[@]}")"
+has "app.kubernetes.io/name: netbird-management" "$out"
+lacks "app.kubernetes.io/name: t-netbird" "$out"
+
+# 9. A v1 values file (top-level management/signal/relay) is rejected.
+fails_with "additional propert" "${required[@]}" --set management.enabled=true
+fails_with "imagePullSecrets" "${required[@]}" --set "dashboard.imagePullSecrets[0].name=r"
+
+# 9b. A long nameOverride keeps the component suffix, so selectors stay distinct.
+out="$(render "${required[@]}" --set nameOverride=$(printf 'n%.0s' {1..70}))"
+[ "$(grep -o 'app.kubernetes.io/name: .*' <<<"$out" | sort -u | wc -l)" -ge 4 ] || { echo "FAIL: selectors collide with a long nameOverride"; exit 1; }
+has "nnnnnn-management" "$out"
+
+# 10. One ServiceMonitor per component with metrics, selecting only that component.
+out="$(render "${required[@]}" --set metrics.serviceMonitor.enabled=true --set backend.split.signal.metrics.enabled=true --show-only templates/monitoring/service-monitor.yaml)"
+test "$(grep -c "^kind: ServiceMonitor" <<<"$out")" = 1 || { echo "FAIL: want 1 ServiceMonitor"; exit 1; }
+has "app.kubernetes.io/name: netbird-signal" "$out"
 
 echo "render checks passed"
