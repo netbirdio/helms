@@ -16,12 +16,12 @@ required=(
 
 helm lint --strict "$chart" "${required[@]}"
 
-# 1. Enterprise images; relay stays community.
+# 1. Enterprise images; relay stays community at the enterprise build's base version.
 out="$(render "${required[@]}")"
 has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.1"' "$out"
 has 'image: "ghcr.io/netbirdio/signal-cloud:0.82.0-enterprise.1"' "$out"
 has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0"' "$out"
-has 'image: "netbirdio/relay:0.76.2"' "$out"
+has 'image: "netbirdio/relay:0.82.0"' "$out"
 
 # 2. Single-instance env, and the integrations key follows the datastore key.
 grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: NB_SINGLE_INSTANCE_MODE"; exit 1; }

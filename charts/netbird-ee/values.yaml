@@ -39,7 +39,8 @@ netbird:
         env:
           SINGLE_NODE_MODE: "true"
 
-      # There is no enterprise relay; it runs the community image.
+      # There is no enterprise relay; it runs the community image at the version
+      # the enterprise build is based on.
       relay:
         image:
-          tag: 0.76.2
+          tag: 0.82.0

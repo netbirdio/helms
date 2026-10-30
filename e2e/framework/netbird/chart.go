@@ -39,7 +39,7 @@ func valuesPrefix(chart string) string {
 
 // CommunityVersion is the community release an enterprise version such as
 // 0.82.0-enterprise.1 is built on, and any other version unchanged. The
-// community images (the netbird chart's and the client) use it.
+// community images (the netbird chart's, netbird-ee's relay, the client) use it.
 func CommunityVersion(version string) string {
 	base, _, _ := strings.Cut(version, "-enterprise.")
 	return base
@@ -58,12 +58,8 @@ func (e *Env) InstallChart(ctx context.Context, chart, version string) error {
 		args = append(args, "--values", f)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		// netbird-ee's relay is a community image it pins on its own.
-		if chart == ChartEnterprise && component == "relay" {
-			continue
-		}
 		tag := version
-		if chart == ChartCommunity {
+		if chart == ChartCommunity || component == "relay" {
 			tag = CommunityVersion(version)
 		}
 		args = append(args, "--set", fmt.Sprintf("%sbackend.split.%s.image.tag=%s", valuesPrefix(chart), component, tag))

@@ -6,7 +6,7 @@ NetBird enterprise on Kubernetes, single instance. The chart wraps the [netbird 
 |------------|----------------------------------------------|------------------------------------------------------------------------------|
 | management | `ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.1`  | `NB_SINGLE_INSTANCE_MODE=true`, `NETBIRD_ENCRYPTION_KEY` ([see below](#encryption-key)) |
 | signal     | `ghcr.io/netbirdio/signal-cloud:0.82.0-enterprise.1`      | `SINGLE_NODE_MODE=true`                                                      |
-| relay      | `netbirdio/relay:0.76.2` (no enterprise build) | —                                                                          |
+| relay      | `netbirdio/relay:0.82.0` (no enterprise build) | —                                                                          |
 | dashboard  | `ghcr.io/netbirdio/dashboard-cloud:v2.96.0`  | —                                                                            |
 
 Single instance means one replica of management and of signal, with no Redis, NATS or traffic-flow components. The chart fails to render with `replicaCount` above 1 on either.
