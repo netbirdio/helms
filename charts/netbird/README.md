@@ -15,7 +15,7 @@ Focused guides: [installation](docs/installation.md), [configuration and secrets
 
 | Chart | Tested backend versions | Default backend | Dashboard |
 | --- | --- | --- | --- |
-| `2.0.0` | `0.74.0`–`0.77.0` | `0.77.0` | `v2.91.1` |
+| `2.0.0` | `0.74.0`–`0.77.0` | `0.77.0` | `v2.96.0` |
 
 Backend versions apply to the management, signal, and relay images. The dashboard has an independent compatibility pin and is not derived from the chart `appVersion`.
 

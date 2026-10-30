@@ -30,14 +30,77 @@
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
 {{- end -}}
 
-{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag. Context: root, image. */}}
+{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag, with tagSuffix appended unless the tag already ends with it. Context: root, image, tagSuffix (optional). */}}
 {{- define "netbird.image" -}}
 {{- $repository := .image.repository -}}
 {{- with .root.Values.global.imageRegistry -}}{{- $repository = printf "%s/%s" (trimSuffix "/" .) $repository -}}{{- end -}}
 {{- if .image.digest -}}
 {{- printf "%s@%s" $repository .image.digest -}}
 {{- else -}}
-{{- printf "%s:%s" $repository (toString .image.tag) -}}
+{{- $tag := toString .image.tag -}}
+{{- with .tagSuffix -}}{{- if not (hasSuffix . $tag) -}}{{- $tag = printf "%s%s" $tag . -}}{{- end -}}{{- end -}}
+{{- printf "%s:%s" $repository $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Restricted Pod Security Standard defaults for rootless components. Context: kind (pod, backendPod or container). */}}
+{{- define "netbird.rootlessSecurityContext" -}}
+{{- if eq .kind "container" -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
+{{- else -}}
+runAsNonRoot: true
+{{- if eq .kind "backendPod" }}
+{{- /* The backend images default to root. */}}
+runAsUser: 65532
+runAsGroup: 65532
+fsGroup: 65532
+{{- end }}
+seccompProfile:
+  type: RuntimeDefault
+{{- end -}}
+{{- end -}}
+
+{{/*
+Security context: the rootless defaults when rootless is set, then each key of
+securityContext replaces its default (null removes it). Pod contexts lose
+runAsUser, runAsGroup and fsGroup on OpenShift.
+Context: root, rootless, kind (pod, backendPod or container), securityContext.
+*/}}
+{{- define "netbird.securityContext" -}}
+{{- $context := dict -}}
+{{- if .rootless -}}
+{{- $context = include "netbird.rootlessSecurityContext" . | fromYaml -}}
+{{- end -}}
+{{- range $key, $value := default dict .securityContext -}}
+{{- if kindIs "invalid" $value -}}
+{{- $_ := unset $context $key -}}
+{{- else -}}
+{{- $_ := set $context $key $value -}}
+{{- end -}}
+{{- end -}}
+{{- if ne .kind "container" -}}
+{{- $mode := .root.Values.global.compatibility.openshift.adaptSecurityContext -}}
+{{- if not (has $mode (list "auto" "force" "disabled")) -}}
+{{- fail (printf "global.compatibility.openshift.adaptSecurityContext must be auto, force or disabled, got %q" $mode) -}}
+{{- end -}}
+{{- if or (eq $mode "force") (and (eq $mode "auto") (.root.Capabilities.APIVersions.Has "security.openshift.io/v1")) -}}
+{{- $context = omit $context "runAsUser" "runAsGroup" "fsGroup" -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $context -}}
+{{- end -}}
+
+{{/* Container port: container.port, else rootlessPort when rootless, else 80. Context: values, rootlessPort. */}}
+{{- define "netbird.containerPort" -}}
+{{- if not (kindIs "invalid" .values.container.port) -}}
+{{- .values.container.port -}}
+{{- else if .values.rootless -}}
+{{- .rootlessPort -}}
+{{- else -}}
+80
 {{- end -}}
 {{- end -}}
 

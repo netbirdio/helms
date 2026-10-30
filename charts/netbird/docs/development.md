@@ -39,7 +39,7 @@ For a new or changed source configuration field:
 
 Keep raw source configuration in management's `overrideConfig`. Signal and relay intentionally have no config-file override because their 0.74.0-compatible contract is command-line based.
 
-The chart's supported backend range is `0.74.0` through the default `0.77.0`. `backend.split.signal.config.pprofAddress`, `backend.split.relay.config.trustedProxies`, and `backend.split.management.config.agentNetwork.pricingDefaultsFile` are 0.77.0+ fields that 0.74.0 ignores. The dashboard remains independently pinned to `v2.91.1`.
+The chart's supported backend range is `0.74.0` through the default `0.77.0`. `backend.split.signal.config.pprofAddress`, `backend.split.relay.config.trustedProxies`, and `backend.split.management.config.agentNetwork.pricingDefaultsFile` are 0.77.0+ fields that 0.74.0 ignores. The dashboard remains independently pinned to `v2.96.0`.
 
 ## ConfigMap rollout checksum
 

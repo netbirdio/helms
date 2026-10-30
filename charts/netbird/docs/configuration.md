@@ -13,7 +13,7 @@ Use the structured configuration trees whenever the chart supports the setting:
 | Signal | `backend.split.signal.config` | Stable command-line flags |
 | Relay | `backend.split.relay.config` | Stable command-line flags and Secret-backed environment |
 
-The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`; `0.77.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.91.1`.
+The chart tests management, signal, and relay versions `0.74.0` through `0.77.0`; `0.77.0` is the default. Dashboard compatibility is independent and fixed at `netbirdio/dashboard:v2.96.0`.
 
 Kubernetes settings sit beside each component's configuration. Common examples include `image`, `replicaCount`, `resources`, `pod`, `container`, `service`, `ingress`, probes, scheduling values, and management persistence.
 
@@ -69,6 +69,31 @@ backend:
 ### Images
 
 Each component renders `repository:tag`. Set `image.digest` (`sha256:...`) to render `repository@digest`; the tag is then ignored. `global.imageRegistry` adds a registry prefix to every image.
+
+### Pod security
+
+Each component has a `rootless` value, `false` by default. Setting it to `true` applies the `restricted` Pod Security Standard to that component: `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation, and no capabilities. The container also moves to an unprivileged port (dashboard and management `8080`, signal `10000`; relay always uses `33080`). The Service ports do not change.
+
+The backend images default to root, so rootless management, signal and relay run as `65532:65532` with `fsGroup: 65532`. A rootless dashboard runs the `-rootless` variant of its tag (`v2.96.0` renders `v2.96.0-rootless`; published from `v2.95.0`), which runs as `10001:0` and listens on `8080`. A tag that already ends in `-rootless` is used as is, and `image.digest` is used as given, so it must be a rootless image's digest. [`examples/rootless`](../examples/rootless) enables every component:
+
+```yaml
+dashboard:
+  rootless: true
+backend:
+  split:
+    management:
+      rootless: true
+    signal:
+      rootless: true
+    relay:
+      rootless: true
+```
+
+Keys in `pod.securityContext` and `container.securityContext` replace the rootless default of the same name, and `null` removes one, for example `backend.split.signal.pod.securityContext.fsGroup: null`. A numeric `container.port` wins over the rootless port.
+
+On OpenShift, `restricted-v2` assigns the user and group from the namespace range and rejects fixed IDs outside it, and the stock images cannot bind port 80 as a non-root user, so set `rootless: true` on every component. `global.compatibility.openshift.adaptSecurityContext` drops `runAsUser`, `runAsGroup` and `fsGroup` from the pod security contexts: `auto` (the default) when the cluster serves `security.openshift.io/v1`, `force` always, `disabled` never. `helm template` has no cluster to ask, so GitOps renders for OpenShift should set `force`.
+
+Without persistence, management mounts an `emptyDir` at its data directory, so a non-root user can write to it.
 
 ## Version-specific values
 

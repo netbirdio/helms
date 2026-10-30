@@ -2,6 +2,13 @@ global:
   namespace: ""
   # Registry prefix for every image, e.g. registry.example.com.
   imageRegistry: ""
+  compatibility:
+    openshift:
+      # Drop runAsUser, runAsGroup and fsGroup from pod security contexts, so
+      # OpenShift's restricted-v2 SCC assigns them from the namespace range.
+      # auto detects OpenShift (needs a cluster, so helm template never does),
+      # force always drops them, disabled never does.
+      adaptSecurityContext: auto
 
 nameOverride: ""
 fullnameOverride: ""
@@ -12,10 +19,14 @@ dashboard:
   # Overrides global.namespace for this component.
   namespace: ""
   replicaCount: 1
+  # Restricted Pod Security Standard defaults, merged under pod and container
+  # securityContext, container port 8080, and the image tag's -rootless variant
+  # (image.digest must already be one). See examples/rootless.
+  rootless: false
 
   image:
     repository: netbirdio/dashboard
-    tag: v2.91.1
+    tag: v2.96.0
     # Pins the image by digest (sha256:...) and ignores tag when set.
     digest: ""
     pullPolicy: IfNotPresent
@@ -31,13 +42,16 @@ dashboard:
 
   pod:
     annotations: {}
+    # Keys set here replace the rootless defaults; null removes one.
     securityContext: {}
 
   container:
-    port: 80
+    # null: 8080 when rootless, 80 otherwise.
+    port: null
     cmd:
       command: []
       args: []
+    # Keys set here replace the rootless defaults; null removes one.
     securityContext: {}
 
   resources: {}
@@ -109,6 +123,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup, and container port 8080.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/management
@@ -128,14 +146,17 @@ backend:
 
       pod:
         annotations: {}
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       container:
-        port: 80
+        # null: 8080 when rootless, 80 otherwise.
+        port: null
         cmd:
           command: []
           # Extra arguments, appended after the flags from server.
           args: []
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       # Management server flags.
@@ -317,6 +338,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup, and container port 10000.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/signal
@@ -336,13 +361,16 @@ backend:
 
       pod:
         annotations: {}
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       container:
-        port: 80
+        # null: 10000 when rootless, 80 otherwise.
+        port: null
         cmd:
           command: []
           args: []
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       resources: {}
@@ -410,6 +438,10 @@ backend:
       # Overrides global.namespace for this component.
       namespace: ""
       replicaCount: 1
+      # Restricted Pod Security Standard defaults, merged under pod and container
+      # securityContext: non-root user 65532 with fsGroup.
+      # See examples/rootless.
+      rootless: false
 
       image:
         repository: netbirdio/relay
@@ -429,6 +461,7 @@ backend:
 
       pod:
         annotations: {}
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       container:
@@ -436,6 +469,7 @@ backend:
         cmd:
           command: []
           args: []
+        # Keys set here replace the rootless defaults; null removes one.
         securityContext: {}
 
       resources: {}
