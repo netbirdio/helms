@@ -57,13 +57,14 @@ tasks:
         >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
       - helm template {{.RELEASE_NAME}} {{.CHART_DIR}} --namespace {{.NAMESPACE}} --values {{.DEV_VALUES}} >/dev/null
+      - charts/netbird-ee/tests/render.sh
       - |
         for values in charts/netbird/examples/nginx-ingress/auth0/values.yaml charts/netbird/examples/nginx-ingress/authentik/values.yaml charts/netbird/examples/nginx-ingress/google/values.yaml charts/netbird/examples/nginx-ingress/okta/values.yaml charts/netbird/examples/traefik-ingress/authentik/values.yaml charts/netbird/examples/istio/zitadel/values.yaml; do
           helm template netbird charts/netbird --namespace netbird --values "$values" >/dev/null
         done
 
   chart:e2e:
-    desc: Install the chart into a fresh Kind cluster and connect NetBird peers through it
+    desc: Install the chart (NB_E2E_CHART=netbird-ee for enterprise) into a fresh Kind cluster and connect NetBird peers through it
     dir: e2e
     preconditions:
       - sh: command -v docker

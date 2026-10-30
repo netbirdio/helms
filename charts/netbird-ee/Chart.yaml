@@ -1,0 +1,11 @@
+apiVersion: v2
+name: netbird-ee
+description: NetBird enterprise, single instance, on the netbird chart
+type: application
+version: 0.1.0
+appVersion: "0.76.2"
+icon: https://images.crunchbase.com/image/upload/c_pad,h_256,w_256,f_auto,q_auto:eco,dpr_1/kuu5tm1wt09ztp6ctlag
+dependencies:
+  - name: netbird
+    version: ^2.0.0
+    repository: file://../netbird

@@ -18,8 +18,22 @@ import (
 // examples/kind serves exampleDomain; the suite installs it under Domain.
 const exampleDomain = "netbird.localhost"
 
-// chartDir is the netbird chart in this repository.
-var chartDir = framework.ChartDir("netbird")
+// communityChartDir is the netbird chart; its examples serve both charts.
+var communityChartDir = framework.ChartDir(ChartCommunity)
+
+// Enterprise is whether the chart under test is netbird-ee.
+func (e *Env) Enterprise() bool {
+	return e.Chart == ChartEnterprise
+}
+
+// valuesPrefix is where the netbird chart's values sit in the chart under
+// test: netbird-ee wraps it as a dependency.
+func (e *Env) valuesPrefix() string {
+	if e.Enterprise() {
+		return "netbird."
+	}
+	return ""
+}
 
 // InstallChart installs or upgrades the chart from examples/kind under the
 // suite's hostnames, with the backends at version.
@@ -28,37 +42,45 @@ func (e *Env) InstallChart(ctx context.Context, version string) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"upgrade", "--install", ReleaseName, chartDir, "--namespace", Namespace,
+	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(e.Chart), "--namespace", Namespace,
 		"--wait", "--timeout", "10m"}
 	for _, f := range files {
 		args = append(args, "--values", f)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		args = append(args, "--set", fmt.Sprintf("backend.split.%s.image.tag=%s", component, version))
+		args = append(args, "--set", fmt.Sprintf("%sbackend.split.%s.image.tag=%s", e.valuesPrefix(), component, version))
 	}
 	_, err = e.Cluster.Helm(ctx, args...)
 	return err
 }
 
-// valuesFiles returns examples/kind with the suite's hostnames, examples/rootless
-// when rootless, and the suite's own additions.
+// valuesFiles returns the netbird chart's examples/kind with the suite's
+// hostnames, its examples/rootless when rootless, and the suite's own additions,
+// each nested where the chart under test expects them.
 func (e *Env) valuesFiles() ([]string, error) {
-	example, err := os.ReadFile(filepath.Join(chartDir, "examples", "kind", "values.yaml"))
+	example, err := os.ReadFile(filepath.Join(communityChartDir, "examples", "kind", "values.yaml"))
 	if err != nil {
 		return nil, err
 	}
-	kindValues := filepath.Join(e.workDir, "kind-values.yaml")
-	if err := os.WriteFile(kindValues, []byte(strings.ReplaceAll(string(example), exampleDomain, Domain)), 0o644); err != nil {
+	kindValues, err := e.writeValues("kind-values.yaml", strings.ReplaceAll(string(example), exampleDomain, Domain))
+	if err != nil {
 		return nil, err
 	}
 	files := []string{kindValues}
 	if e.Rootless {
-		files = append(files, filepath.Join(chartDir, "examples", "rootless", "values.yaml"))
+		rootless, err := os.ReadFile(filepath.Join(communityChartDir, "examples", "rootless", "values.yaml"))
+		if err != nil {
+			return nil, err
+		}
+		rootlessValues, err := e.writeValues("rootless-values.yaml", string(rootless))
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, rootlessValues)
 	}
 
 	// No owner, so POST /api/setup creates the account and returns a token.
-	suiteValues := filepath.Join(e.workDir, "e2e-values.yaml")
-	err = os.WriteFile(suiteValues, []byte(`backend:
+	suiteValues, err := e.writeValues("e2e-values.yaml", `backend:
   split:
     management:
       env:
@@ -68,8 +90,19 @@ func (e *Env) valuesFiles() ([]string, error) {
           owner:
             email: ""
             password: ""
-`), 0o644)
+`)
 	return append(files, suiteValues), err
+}
+
+// writeValues writes netbird chart values into the work dir, under netbird:
+// for netbird-ee, and returns the file's path. Indenting every line keeps block
+// scalars intact.
+func (e *Env) writeValues(name, values string) (string, error) {
+	if e.Enterprise() {
+		values = "netbird:\n" + regexp.MustCompile(`(?m)^(.)`).ReplaceAllString(values, "  $1")
+	}
+	path := filepath.Join(e.workDir, name)
+	return path, os.WriteFile(path, []byte(values), 0o644)
 }
 
 // WaitDeploymentImage waits until one of the chart's Deployments runs image in
@@ -102,11 +135,12 @@ func (e *Env) CredentialSecrets(ctx context.Context) (map[string]map[string][]by
 	return data, nil
 }
 
-var backendTag = regexp.MustCompile(`(?m)^        repository: netbirdio/management\n        tag: "?([^"\s]+)"?`)
+var backendTag = regexp.MustCompile(`(?m)^ +repository: \S*/management\S*\n +tag: "?([^"\s]+)"?`)
 
-// chartBackendVersion reads the management tag from the chart's values.yaml,
-// the version the chart installs by default.
-func chartBackendVersion() (string, error) {
+// chartBackendVersion reads the management tag from chart's values.yaml, the
+// version the chart installs by default.
+func chartBackendVersion(chart string) (string, error) {
+	chartDir := framework.ChartDir(chart)
 	raw, err := os.ReadFile(filepath.Join(chartDir, "values.yaml"))
 	if err != nil {
 		return "", err

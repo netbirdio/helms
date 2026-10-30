@@ -19,6 +19,7 @@ func TestChart(t *testing.T) {
 		run  func(t *testing.T)
 	}{
 		{"the dashboard, the API and the IdP answer through the ingress", testHTTPRoutes},
+		{"netbird-ee runs the enterprise images", testEnterpriseImages},
 		{"peers connect directly", testDirectConnection},
 		{"an upgrade to the chart's backends keeps the peers", testUpgrade},
 		{"peers connect through the relay", testRelayedConnection},
@@ -38,6 +39,35 @@ var alpha, beta, gamma, delta *netbird.Peer
 // embedded IdP, all through the ingress.
 func testHTTPRoutes(t *testing.T) {
 	requireHTTPRoutes(t)
+}
+
+// testEnterpriseImages checks netbird-ee swapped in the enterprise images and
+// they came up: the -cloud management, signal and dashboard, and the
+// community relay, which has no enterprise build.
+func testEnterpriseImages(t *testing.T) {
+	if !env.Enterprise() {
+		t.Skip("netbird-ee only")
+	}
+	images := map[string]string{"netbird-dashboard": "ghcr.io/netbirdio/dashboard-cloud:v2.96.0"}
+	if env.Rootless {
+		images["netbird-dashboard"] += "-rootless"
+	}
+	for _, component := range []string{"management", "signal", "relay"} {
+		images["netbird-"+component] = backendImage(component, env.FromVersion)
+	}
+	for name, image := range images {
+		if err := env.WaitDeploymentImage(t.Context(), name, image); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// backendImage is the image the chart under test runs component at version.
+func backendImage(component, version string) string {
+	if env.Enterprise() && component != "relay" {
+		return "ghcr.io/netbirdio/" + component + "-cloud:" + version
+	}
+	return "netbirdio/" + component + ":" + version
 }
 
 // testDirectConnection starts two peers and checks they connect directly,
@@ -62,7 +92,7 @@ func testUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		image := "netbirdio/" + component + ":" + env.DefaultVersion
+		image := backendImage(component, env.DefaultVersion)
 		if err := env.WaitDeploymentImage(t.Context(), "netbird-"+component, image); err != nil {
 			t.Fatal(err)
 		}

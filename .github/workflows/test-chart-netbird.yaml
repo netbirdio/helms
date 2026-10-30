@@ -36,3 +36,6 @@ jobs:
 
       - name: Render external Secret references
         run: helm template test-chart ./charts/netbird --namespace netbird --values charts/netbird/tests/values/secret-refs.yaml >/dev/null
+
+      - name: Lint and render netbird-ee
+        run: charts/netbird-ee/tests/render.sh

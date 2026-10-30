@@ -39,6 +39,11 @@ const (
 
 	defaultFromVersion = "0.74.0"
 
+	// ChartCommunity and ChartEnterprise are the charts the suite can test.
+	ChartCommunity  = "netbird"
+	ChartEnterprise = "netbird-ee"
+
+	envChart       = "NB_E2E_CHART"
 	envFromVersion = "NB_E2E_FROM_VERSION"
 	envRootless    = "NB_E2E_ROOTLESS"
 )
@@ -46,6 +51,8 @@ const (
 // Env is a Kind cluster with ingress-nginx and the chart installed, and the
 // peers the tests started outside it.
 type Env struct {
+	// Chart is the chart under test: ChartCommunity or ChartEnterprise.
+	Chart string
 	// FromVersion is the backend version installed first, DefaultVersion the
 	// chart's. They are equal when there is no upgrade to test.
 	FromVersion    string
@@ -73,9 +80,18 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 			return nil, fmt.Errorf("%s is required: %w", tool, err)
 		}
 	}
-	defaultVersion, err := chartBackendVersion()
+	chart := framework.EnvOr(envChart, ChartCommunity)
+	if chart != ChartCommunity && chart != ChartEnterprise {
+		return nil, fmt.Errorf("%s must be %s or %s, not %q", envChart, ChartCommunity, ChartEnterprise, chart)
+	}
+	defaultVersion, err := chartBackendVersion(chart)
 	if err != nil {
 		return nil, err
+	}
+	// netbird-ee has no earlier release to upgrade from yet.
+	fromVersion := defaultFromVersion
+	if chart == ChartEnterprise {
+		fromVersion = defaultVersion
 	}
 	workDir, err := os.MkdirTemp("", "netbird-chart-e2e-*")
 	if err != nil {
@@ -83,11 +99,18 @@ func Bootstrap(ctx context.Context) (*Env, error) {
 	}
 	e := &Env{
 		workDir:        workDir,
+		Chart:          chart,
 		DefaultVersion: defaultVersion,
-		FromVersion:    framework.EnvOr(envFromVersion, defaultFromVersion),
+		FromVersion:    framework.EnvOr(envFromVersion, fromVersion),
 		Rootless:       framework.EnvBool(envRootless),
 	}
-	log.Printf("e2e: backends %s, then %s; rootless %t", e.FromVersion, e.DefaultVersion, e.Rootless)
+	log.Printf("e2e: chart %s, backends %s, then %s; rootless %t", e.Chart, e.FromVersion, e.DefaultVersion, e.Rootless)
+	if e.Enterprise() {
+		log.Print("e2e: vendoring the netbird chart into netbird-ee")
+		if _, err := framework.Command(ctx, "helm", "dependency", "update", framework.ChartDir(ChartEnterprise)); err != nil {
+			return e, err
+		}
+	}
 
 	log.Print("e2e: creating the Kind cluster")
 	e.Cluster, err = framework.CreateCluster(ctx, clusterName, workDir)

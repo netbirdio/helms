@@ -55,14 +55,15 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
 
 1. **Bootstrap** (`netbird.Bootstrap`):
    - Create a one-node Kind cluster and install ingress-nginx on it.
-   - Install the chart from `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
+   - Install the chart (`NB_E2E_CHART`) from the netbird chart's `examples/kind`, nested under `netbird:` for netbird-ee, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
    - Activate the account through `POST /api/setup` to get an API token.
 2. **TestChart** (`netbird/chart_test.go`):
    1. HTTP routes: the dashboard, the API and the IdP answer through the ingress.
-   2. Two peers connect directly.
-   3. The backends are upgraded to the chart's defaults, and the peers stay connected.
-   4. Two peers forced onto the relay connect through it.
-   5. Management's pod is deleted, and every peer is still listed and reconnects.
+   2. netbird-ee only: the enterprise images run.
+   3. Two peers connect directly.
+   4. The backends are upgraded to the chart's defaults, and the peers and the credential Secrets survive it.
+   5. Two peers forced onto the relay connect through it.
+   6. Management's pod is deleted, and every peer is still listed and reconnects.
 3. **Teardown**: remove the peers and the cluster.
 
 The peers run in Docker containers on Kind's network, outside the cluster. They resolve `netbird.e2e.test` to the Kind node, where ingress-nginx listens on 443, so they reach management, signal and the relay the way users' peers do. The tests reach the same ingress through a port-forward.
@@ -71,14 +72,19 @@ The peers run in Docker containers on Kind's network, outside the cluster. They 
 
 | Variable | Effect |
 | --- | --- |
+| `NB_E2E_CHART` | netbird: the chart under test, `netbird` (default) or `netbird-ee` |
 | `NB_E2E_KIND_NODE_IMAGE` | Kind node image, which picks the Kubernetes version |
 | `NB_E2E_KEEP` | Leave the cluster running. The kubeconfig path is logged |
 | `NB_E2E_ARTIFACTS_DIR` | On failure, write the cluster, chart and client logs here |
-| `NB_E2E_FROM_VERSION` | netbird: backend version installed first (default `0.74.0`). Setting it to the chart's default skips the upgrade |
+| `NB_E2E_FROM_VERSION` | netbird: backend version installed first (default `0.74.0` for netbird, the chart's default for netbird-ee). Setting it to the chart's default skips the upgrade |
 | `NB_E2E_ROOTLESS` | netbird: layer `examples/rootless` into a namespace that enforces the `restricted` Pod Security Standard |
 | `NB_E2E_CLIENT_IMAGE` | netbird: client the peers run (default: the release of `NB_E2E_FROM_VERSION`) |
 
 ## Adding a chart
+
+A chart that wraps the netbird chart, like netbird-ee, is a value of `NB_E2E_CHART` instead: it reuses `framework/netbird` and the tests in `netbird/`, which skip what does not apply to it.
+
+Any other chart:
 
 1. Add its plumbing under `framework/<chart>/`, built on `framework.Cluster`, with a Kind cluster name of its own so packages can run side by side.
 2. Add its tests in `<chart>/`, `_test.go` files only, with a `TestMain` that brings the environment up.
