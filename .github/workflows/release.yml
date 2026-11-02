@@ -32,9 +32,12 @@ jobs:
 
       - name: Package chart
         run: |
-          # tag is <chart>-v<semver>, e.g. netbird-v2.0.1 or netbird-ee-v0.1.0-rc.1
+          # tag is <chart>-v<semver>, e.g. netbird-v2.0.1 or netbird-ee-v0.1.0-rc.1.
+          # SemVer build metadata (+build.1) is rejected: OCI tags can't hold "+", so helm push
+          # would publish it as "_" and the ghcr tag would differ from the release and index.yaml.
+          # A malformed pre-release slips past this check but fails helm package below.
           if ! [[ "$TAG" =~ ^([a-z0-9-]+)-v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]] || [ ! -f "charts/${BASH_REMATCH[1]}/Chart.yaml" ]; then
-            echo "Tag $TAG is not <chart>-v<semver> for a chart in charts/, e.g. netbird-v2.0.0 or netbird-ee-v0.1.0"
+            echo "Tag $TAG is not <chart>-v<semver> for a chart in charts/, e.g. netbird-v2.0.0 or netbird-ee-v0.1.0 (build metadata like +build.1 is not supported)"
             exit 1
           fi
           CHART="${BASH_REMATCH[1]}"
