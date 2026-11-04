@@ -178,7 +178,8 @@ Chart 2.0 keeps the 1.x resource names and selector labels (`app.kubernetes.io/n
 1. Move the top-level `management`, `signal` and `relay` trees to `backend.split.management`, `backend.split.signal` and `backend.split.relay`, and rewrite them against [`values.yaml`](values.yaml). A 1.x values file fails schema validation, so nothing is ignored by mistake. `dashboard.imagePullSecrets` is now `dashboard.image.pullSecrets`.
 2. Point the credential references at the Secret that already holds your datastore key and relay secret (see [Secrets](#secrets)). A different datastore key makes the stored data unreadable.
 3. Keep the management volume: set `backend.split.management.persistence.size` to the size of the existing claim (`kubectl get pvc`; the 1.x default is 10Mi). A smaller size is a shrink, which Kubernetes rejects; a larger one needs a storage class that allows volume expansion. The claim name does not change. `persistentVolume.existingPVName` has no replacement; bind the volume to a claim and set `persistence.existingClaim`.
-4. Render with `helm template` and compare with the running objects before you upgrade.
+4. On a MySQL store, [migrate to PostgreSQL](https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql) on NetBird 0.81.x first. 0.82.0 removed the MySQL store, and the chart refuses `storeConfig.engine: mysql`.
+5. Render with `helm template` and compare with the running objects before you upgrade.
 
 ## Local kind environment
 

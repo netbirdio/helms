@@ -6,17 +6,22 @@ The end-to-end suite runs this migration: `NB_E2E_FROM_CHART=netbird task chart:
 
 ## Before you start
 
-- **Same backend version.** Management and signal must run the version netbird-ee's enterprise build is based on before you switch charts: `0.82.0` for `0.82.0-enterprise.1` (see [`values.yaml`](../values.yaml)). The netbird chart's default is `0.82.0`. If your release pins an older version, upgrade it within the netbird chart first:
+- **Same backend version.** Management and signal must run the version netbird-ee's enterprise build is based on before you switch charts: `0.82.0` for `0.82.0-enterprise.1` (see [`values.yaml`](../values.yaml)). The netbird chart's default is `0.82.0`. If your release pins an older version, upgrade it within the netbird chart first. A pinned `image.digest` wins over the tag, so clear it too:
 
   ```bash
   helm upgrade netbird charts/netbird --namespace netbird --reuse-values \
     --set backend.split.management.image.tag=0.82.0 \
-    --set backend.split.signal.image.tag=0.82.0
+    --set backend.split.management.image.digest=null \
+    --set backend.split.signal.image.tag=0.82.0 \
+    --set backend.split.signal.image.digest=null
+  kubectl get deployments --namespace netbird \
+    -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
   ```
 
-  If your release runs a newer version than netbird-ee ships, wait for a netbird-ee release at that version; never move the store to an older management.
+  Management and signal must both show `0.82.0`. If your release runs a newer version than netbird-ee ships, wait for a netbird-ee release at that version; never move the store to an older management.
+- **No MySQL.** NetBird 0.82.0 removed the MySQL store: management refuses to start with it, and the netbird chart refuses to render it. On MySQL, [migrate to PostgreSQL](https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql) while still on 0.81.x, with the tool from the [v0.81.5 release](https://github.com/netbirdio/netbird/releases/tag/v0.81.5), before the upgrade above.
 - **Single instance.** netbird-ee runs one replica of management and of signal. Set `replicaCount` to 1 for both before migrating.
-- **Back up the store.** With the default SQLite store, snapshot the management volume (`<release>-management` PersistentVolumeClaim). With Postgres or MySQL, dump the database. Going back to the netbird chart after the migration is not supported; restoring this backup is the way back.
+- **Back up the store.** With the default SQLite store, snapshot the management volume (`<release>-management` PersistentVolumeClaim). With Postgres, dump the database. Going back to the netbird chart after the migration is not supported; restoring this backup is the way back.
 
 ## Migrate
 

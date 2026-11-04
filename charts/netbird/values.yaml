@@ -259,9 +259,9 @@ backend:
         # References a key in a Secret in this component's namespace. Mutually exclusive with dataStoreEncryptionKey.
         dataStoreEncryptionKeyRef: {}
         storeConfig:
-          # sqlite, postgres or mysql.
+          # sqlite or postgres. NetBird 0.82.0 removed mysql; migrate to postgres on 0.81.x first.
           engine: sqlite
-          # Required for postgres and mysql. Mutually exclusive with dsnRef.
+          # Required for postgres. Mutually exclusive with dsnRef.
           dsn: ""
           # References a key in a Secret in this component's namespace.
           dsnRef: {}

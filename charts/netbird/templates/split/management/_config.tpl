@@ -95,7 +95,10 @@ chart-managed credentials Secret under key, with data (default value).
 {{- include "netbird.requireSecret" (dict "value" $relay.authSecret "ref" $relay.authSecretRef "path" "backend.split.relay.config.authSecret" "hint" "generate one with: openssl rand -base64 32") -}}
 {{- $entries = append $entries (dict "env" "NB_RELAY_AUTH_SECRET" "key" "relay-auth-secret" "value" $relay.authSecret "ref" $relay.authSecretRef "path" "backend.split.relay.config.authSecretRef") -}}
 {{- $store := default dict $config.storeConfig -}}
-{{- if has (toString $store.engine) (list "postgres" "mysql") -}}
+{{- if eq (toString $store.engine) "mysql" -}}
+{{- fail (printf "%s.storeConfig.engine: NetBird 0.82.0 removed the mysql store; migrate to postgres on 0.81.x first: https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql" $base) -}}
+{{- end -}}
+{{- if eq (toString $store.engine) "postgres" -}}
 {{- include "netbird.requireSecret" (dict "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsn" $base)) -}}
 {{- $entries = append $entries (dict "env" (printf "NB_STORE_ENGINE_%s_DSN" (upper $store.engine)) "key" "store-dsn" "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsnRef" $base)) -}}
 {{- end -}}

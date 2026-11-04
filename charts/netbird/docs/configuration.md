@@ -190,7 +190,7 @@ The chart manages two Secret identities:
   - `datastore-encryption-key`
   - `relay-auth-secret`, a copy of the relay secret, so management works in another namespace
   - `idp-session-cookie-encryption-key`, when the embedded IdP is enabled
-  - `store-dsn`, when `storeConfig.engine` is `postgres` or `mysql`
+  - `store-dsn`, when `storeConfig.engine` is `postgres`
   - optional `stun-password-<index>`, `turn-password-<index>`, `turn-secret`, `signal-password` and `idp-storage-dsn`
   - optional `owner-password-checksum`
   - optional `owner-password-hash`
@@ -236,7 +236,7 @@ Management persists data through `backend.split.management.persistence`. Keep it
 
 When persistence is enabled, management uses the `Recreate` strategy, because a `ReadWriteOnce` volume cannot attach to the old and the new pod at the same time. Set `backend.split.management.strategy` to change it. The claim has `helm.sh/resource-policy: keep`, so `helm uninstall` does not delete the data; delete the claim manually when you no longer need it.
 
-For PostgreSQL or MySQL, set `storeConfig.engine` and `storeConfig.dsnRef` (or the inline `dsn`). The chart provides the DSN as `NB_STORE_ENGINE_POSTGRES_DSN` or `NB_STORE_ENGINE_MYSQL_DSN`; the render fails when it is missing.
+For PostgreSQL, set `storeConfig.engine: postgres` and `storeConfig.dsnRef` (or the inline `dsn`). The chart provides the DSN as `NB_STORE_ENGINE_POSTGRES_DSN`; the render fails when it is missing. NetBird 0.82.0 removed the MySQL store, and the chart fails to render with `engine: mysql`: [migrate to PostgreSQL](https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql) on 0.81.x before upgrading.
 
 The management `http` port and the signal `grpc` port set `appProtocol: kubernetes.io/h2c` (`service.appProtocol`). Gateway API implementations such as Envoy Gateway need it to send gRPC as HTTP/2 cleartext. Set it to `""` to omit it.
 
