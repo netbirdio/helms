@@ -32,21 +32,28 @@ jobs:
 
       - name: Package chart
         run: |
-          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Tag $TAG is not a SemVer tag like v2.0.0 or v2.0.0-rc.1"
+          # tag is <chart>-v<semver>, e.g. netbird-v2.0.1 or netbird-ee-v0.1.0-rc.1.
+          # SemVer build metadata (+build.1) is rejected: OCI tags can't hold "+", so helm push
+          # would publish it as "_" and the ghcr tag would differ from the release and index.yaml.
+          # A malformed pre-release slips past this check but fails helm package below.
+          if ! [[ "$TAG" =~ ^([a-z0-9-]+)-v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]] || [ ! -f "charts/${BASH_REMATCH[1]}/Chart.yaml" ]; then
+            echo "Tag $TAG is not <chart>-v<semver> for a chart in charts/, e.g. netbird-v2.0.0 or netbird-ee-v0.1.0 (build metadata like +build.1 is not supported)"
             exit 1
           fi
-          VERSION="${TAG#v}"
+          CHART="${BASH_REMATCH[1]}"
+          VERSION="${BASH_REMATCH[2]}"
+          echo "CHART=$CHART" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          helm package charts/netbird --version "$VERSION" --destination dist
+          helm dependency build "charts/$CHART"
+          helm package "charts/$CHART" --version "$VERSION" --destination dist
 
       - name: Upload chart to release
-        run: gh release upload "$TAG" "dist/netbird-$VERSION.tgz" --clobber
+        run: gh release upload "$TAG" "dist/$CHART-$VERSION.tgz" --clobber
 
       - name: Push chart to OCI registry
         run: |
           echo "$GH_TOKEN" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
-          helm push "dist/netbird-$VERSION.tgz" oci://ghcr.io/${{ github.repository_owner }}/helm-charts
+          helm push "dist/$CHART-$VERSION.tgz" oci://ghcr.io/${{ github.repository_owner }}/helm-charts
 
       - name: Update Helm repository index
         run: |
@@ -58,5 +65,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add index.yaml
-          git commit -m "Release netbird $VERSION"
+          git commit -m "Release $CHART $VERSION"
           git push

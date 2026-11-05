@@ -4,5 +4,5 @@ name: netbird
 description: NetBird VPN management platform
 type: application
 version: 2.0.0
-appVersion: "0.77.0"
+appVersion: "0.82.0"
 icon: https://images.crunchbase.com/image/upload/c_pad,h_256,w_256,f_auto,q_auto:eco,dpr_1/kuu5tm1wt09ztp6ctlag

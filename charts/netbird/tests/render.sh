@@ -91,10 +91,11 @@ has '/nb-silent-auth' "$out"
 out="$(render "${required[@]:0:2}" "${required[@]:4:2}" --set backend.split.management.config.embeddedIdp.enabled=false --show-only templates/dashboard/deployment.yaml)"
 lacks '/nb-auth' "$out"
 
-# 13. postgres/mysql need a DSN, served from a Secret.
+# 13. postgres needs a DSN, served from a Secret; mysql is rejected.
 fails_with "storeConfig.dsnRef is required" "${required[@]}" --set backend.split.management.config.storeConfig.engine=postgres
-out="$(render "${required[@]}" --set backend.split.management.config.storeConfig.engine=mysql --set backend.split.management.config.storeConfig.dsn=dsn-value)"
-has NB_STORE_ENGINE_MYSQL_DSN "$out"
+fails_with "removed the mysql store" "${required[@]}" --set backend.split.management.config.storeConfig.engine=mysql
+out="$(render "${required[@]}" --set backend.split.management.config.storeConfig.engine=postgres --set backend.split.management.config.storeConfig.dsn=dsn-value)"
+has NB_STORE_ENGINE_POSTGRES_DSN "$out"
 lacks dsn-value "$(awk '/^kind: ConfigMap/,/^---/' <<<"$out")"
 
 # 14. Persistence: Recreate strategy and a kept PVC.
