@@ -197,6 +197,22 @@ entries:
     urls:
     - https://github.com/netbirdio/helms/releases/download/helm-v1.6.1/netbird-1.6.1.tgz
     version: 1.6.1
+  netbird-ee:
+  - apiVersion: v2
+    appVersion: 0.82.0-enterprise.1
+    created: "2026-11-05T15:22:58.480259185Z"
+    dependencies:
+    - name: netbird
+      repository: file://../netbird
+      version: ^2.0.0
+    description: NetBird enterprise, single instance, on the netbird chart
+    digest: 12da4429226b39ea6839b612a5d747be2272a4e27139cc93b42a199cc7ab3bda
+    icon: https://images.crunchbase.com/image/upload/c_pad,h_256,w_256,f_auto,q_auto:eco,dpr_1/kuu5tm1wt09ztp6ctlag
+    name: netbird-ee
+    type: application
+    urls:
+    - https://github.com/netbirdio/helms/releases/download/netbird-ee-v0.1.0-rc.1/netbird-ee-0.1.0-rc.1.tgz
+    version: 0.1.0-rc.1
   netbird-operator-config:
   - apiVersion: v2
     appVersion: 0.2.0
@@ -208,4 +224,4 @@ entries:
     urls:
     - https://github.com/netbirdio/helms/releases/download/helm-v0.1.0/netbird-operator-config-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-05T13:10:32.117722328Z"
+generated: "2026-11-05T15:22:58.476971426Z"
