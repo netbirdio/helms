@@ -129,6 +129,7 @@ lacks "nodePort" "$out"
 # 20. rootless is off by default: no security context, port 80.
 out="$(render "${required[@]}")"
 lacks "runAsNonRoot" "$out"
+lacks "readOnlyRootFilesystem" "$out"; lacks "mountPath: /tmp" "$out"
 test "$(grep -c "containerPort: 80$" <<<"$out")" = 3 || { echo "FAIL: want port 80 on dashboard, management and signal"; exit 1; }
 has 'image: "netbirdio/dashboard:v2.96.0"' "$out"
 
@@ -138,6 +139,8 @@ out="$(render "${required[@]}" "${rootless[@]}")"
 test "$(grep -c "runAsNonRoot: true" <<<"$out")" = 4 || { echo "FAIL: want runAsNonRoot on 4 pods"; exit 1; }
 test "$(grep -c "allowPrivilegeEscalation: false" <<<"$out")" = 4 || { echo "FAIL: want allowPrivilegeEscalation false on 4 containers"; exit 1; }
 test "$(grep -c "runAsUser: 65532" <<<"$out")" = 3 || { echo "FAIL: want runAsUser on 3 backend pods"; exit 1; }
+test "$(grep -c "readOnlyRootFilesystem: true" <<<"$out")" = 3 || { echo "FAIL: want a read-only root filesystem on 3 backend containers"; exit 1; }
+test "$(grep -c "mountPath: /tmp$" <<<"$out")" = 1 || { echo "FAIL: want /tmp on management only"; exit 1; }
 test "$(grep -c "containerPort: 8080$" <<<"$out")" = 2 || { echo "FAIL: want port 8080 on dashboard and management"; exit 1; }
 has "containerPort: 10000" "$out"
 has 'image: "netbirdio/dashboard:v2.96.0-rootless"' "$out"
@@ -158,6 +161,8 @@ out="$(render "${required[@]}" --set backend.split.signal.rootless=true \
   --set backend.split.signal.container.port=9999 --show-only templates/split/signal/deployment.yaml)"
 has "runAsUser: 1000" "$out"; has "runAsGroup: 65532" "$out"; lacks "fsGroup" "$out"
 has "containerPort: 9999" "$out"; has "--port=9999" "$out"
+out="$(render "${required[@]}" --set backend.split.management.rootless=true --set backend.split.management.container.securityContext.readOnlyRootFilesystem=null --show-only templates/split/management/deployment.yaml)"
+lacks "readOnlyRootFilesystem" "$out"; has "allowPrivilegeEscalation: false" "$out"
 
 # 20d. A rootless dashboard runs the -rootless tag variant; an explicit variant or a digest is kept.
 out="$(render "${required[@]}" --set dashboard.rootless=true --set dashboard.image.tag=v2.96.0-rootless --show-only templates/dashboard/deployment.yaml)"
