@@ -21,7 +21,8 @@ dashboard:
   replicaCount: 1
   # Restricted Pod Security Standard defaults, merged under pod and container
   # securityContext, container port 8080, and the image tag's -rootless variant
-  # (image.digest must already be one). See examples/rootless.
+  # (image.digest must already be one). The root filesystem stays writable: the
+  # image rewrites its nginx config and html at start-up. See examples/rootless.
   rootless: false
 
   image:
@@ -124,7 +125,8 @@ backend:
       namespace: ""
       replicaCount: 1
       # Restricted Pod Security Standard defaults, merged under pod and container
-      # securityContext: non-root user 65532 with fsGroup, and container port 8080.
+      # securityContext: non-root user 65532 with fsGroup, a read-only root
+      # filesystem with an emptyDir on /tmp, and container port 8080.
       # See examples/rootless.
       rootless: false
 
@@ -339,8 +341,8 @@ backend:
       namespace: ""
       replicaCount: 1
       # Restricted Pod Security Standard defaults, merged under pod and container
-      # securityContext: non-root user 65532 with fsGroup, and container port 10000.
-      # See examples/rootless.
+      # securityContext: non-root user 65532 with fsGroup, a read-only root
+      # filesystem, and container port 10000. See examples/rootless.
       rootless: false
 
       image:
@@ -439,8 +441,8 @@ backend:
       namespace: ""
       replicaCount: 1
       # Restricted Pod Security Standard defaults, merged under pod and container
-      # securityContext: non-root user 65532 with fsGroup.
-      # See examples/rootless.
+      # securityContext: non-root user 65532 with fsGroup and a read-only root
+      # filesystem. See examples/rootless.
       rootless: false
 
       image:

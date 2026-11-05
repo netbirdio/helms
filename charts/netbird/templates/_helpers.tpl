@@ -43,10 +43,14 @@
 {{- end -}}
 {{- end -}}
 
-{{/* Restricted Pod Security Standard defaults for rootless components. Context: kind (pod, backendPod or container). */}}
+{{/* Restricted Pod Security Standard defaults for rootless components. Context: kind (pod, backendPod, container or backendContainer). */}}
 {{- define "netbird.rootlessSecurityContext" -}}
-{{- if eq .kind "container" -}}
+{{- if has .kind (list "container" "backendContainer") -}}
 allowPrivilegeEscalation: false
+{{- if eq .kind "backendContainer" }}
+{{- /* Not the dashboard: its image rewrites the nginx config and html at start-up. */}}
+readOnlyRootFilesystem: true
+{{- end }}
 capabilities:
   drop:
     - ALL
@@ -67,7 +71,7 @@ seccompProfile:
 Security context: the rootless defaults when rootless is set, then each key of
 securityContext replaces its default (null removes it). Pod contexts lose
 runAsUser, runAsGroup and fsGroup on OpenShift.
-Context: root, rootless, kind (pod, backendPod or container), securityContext.
+Context: root, rootless, kind (pod, backendPod, container or backendContainer), securityContext.
 */}}
 {{- define "netbird.securityContext" -}}
 {{- $context := dict -}}
@@ -81,7 +85,7 @@ Context: root, rootless, kind (pod, backendPod or container), securityContext.
 {{- $_ := set $context $key $value -}}
 {{- end -}}
 {{- end -}}
-{{- if ne .kind "container" -}}
+{{- if not (has .kind (list "container" "backendContainer")) -}}
 {{- $mode := .root.Values.global.compatibility.openshift.adaptSecurityContext -}}
 {{- if not (has $mode (list "auto" "force" "disabled")) -}}
 {{- fail (printf "global.compatibility.openshift.adaptSecurityContext must be auto, force or disabled, got %q" $mode) -}}

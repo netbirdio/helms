@@ -80,7 +80,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           securityContext:
-            {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "container" "securityContext" $values.container.securityContext) | nindent 12 }}
+            {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "backendContainer" "securityContext" $values.container.securityContext) | nindent 12 }}
           {{- if or (not $values.overrideConfig) $values.env $values.envRaw $values.envFromSecret }}
           env:
             {{- if not $values.overrideConfig }}
@@ -125,6 +125,10 @@ spec:
               subPath: management.json
             - name: data
               mountPath: {{ $values.persistence.mountPath }}
+            {{- if $values.rootless }}
+            - name: tmp
+              mountPath: /tmp
+            {{- end }}
             {{- with $values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -140,6 +144,11 @@ spec:
           {{- /* The image's data directory is root-owned; give the non-root user a writable one. */}}
           emptyDir: {}
           {{- end }}
+        {{- if $values.rootless }}
+        {{- /* The root filesystem is read-only; the geolocation download goes to /tmp. */}}
+        - name: tmp
+          emptyDir: {}
+        {{- end }}
         {{- with $values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
