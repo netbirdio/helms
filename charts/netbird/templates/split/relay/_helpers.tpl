@@ -14,9 +14,12 @@
 {{- if or (not (has $url.scheme (list "rel" "rels"))) (not $url.host) -}}
 {{- fail (printf "backend.split.relay.config.exposedAddressTemplate must look like rels://relay-%%d.example.com:443/relay, got %q" $template) -}}
 {{- end -}}
-{{- /* Clients dial wss://<host>/relay whatever path the address has, so only the host tells pods apart. */ -}}
-{{- if eq $url.host (urlParse (replace "%d" "1" $template)).host -}}
-{{- fail (printf "backend.split.relay.config.exposedAddressTemplate must put %%d in the hostname, e.g. rels://relay-%%d.example.com:443/relay: clients ignore the path, got %q" $template) -}}
+{{- /* Clients dial wss://<host>/relay whatever path the address has, and every pod serves the same port, so only the hostname tells pods apart. */ -}}
+{{- if eq (regexReplaceAll ":[0-9]+$" $url.host "") (regexReplaceAll ":[0-9]+$" (urlParse (replace "%d" "1" $template)).host "") -}}
+{{- fail (printf "backend.split.relay.config.exposedAddressTemplate must put %%d in the hostname, e.g. rels://relay-%%d.example.com:443/relay: clients ignore the path and every pod serves the same port, got %q" $template) -}}
+{{- end -}}
+{{- if and $values.service.externalIPs (gt (int $values.replicaCount) 1) -}}
+{{- fail "backend.split.relay.service.externalIPs cannot be used with more than one per-pod relay: every per-pod Service would claim the same IP and port, so traffic could not reach a specific pod" -}}
 {{- end -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
 {{- if gt (len $name) 52 -}}

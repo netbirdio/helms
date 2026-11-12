@@ -274,7 +274,7 @@ In per-pod mode the chart renders:
 | --- | --- | --- |
 | StatefulSet | `<fullname>-relay` | Replaces the Deployment. `podManagementPolicy: Parallel`. The ordinal comes from the `apps.kubernetes.io/pod-index` label, which needs Kubernetes 1.28 or later |
 | Service, headless | `<fullname>-relay-headless` | The StatefulSet's governing Service; `http` port only |
-| Service per pod | `<fullname>-relay-<ordinal>` | Selects one pod by `statefulset.kubernetes.io/pod-name`; takes `service.type`, `annotations` and `externalIPs`, so each can be its own `LoadBalancer` |
+| Service per pod | `<fullname>-relay-<ordinal>` | Selects one pod by `statefulset.kubernetes.io/pod-name`; takes `service.type` and `annotations`, so each can be its own `LoadBalancer`; `externalIPs` only with one replica |
 | Ingress | `<fullname>-relay` | When `ingress.enabled`: one rule per pod, for that pod's hostname and path `/relay`. `ingress.hosts` is ignored; `className`, `annotations` and `tls` apply |
 | PodDisruptionBudget | `<fullname>-relay` | `maxUnavailable: 1` when `replicaCount` is above 1; `podDisruptionBudget.enabled: false` turns it off |
 
@@ -284,6 +284,6 @@ Management advertises every pod's address: `backend.split.management.config.rela
 
 Without `topologySpreadConstraints`, relay pods spread softly (`ScheduleAnyway`) over zones and nodes, so a node drain takes down one relay at a time. Setting `topologySpreadConstraints` replaces those defaults, in per-pod mode and otherwise.
 
-`%d` must be in the hostname. Clients connect to `wss://<host>/relay` whatever path the address carries, so `rels://netbird.example.com:443/relay-%d` would send every peer to any pod; the render rejects it.
+`%d` must be in the hostname. Clients connect to `wss://<host>/relay` whatever path the address carries, and every pod serves the same port, so `rels://netbird.example.com:443/relay-%d` or `rels://netbird.example.com:44%d/relay` would send every peer to any pod; the render rejects both. For the same reason, `service.externalIPs` is rejected with more than one per-pod relay: every per-pod Service would claim the same IP and port.
 
 Each address needs a DNS name and a TLS certificate that cover it, for example a wildcard such as `*.netbird.example.com`. Switching an existing release to per-pod mode replaces the relay Deployment with the StatefulSet, so relayed connections drop once while clients reconnect to the new addresses. The STUN Service still selects every relay pod, because STUN holds no per-peer state.

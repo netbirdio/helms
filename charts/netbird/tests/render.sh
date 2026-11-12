@@ -191,6 +191,9 @@ fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.r
 fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d-%d.example.com:443/relay
 fails_with "must look like rels://relay-%d.example.com:443/relay" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=https://relay-%d.example.com/relay
 fails_with "must put %d in the hostname" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://netbird.example.com:443/relay-%d
+fails_with "must put %d in the hostname" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://netbird.example.com:44%d/relay
+fails_with "externalIPs cannot be used with more than one per-pod relay" "${required[@]}" --set backend.split.relay.replicaCount=2 --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.example.com:443/relay --set "backend.split.relay.service.externalIPs[0]=203.0.113.10"
+render "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.example.com:443/relay --set "backend.split.relay.service.externalIPs[0]=203.0.113.10" >/dev/null
 fails_with "shorten fullnameOverride" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.x:443/relay --set fullnameOverride=$(printf 'n%.0s' {1..50})
 
 # 25. Per-pod relays: a StatefulSet with one address, Service and ingress rule per pod, all advertised by management.
