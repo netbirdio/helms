@@ -29,6 +29,13 @@
 {{- end -}}
 {{- end -}}
 {{- with $config.relay -}}
+{{- if and $.Values.backend.split.relay.enabled (include "netbird.relay.perPod" $) -}}
+{{- $addresses := list -}}
+{{- range $pod := include "netbird.relay.podAddresses" $ | fromJsonArray -}}
+{{- $addresses = append $addresses $pod.address -}}
+{{- end -}}
+{{- $_ := set . "addresses" $addresses -}}
+{{- end -}}
 {{- $_ := unset . "secretRef" -}}
 {{- $_ := set . "secret" "{{ .NB_RELAY_AUTH_SECRET }}" -}}
 {{- end -}}

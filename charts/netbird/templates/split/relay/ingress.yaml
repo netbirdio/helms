@@ -2,6 +2,7 @@
 {{- if .Values.backend.split.relay.ingress.enabled }}
 {{- $ingress := .Values.backend.split.relay.ingress -}}
 {{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
+{{- $port := .Values.backend.split.relay.service.port -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -22,6 +23,21 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
+    {{- if include "netbird.relay.perPod" . }}
+    {{- /* One host per pod; clients always request /relay. ingress.hosts does not apply. */}}
+    {{- range $pod := include "netbird.relay.podAddresses" . | fromJsonArray }}
+    - host: {{ $pod.host | quote }}
+      http:
+        paths:
+          - path: /relay
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "netbird.componentName" (dict "root" $ "component" (printf "relay-%d" (int $pod.ordinal))) }}
+                port:
+                  number: {{ $port }}
+    {{- end }}
+    {{- else }}
     {{- range $ingress.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -33,8 +49,9 @@ spec:
               service:
                 name: {{ $name }}
                 port:
-                  number: {{ $.Values.backend.split.relay.service.port }}
+                  number: {{ $port }}
           {{- end }}
+    {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}

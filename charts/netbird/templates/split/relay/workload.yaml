@@ -3,8 +3,9 @@
 {{- $name := include "netbird.componentName" (dict "root" . "component" "relay") -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
 {{- $authSecretRef := default dict $values.config.authSecretRef -}}
+{{- $perPod := include "netbird.relay.perPod" . -}}
 apiVersion: apps/v1
-kind: Deployment
+kind: {{ ternary "StatefulSet" "Deployment" (eq $perPod "true") }}
 metadata:
   name: {{ $name }}
   namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "relay") }}
@@ -16,6 +17,10 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ $values.replicaCount }}
+  {{- if $perPod }}
+  serviceName: {{ include "netbird.componentName" (dict "root" . "component" "relay-headless") }}
+  podManagementPolicy: Parallel
+  {{- end }}
   selector:
     matchLabels:
       {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 6 }}
@@ -46,7 +51,11 @@ spec:
           {{- end }}
           args:
             - --listen-address=:{{ $values.container.port }}
+            {{- if $perPod }}
+            - --exposed-address={{ replace "%d" "$(RELAY_POD_INDEX)" $values.config.exposedAddressTemplate }}
+            {{- else }}
             - --exposed-address={{ $values.config.exposedAddress }}
+            {{- end }}
             - --metrics-port={{ $values.config.metrics.port }}
             - --log-level={{ $values.config.log.level }}
             - --log-file={{ $values.config.log.file }}
@@ -93,11 +102,20 @@ spec:
                   name: {{ $credentialsName }}
                   key: relay-auth-secret
                   {{- end }}
+            {{- $reserved := list "NB_AUTH_SECRET" }}
             {{- with $values.config.trustedProxies }}
+            {{- $reserved = append $reserved "NB_TRUSTED_PROXIES" }}
             - name: NB_TRUSTED_PROXIES
               value: {{ . | quote }}
             {{- end }}
-            {{- include "netbird.env" (dict "values" $values "reserved" (ternary (list "NB_AUTH_SECRET" "NB_TRUSTED_PROXIES") (list "NB_AUTH_SECRET") (not (empty $values.config.trustedProxies)))) | nindent 12 }}
+            {{- if $perPod }}
+            {{- $reserved = append $reserved "RELAY_POD_INDEX" }}
+            - name: RELAY_POD_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            {{- end }}
+            {{- include "netbird.env" (dict "values" $values "reserved" $reserved) | nindent 12 }}
           {{- with $values.lifecycle }}
           lifecycle:
             {{- toYaml . | nindent 12 }}
@@ -148,5 +166,19 @@ spec:
       {{- with $values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml $values.topologySpreadConstraints | nindent 8 }}
+      {{- else if $perPod }}
+      topologySpreadConstraints:
+        {{- range $key := list "topology.kubernetes.io/zone" "kubernetes.io/hostname" }}
+        - maxSkew: 1
+          topologyKey: {{ $key }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "netbird.selectorLabels" (dict "root" $ "component" "relay") | nindent 14 }}
+        {{- end }}
       {{- end }}
 {{- end }}
