@@ -117,7 +117,7 @@ out="$(render "${required[@]}")"
 test "$(grep -c "appProtocol: kubernetes.io/h2c" <<<"$out")" = 2 || { echo "FAIL: want 2 h2c ports"; exit 1; }
 
 # 18. Image digest and global registry.
-out="$(render "${required[@]}" --set global.imageRegistry=reg.example.com --set backend.split.relay.image.digest=sha256:abc --show-only templates/split/relay/deployment.yaml)"
+out="$(render "${required[@]}" --set global.imageRegistry=reg.example.com --set backend.split.relay.image.digest=sha256:abc --show-only templates/split/relay/workload.yaml)"
 has 'image: "reg.example.com/netbirdio/relay@sha256:abc"' "$out"
 
 # 19. Fixed STUN node ports.
@@ -184,5 +184,38 @@ out="$(render "${required[@]}" \
 grep -A4 "name: FROM_SECRET" <<<"$out" | grep -qF "name: s" || { echo "FAIL: env valueFrom"; exit 1; }
 grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL: dashboard env valueFrom"; exit 1; }
 fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
+
+# 24. More than one relay needs a per-pod address; a malformed template is rejected.
+fails_with "replicaCount > 1 needs backend.split.relay.config.exposedAddressTemplate" "${required[@]}" --set backend.split.relay.replicaCount=2
+fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay.example.com:443/relay
+fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d-%d.example.com:443/relay
+fails_with "must look like rels://relay-%d.example.com:443/relay" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=https://relay-%d.example.com/relay
+fails_with "must put %d in the hostname" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://netbird.example.com:443/relay-%d
+fails_with "must put %d in the hostname" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://netbird.example.com:44%d/relay
+fails_with "externalIPs cannot be used with more than one per-pod relay" "${required[@]}" --set backend.split.relay.replicaCount=2 --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.example.com:443/relay --set "backend.split.relay.service.externalIPs[0]=203.0.113.10"
+render "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.example.com:443/relay --set "backend.split.relay.service.externalIPs[0]=203.0.113.10" >/dev/null
+fails_with "shorten fullnameOverride" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.x:443/relay --set fullnameOverride=$(printf 'n%.0s' {1..50})
+
+# 25. Per-pod relays: a StatefulSet with one address, Service and ingress rule per pod, all advertised by management.
+perPod=(--set backend.split.relay.replicaCount=2 --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d.example.com:443/relay --set backend.split.relay.ingress.enabled=true)
+out="$(render "${required[@]}" "${perPod[@]}")"
+workload="$(render "${required[@]}" "${perPod[@]}" --show-only templates/split/relay/workload.yaml)"
+has "kind: StatefulSet" "$workload"; lacks "kind: Deployment" "$workload"
+has 'exposed-address=rels://relay-$(RELAY_POD_INDEX).example.com:443/relay' "$workload"
+has "fieldPath: metadata.labels['apps.kubernetes.io/pod-index']" "$workload"
+has "serviceName: t-netbird-relay-headless" "$workload"
+has "topologyKey: topology.kubernetes.io/zone" "$workload"
+has "statefulset.kubernetes.io/pod-name: t-netbird-relay-1" "$out"
+ingress="$(render "${required[@]}" "${perPod[@]}" --show-only templates/split/relay/ingress.yaml)"
+has 'host: "relay-1.example.com"' "$ingress"; has "name: t-netbird-relay-1" "$ingress"; lacks 'host: "netbird.example.com"' "$ingress"
+has '"rels://relay-0.example.com:443/relay",' "$out"; has '"rels://relay-1.example.com:443/relay"' "$out"
+has "kind: PodDisruptionBudget" "$out"
+lacks "kind: PodDisruptionBudget" "$(render "${required[@]}" "${perPod[@]}" --set backend.split.relay.podDisruptionBudget.enabled=false)"
+lacks "kind: PodDisruptionBudget" "$(render "${required[@]}" "${perPod[@]}" --set backend.split.relay.replicaCount=1)"
+fails_with "RELAY_POD_INDEX is set more than once" "${required[@]}" "${perPod[@]}" --set backend.split.relay.env.RELAY_POD_INDEX=x
+
+# 26. Only per-pod Services carry metrics, so a ServiceMonitor scrapes each relay once.
+out="$(render "${required[@]}" "${perPod[@]}" --set backend.split.relay.config.metrics.enabled=true --show-only templates/split/relay/service.yaml)"
+test "$(grep -c "name: metrics" <<<"$out")" = 2 || { echo "FAIL: want metrics on the 2 per-pod Services only"; exit 1; }
 
 echo "render checks passed"
