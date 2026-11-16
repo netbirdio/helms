@@ -185,4 +185,17 @@ grep -A4 "name: FROM_SECRET" <<<"$out" | grep -qF "name: s" || { echo "FAIL: env
 grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL: dashboard env valueFrom"; exit 1; }
 fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
 
+# 24. The relay QUIC listener shares the WebSocket port over UDP, and only when
+# the relay terminates TLS itself.
+tls=(--set backend.split.relay.config.tls.certFile=/tls/tls.crt --set backend.split.relay.config.tls.keyFile=/tls/tls.key)
+out="$(render "${required[@]}")"
+lacks "protocol: UDP" "$out"
+fails_with "needs the relay to terminate TLS" "${required[@]}" --set backend.split.relay.service.quic.enabled=true
+out="$(render "${required[@]}" "${tls[@]}" --set backend.split.relay.service.quic.enabled=true --show-only templates/split/relay/service.yaml)"
+has "name: quic" "$out"; has "targetPort: quic" "$out"; has "protocol: UDP" "$out"
+test "$(grep -c "port: 33080" <<<"$out")" = 2 || { echo "FAIL: want QUIC on the WebSocket port"; exit 1; }
+out="$(render "${required[@]}" --set 'backend.split.relay.config.letsencrypt.domains[0]=relay.example.com' --set backend.split.relay.service.quic.enabled=true --show-only templates/split/relay/deployment.yaml)"
+grep -A2 "name: quic" <<<"$out" | grep -qF "protocol: UDP" || { echo "FAIL: quic containerPort"; exit 1; }
+grep -A2 "name: quic" <<<"$out" | grep -qF "containerPort: 33080" || { echo "FAIL: quic containerPort number"; exit 1; }
+
 echo "render checks passed"
