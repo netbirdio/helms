@@ -95,6 +95,8 @@ On OpenShift, `restricted-v2` assigns the user and group from the namespace rang
 
 Without persistence, management mounts an `emptyDir` at its data directory, so a non-root user can write to it.
 
+The generated service accounts set `automountServiceAccountToken: false`: no NetBird component calls the Kubernetes API, so the pods need no token, and mounting one is flagged by policy scanners such as Kubescape ([C-0190](https://kubescape.io/docs/controls/c-0190/)). Set `serviceAccount.automountServiceAccountToken: true` on a component when something else in its pod, such as an injected sidecar, needs the token.
+
 ## Version-specific values
 
 The following additive fields are effective on NetBird 0.77.0 or newer and ignored by 0.74.0:
