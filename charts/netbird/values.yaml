@@ -534,6 +534,12 @@ backend:
         port: 33080
         annotations: {}
         externalIPs: []
+        # The relay serves QUIC on the WebSocket port over UDP. It only starts
+        # that listener when it terminates TLS itself, through
+        # config.letsencrypt or config.tls, so this stays off by default.
+        # A LoadBalancer carrying both protocols needs Kubernetes 1.26+.
+        quic:
+          enabled: false
 
       stunService:
         enabled: false

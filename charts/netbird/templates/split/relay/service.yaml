@@ -1,5 +1,10 @@
 {{- if .Values.backend.split.relay.enabled }}
 {{- $values := .Values.backend.split.relay -}}
+{{- if $values.service.quic.enabled }}
+{{- if not (or $values.config.tls.certFile $values.config.letsencrypt.domains) }}
+{{- fail "backend.split.relay.service.quic.enabled needs the relay to terminate TLS: set backend.split.relay.config.tls or backend.split.relay.config.letsencrypt.domains" }}
+{{- end }}
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -18,6 +23,12 @@ spec:
       port: {{ $values.service.port }}
       targetPort: http
       protocol: TCP
+    {{- if $values.service.quic.enabled }}
+    - name: quic
+      port: {{ $values.service.port }}
+      targetPort: quic
+      protocol: UDP
+    {{- end }}
     {{- if $values.config.metrics.enabled }}
     - name: metrics
       port: {{ $values.config.metrics.port }}
