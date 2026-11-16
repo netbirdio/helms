@@ -185,4 +185,14 @@ grep -A4 "name: FROM_SECRET" <<<"$out" | grep -qF "name: s" || { echo "FAIL: env
 grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL: dashboard env valueFrom"; exit 1; }
 fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
 
+# 24. An air-gapped image keeps its own data directory: no volume, no mount.
+out="$(render "${required[@]}" --set backend.split.management.persistence.enabled=false --set backend.split.management.persistence.mount=false --show-only templates/split/management/deployment.yaml)"
+lacks "emptyDir: {}" "$out"
+lacks "mountPath: /var/lib/netbird" "$out"
+lacks "name: data" "$out"
+has "mountPath: /etc/netbird/management.json" "$out"
+fails_with "persistence.mount cannot be false while persistence.enabled is true" "${required[@]}" --set backend.split.management.persistence.mount=false
+out="$(render "${required[@]}" --set backend.split.management.persistence.enabled=false --set backend.split.management.persistence.mount=false)"
+lacks "kind: PersistentVolumeClaim" "$out"
+
 echo "render checks passed"

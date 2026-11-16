@@ -95,6 +95,8 @@ On OpenShift, `restricted-v2` assigns the user and group from the namespace rang
 
 Without persistence, management mounts an `emptyDir` at its data directory, so a non-root user can write to it.
 
+That `emptyDir` hides whatever the image ships at the same path. An air-gapped management image that bakes in the geolocation databases should therefore set both `backend.split.management.persistence.enabled: false` and `persistence.mount: false`, which leaves the image's own data directory in place. The directory must already be writable by the container, so pair it with an image built for the user the pod runs as. Leaving `mount: false` while persistence is enabled fails the render, because a claim that is never mounted keeps no data.
+
 ## Version-specific values
 
 The following additive fields are effective on NetBird 0.77.0 or newer and ignored by 0.74.0:
