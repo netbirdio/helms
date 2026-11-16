@@ -185,4 +185,10 @@ grep -A4 "name: FROM_SECRET" <<<"$out" | grep -qF "name: s" || { echo "FAIL: env
 grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL: dashboard env valueFrom"; exit 1; }
 fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
 
+# 24. Service accounts do not automount a token, and the field stays configurable.
+out="$(render "${required[@]}")"
+test "$(grep -c "^automountServiceAccountToken: false" <<<"$out")" = 4 || { echo "FAIL: want 4 service accounts without an automounted token"; exit 1; }
+out="$(render "${required[@]}" --set backend.split.relay.serviceAccount.automountServiceAccountToken=true --show-only templates/split/relay/serviceaccount.yaml)"
+has "automountServiceAccountToken: true" "$out"
+
 echo "render checks passed"

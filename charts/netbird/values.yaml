@@ -36,6 +36,9 @@ dashboard:
     create: true
     annotations: {}
     name: ""
+    # NetBird does not call the Kubernetes API, so the pods need no
+    # token. Set true if a webhook or sidecar in the pod needs one.
+    automountServiceAccountToken: false
 
   deployment:
     annotations: {}
@@ -140,6 +143,9 @@ backend:
         create: true
         annotations: {}
         name: ""
+        # NetBird does not call the Kubernetes API, so the pods need no
+        # token. Set true if a webhook or sidecar in the pod needs one.
+        automountServiceAccountToken: false
 
       deployment:
         annotations: {}
@@ -355,6 +361,9 @@ backend:
         create: true
         annotations: {}
         name: ""
+        # NetBird does not call the Kubernetes API, so the pods need no
+        # token. Set true if a webhook or sidecar in the pod needs one.
+        automountServiceAccountToken: false
 
       deployment:
         annotations: {}
@@ -455,6 +464,9 @@ backend:
         create: true
         annotations: {}
         name: ""
+        # NetBird does not call the Kubernetes API, so the pods need no
+        # token. Set true if a webhook or sidecar in the pod needs one.
+        automountServiceAccountToken: false
 
       deployment:
         annotations: {}
