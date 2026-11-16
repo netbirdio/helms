@@ -215,6 +215,11 @@ backend:
       persistence:
         enabled: true
         mountPath: /var/lib/netbird
+        # Mounts a volume at mountPath. Turn it off, together with enabled, to
+        # keep the data directory that ships inside the image: an air-gapped
+        # management image carrying the geolocation databases, for example.
+        # The image's directory must then already be writable by the container.
+        mount: true
         accessModes:
           - ReadWriteOnce
         size: 1Gi

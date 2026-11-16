@@ -4,6 +4,9 @@
 {{- $port := include "netbird.containerPort" (dict "values" $values "rootlessPort" 8080) -}}
 {{- $credentialsName := printf "%s-credentials" $name -}}
 {{- $relayValues := .Values.backend.split.relay -}}
+{{- if and $values.persistence.enabled (not $values.persistence.mount) -}}
+{{- fail "backend.split.management.persistence.mount cannot be false while persistence.enabled is true: a claim that is never mounted keeps no data" -}}
+{{- end -}}
 {{- $secretEnv := list -}}
 {{- $reservedEnv := list -}}
 {{- if not $values.overrideConfig -}}
@@ -123,8 +126,10 @@ spec:
             - name: config
               mountPath: /etc/netbird/management.json
               subPath: management.json
+            {{- if $values.persistence.mount }}
             - name: data
               mountPath: {{ $values.persistence.mountPath }}
+            {{- end }}
             {{- with $values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -132,6 +137,7 @@ spec:
         - name: config
           configMap:
             name: {{ $name }}
+        {{- if $values.persistence.mount }}
         - name: data
           {{- if $values.persistence.enabled }}
           persistentVolumeClaim:
@@ -140,6 +146,7 @@ spec:
           {{- /* The image's data directory is root-owned; give the non-root user a writable one. */}}
           emptyDir: {}
           {{- end }}
+        {{- end }}
         {{- with $values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
