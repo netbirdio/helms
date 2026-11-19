@@ -26,7 +26,7 @@ const (
 	Domain          = "netbird.e2e.test"
 	DashboardDomain = "dashboard." + Domain
 
-	// RelayReplicas is how many relays EnablePerPodRelays runs, relay i at RelayHost(i).
+	// RelayReplicas is how many relays ScaleRelays runs, relay i at RelayHost(i).
 	RelayReplicas = 2
 
 	// Namespace and ReleaseName are where and as what the chart is installed.
@@ -86,8 +86,8 @@ type Env struct {
 	ca          *framework.CertAuthority
 	ingress     *framework.IngressForward
 	peers       []*Peer
-	// perPodRelays is whether EnablePerPodRelays ran, so upgrades keep it.
-	perPodRelays bool
+	// scaledRelays is whether ScaleRelays ran, so upgrades keep it.
+	scaledRelays bool
 }
 
 // Bootstrap brings the environment up: the cluster, ingress-nginx, the chart at
@@ -184,7 +184,7 @@ func (e *Env) prepareNamespace(ctx context.Context) error {
 	return os.WriteFile(e.caPath(), e.ca.CertPEM, 0o644)
 }
 
-// RelayHost is relay i's hostname once EnablePerPodRelays runs one relay per pod.
+// RelayHost is relay i's hostname; relay 0 runs from the start, the rest once ScaleRelays runs.
 func RelayHost(i int) string {
 	return fmt.Sprintf("relay-%d.%s", i, Domain)
 }

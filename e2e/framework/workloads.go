@@ -8,25 +8,45 @@ import (
 	"slices"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// WaitDeploymentImage waits until a Deployment runs image in all its ready
-// replicas, with no old pod left.
-func (c *Cluster) WaitDeploymentImage(ctx context.Context, namespace, name, image string) error {
+// WaitWorkloadImage waits until the Deployment name, or the StatefulSet name
+// when there is no such Deployment, runs image in all its ready replicas, with
+// no old pod left.
+func (c *Cluster) WaitWorkloadImage(ctx context.Context, namespace, name, image string) error {
 	return wait.PollUntilContextTimeout(ctx, 3*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+		var (
+			kind                     = "deployment"
+			meta                     metav1.ObjectMeta
+			containers               []corev1.Container
+			want                     int32
+			observed                 int64
+			updated, ready, replicas int32
+		)
 		d, err := c.Kube.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
+		switch {
+		case err == nil:
+			meta, containers, want = d.ObjectMeta, d.Spec.Template.Spec.Containers, *d.Spec.Replicas
+			observed, updated, ready, replicas = d.Status.ObservedGeneration, d.Status.UpdatedReplicas, d.Status.ReadyReplicas, d.Status.Replicas
+		case apierrors.IsNotFound(err):
+			s, err := c.Kube.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
+			kind = "statefulset"
+			meta, containers, want = s.ObjectMeta, s.Spec.Template.Spec.Containers, *s.Spec.Replicas
+			observed, updated, ready, replicas = s.Status.ObservedGeneration, s.Status.UpdatedReplicas, s.Status.ReadyReplicas, s.Status.Replicas
+		default:
 			return false, err
 		}
-		if d.Spec.Template.Spec.Containers[0].Image != image {
-			return false, fmt.Errorf("deployment %s runs %s, want %s", name, d.Spec.Template.Spec.Containers[0].Image, image)
+		if containers[0].Image != image {
+			return false, fmt.Errorf("%s %s runs %s, want %s", kind, name, containers[0].Image, image)
 		}
-		return d.Status.ObservedGeneration >= d.Generation &&
-			d.Status.UpdatedReplicas == *d.Spec.Replicas &&
-			d.Status.ReadyReplicas == *d.Spec.Replicas &&
-			d.Status.Replicas == *d.Spec.Replicas, nil
+		return observed >= meta.Generation && updated == want && ready == want && replicas == want, nil
 	})
 }
 

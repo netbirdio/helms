@@ -40,7 +40,7 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
 | File | Concern |
 | --- | --- |
 | `cluster.go` | `Cluster`: create and delete the Kind cluster, install ingress-nginx, create namespaces and TLS Secrets, run helm |
-| `workloads.go` | Wait for a Deployment's rollout, restart pods |
+| `workloads.go` | Wait for a Deployment's or StatefulSet's rollout, restart pods |
 | `forward.go` | The port-forward and HTTP client that reach the ingress from the host |
 | `tls.go` | The CA that signs the ingress certificates |
 | `diagnostics.go` | Pod logs and events, for when something fails |
@@ -69,7 +69,7 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
    4. netbird-ee only: the enterprise images run, and management starts the enterprise server.
    5. Two peers forced onto the relay connect through it.
    6. Management's pod is deleted, and every peer is still listed and reconnects.
-   7. netbird only: the relay moves to per-pod mode with two pods. Two relay-only peers, each resolving only its own relay until that becomes its home, connect across the pods.
+   7. netbird only: the per-pod relay scales from one pod to two. Two relay-only peers, each resolving only its own relay until that becomes its home, connect across the pods.
 3. **Teardown**: remove the peers and the cluster.
 
 The peers run in Docker containers on Kind's network, outside the cluster. They resolve `netbird.e2e.test` and the per-pod relay names `relay-<n>.netbird.e2e.test` to the Kind node, where ingress-nginx listens on 443, so they reach management, signal and the relay the way users' peers do. The tests reach the same ingress through a port-forward.

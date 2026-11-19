@@ -69,7 +69,7 @@ func (l *Lifecycle) Upgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
-		if err := env.WaitDeploymentImage(t.Context(), "netbird-"+component, l.BackendImage(component, env.DefaultVersion)); err != nil {
+		if err := env.WaitWorkloadImage(t.Context(), "netbird-"+component, l.BackendImage(component, env.DefaultVersion)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -109,10 +109,10 @@ func (l *Lifecycle) ManagementRestart(t *testing.T) {
 	RequireConnected(t, l.gamma, l.delta, ConnRelayed)
 }
 
-// PerPodRelays upgrades to one relay per pod and checks two relay-only peers
+// PerPodRelays scales to RelayReplicas relays, one address per pod, and checks two relay-only peers
 // on different relays connect: one reaches the other through its foreign relay.
 func (l *Lifecycle) PerPodRelays(t *testing.T) {
-	if err := l.Env.EnablePerPodRelays(t.Context()); err != nil {
+	if err := l.Env.ScaleRelays(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	peers, err := l.Env.StartPeersOnRelays(t.Context(), "epsilon", "zeta")

@@ -38,7 +38,7 @@ func testEnterpriseImages(t *testing.T) {
 		images["netbird-"+component] = backendImage(component, env.DefaultVersion)
 	}
 	for name, image := range images {
-		if err := env.WaitDeploymentImage(t.Context(), name, image); err != nil {
+		if err := env.WaitWorkloadImage(t.Context(), name, image); err != nil {
 			t.Fatal(err)
 		}
 	}

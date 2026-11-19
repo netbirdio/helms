@@ -47,18 +47,18 @@ func CommunityVersion(version string) string {
 
 // InstallChart installs chart, or upgrades the release to it, from its
 // examples/kind under the suite's hostnames, with the backends at version.
-// Values set by an earlier EnablePerPodRelays are kept.
+// Values set by an earlier ScaleRelays are kept.
 func (e *Env) InstallChart(ctx context.Context, chart, version string) error {
 	files, err := e.valuesFiles(chart)
 	if err != nil {
 		return err
 	}
-	if e.perPodRelays {
-		perPod, err := writeValues(chart, filepath.Join(e.workDir, "per-pod-relay-values.yaml"), perPodRelayValues())
+	if e.scaledRelays {
+		scaled, err := writeValues(chart, filepath.Join(e.workDir, "scaled-relay-values.yaml"), scaledRelayValues())
 		if err != nil {
 			return err
 		}
-		files = append(files, perPod)
+		files = append(files, scaled)
 	}
 	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(chart), "--namespace", Namespace,
 		"--wait", "--timeout", "10m"}
@@ -116,16 +116,17 @@ func (e *Env) valuesFiles(chart string) ([]string, error) {
 	return append(files, suiteValues), err
 }
 
-// EnablePerPodRelays upgrades the release to RelayReplicas relays, relay i
-// at RelayHost(i), each with its own Service and ingress rule.
-func (e *Env) EnablePerPodRelays(ctx context.Context) error {
-	e.perPodRelays = true
+// ScaleRelays upgrades the release to RelayReplicas relays, relay i at
+// RelayHost(i), each with its own Service and ingress rule: examples/kind
+// already runs the chart's default per-pod relay, at one replica.
+func (e *Env) ScaleRelays(ctx context.Context) error {
+	e.scaledRelays = true
 	return e.InstallChart(ctx, e.Chart, e.DefaultVersion)
 }
 
-// perPodRelayValues lists the relay hostnames under the ingress TLS, so
+// scaledRelayValues lists the relay hostnames under the ingress TLS, so
 // ingress-nginx serves the suite's certificate for them.
-func perPodRelayValues() string {
+func scaledRelayValues() string {
 	var tlsHosts strings.Builder
 	for _, host := range hostnames() {
 		fmt.Fprintf(&tlsHosts, "\n              - %s", host)
@@ -134,13 +135,11 @@ func perPodRelayValues() string {
   split:
     relay:
       replicaCount: %d
-      config:
-        exposedAddressTemplate: rels://relay-%%d.%s:443/relay
       ingress:
         tls:
           - secretName: %s
             hosts:%s
-`, RelayReplicas, Domain, tlsSecretName, tlsHosts.String())
+`, RelayReplicas, tlsSecretName, tlsHosts.String())
 }
 
 // writeValues writes netbird chart values to path, under netbird: when chart
@@ -153,10 +152,10 @@ func writeValues(chart, path, values string) (string, error) {
 	return path, os.WriteFile(path, []byte(values), 0o644)
 }
 
-// WaitDeploymentImage waits until one of the chart's Deployments runs image in
-// all its ready replicas, with no old pod left.
-func (e *Env) WaitDeploymentImage(ctx context.Context, name, image string) error {
-	return e.Cluster.WaitDeploymentImage(ctx, Namespace, name, image)
+// WaitWorkloadImage waits until one of the chart's Deployments or
+// StatefulSets runs image in all its ready replicas, with no old pod left.
+func (e *Env) WaitWorkloadImage(ctx context.Context, name, image string) error {
+	return e.Cluster.WaitWorkloadImage(ctx, Namespace, name, image)
 }
 
 // ManagementLogs returns the logs of management's pods.
