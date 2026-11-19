@@ -37,7 +37,8 @@ This setup requires Kubernetes secrets to store sensitive data. You'll need to c
 Once the required secrets and configuration are in place, this setup will deploy all necessary services for running Netbird, including the following exposed endpoints:
 
 - `netbird-dashboard.example.com` - The Netbird dashboard.
-- `netbird.example.com` - The main Netbird services (management|relay|signal).
+- `netbird.example.com` - The main Netbird services (management|signal).
+- `relay-0.netbird.example.com` - The relay, one hostname per relay pod (`relay-1.netbird.example.com` and on with more replicas); a wildcard DNS record and certificate for `*.netbird.example.com` cover them.
 
 ## Additional info
 

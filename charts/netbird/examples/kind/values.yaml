@@ -39,9 +39,7 @@ backend:
   split:
     management:
       config:
-        relay:
-          addresses:
-            - rels://netbird.localhost:443/relay
+        # relay.addresses comes from the relay's exposedAddressTemplate.
         signal:
           proto: https
           uri: netbird.localhost:443
@@ -122,7 +120,7 @@ backend:
 
     relay:
       config:
-        exposedAddress: rels://netbird.localhost:443/relay
+        exposedAddressTemplate: rels://relay-%d.netbird.localhost:443/relay
         authSecret: netbird-development-relay-secret
       ingress:
         enabled: true
@@ -131,13 +129,8 @@ backend:
           nginx.ingress.kubernetes.io/ssl-redirect: "true"
           nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
           nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-        hosts:
-          - host: netbird.localhost
-            paths:
-              - path: /relay
-                pathType: ImplementationSpecific
+        # One host per relay pod, relay-<ordinal>.netbird.localhost.
         tls:
           - secretName: netbird-local-tls
             hosts:
-              - netbird.localhost
-              - dashboard.netbird.localhost
+              - relay-0.netbird.localhost

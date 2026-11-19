@@ -105,7 +105,7 @@ backend:
         authSecretRef:
           name: netbird
           key: relayPassword
-        exposedAddress: rels://netbird.example.com:443/relay
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay
         log:
           level: info
 
@@ -138,9 +138,10 @@ extraManifests:
               port: 80
               scheme: h2c
         - kind: Rule
-          match: Host(`netbird.example.com`) && PathPrefix(`/relay`)
+          # One rule per relay pod: relay-N.netbird.example.com to netbird-relay-N.
+          match: Host(`relay-0.netbird.example.com`) && PathPrefix(`/relay`)
           services:
-            - name: netbird-relay
+            - name: netbird-relay-0
               passHostHeader: true
               port: 33080
         - kind: Rule

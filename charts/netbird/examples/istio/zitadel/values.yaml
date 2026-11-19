@@ -105,7 +105,7 @@ backend:
         authSecretRef:
           name: netbird
           key: relayPassword
-        exposedAddress: rels://netbird.example.com:443/relay
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay
         log:
           level: info
 
@@ -138,20 +138,31 @@ extraManifests:
                   number: 80
         - match:
             - uri:
-                prefix: /relay
-          route:
-            - destination:
-                host: netbird-relay
-                port:
-                  number: 33080
-        - match:
-            - uri:
                 prefix: /signalexchange.SignalExchange
           route:
             - destination:
                 host: netbird-signal
                 port:
                   number: 80
+  # One host per relay pod: relay-N.netbird.example.com to netbird-relay-N.
+  - apiVersion: networking.istio.io/v1
+    kind: VirtualService
+    metadata:
+      name: netbird-relay
+    spec:
+      gateways:
+        - istio-gw/ext-gw
+      hosts:
+        - relay-0.netbird.example.com
+      http:
+        - match:
+            - uri:
+                prefix: /relay
+          route:
+            - destination:
+                host: netbird-relay-0
+                port:
+                  number: 33080
   - apiVersion: networking.istio.io/v1
     kind: VirtualService
     metadata:

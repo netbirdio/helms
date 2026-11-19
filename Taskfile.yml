@@ -134,7 +134,7 @@ tasks:
         CAROOT={{.LOCAL_CA_DIR}} mkcert
         -cert-file {{.LOCAL_CERT_DIR}}/tls.crt
         -key-file {{.LOCAL_CERT_DIR}}/tls.key
-        {{.LOCAL_HOST}} {{.DASHBOARD_HOST}}
+        {{.LOCAL_HOST}} {{.DASHBOARD_HOST}} relay-0.{{.LOCAL_HOST}}
 
   dev:tls:
     desc: Create the locally trusted certificate used by local ingresses

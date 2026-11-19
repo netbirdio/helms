@@ -183,7 +183,7 @@ backend:
         authSecretRef:
           name: netbird
           key: relayPassword
-        exposedAddress: rels://netbird.example.com:443/relay
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay
         log:
           level: info
       ingress:
@@ -191,12 +191,8 @@ backend:
         className: nginx
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-prod
-        hosts:
-          - host: netbird.example.com
-            paths:
-              - path: /relay
-                pathType: ImplementationSpecific
+        # One host per relay pod, relay-<ordinal>.netbird.example.com; ingress.hosts does not apply.
         tls:
           - secretName: netbird-relay-tls
             hosts:
-              - netbird.example.com
+              - relay-0.netbird.example.com
