@@ -6,7 +6,7 @@ Focused guides: [installation](docs/installation.md), [configuration and secrets
 
 ## Requirements
 
-- Kubernetes 1.24+
+- Kubernetes 1.28+ for the default per-pod relay; 1.24+ with `backend.split.relay.config.exposedAddressTemplate: ""` (see [Relay addresses](docs/configuration.md#relay-addresses))
 - Helm 3.12+
 - An ingress controller when any ingress is enabled
 - A TLS Secret or certificate controller for HTTPS ingress
@@ -39,9 +39,6 @@ backend:
   split:
     management:
       config:
-        relay:
-          addresses:
-            - rels://netbird.example.com:443/relay
         signal:
           proto: https
           uri: netbird.example.com:443
@@ -73,14 +70,21 @@ backend:
           nginx.ingress.kubernetes.io/backend-protocol: GRPC
     relay:
       config:
-        exposedAddress: rels://netbird.example.com:443/relay
+        # Relay pod N is reached at relay-N.netbird.example.com; management advertises every pod.
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay
         authSecretRef:
           name: netbird-external-credentials
           key: relay-auth-secret
       ingress:
         enabled: true
         className: nginx
+        tls:
+          - secretName: netbird-relay-tls
+            hosts:
+              - relay-0.netbird.example.com
 ```
+
+The relay needs DNS and a certificate for `relay-0.netbird.example.com`, and for `relay-1.` and on if you raise its `replicaCount`; a wildcard `*.netbird.example.com` covers them. See [Relay addresses](docs/configuration.md#relay-addresses) to keep one shared relay address instead.
 
 ```bash
 helm upgrade --install netbird ./charts/netbird \
@@ -179,7 +183,15 @@ Chart 2.0 keeps the 1.x resource names and selector labels (`app.kubernetes.io/n
 2. Point the credential references at the Secret that already holds your datastore key and relay secret (see [Secrets](#secrets)). A different datastore key makes the stored data unreadable.
 3. Keep the management volume: set `backend.split.management.persistence.size` to the size of the existing claim (`kubectl get pvc`; the 1.x default is 10Mi). A smaller size is a shrink, which Kubernetes rejects; a larger one needs a storage class that allows volume expansion. The claim name does not change. `persistentVolume.existingPVName` has no replacement; bind the volume to a claim and set `persistence.existingClaim`.
 4. On a MySQL store, [migrate to PostgreSQL](https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql) on NetBird 0.81.x first. 0.82.0 removed the MySQL store, and the chart refuses `storeConfig.engine: mysql`.
-5. Render with `helm template` and compare with the running objects before you upgrade.
+5. Plan for the per-pod relay, the 2.0 default (see [Relay addresses](docs/configuration.md#relay-addresses)), or opt out of it with `backend.split.relay.config.exposedAddressTemplate: ""`. Per-pod mode changes:
+   - **Kubernetes 1.28+.** Each relay pod reads its ordinal from the `apps.kubernetes.io/pod-index` label.
+   - **DNS and TLS.** Relay pod N is reached at `relay-N.<domain>` (`relay-0.<domain>` with one replica). Create the DNS records and a certificate that covers them, such as a wildcard `*.<domain>`, before you upgrade, and set `exposedAddressTemplate` to your domain.
+   - **Workload.** The relay Deployment `<fullname>-relay` is replaced by a StatefulSet of the same name. Helm deletes the Deployment and creates the StatefulSet, so relayed connections drop once while clients reconnect. The StatefulSet name must be at most 52 characters, so a long release name or `fullnameOverride` can fail the render.
+   - **Services and routes.** The `<fullname>-relay` Service is replaced by `<fullname>-relay-headless` and one `<fullname>-relay-<N>` per pod. The relay ingress routes each `relay-N.<domain>` to its pod's Service and ignores `ingress.hosts`; update any route you manage yourself (Traefik IngressRoute, Istio VirtualService, Gateway API) the same way.
+   - **Management.** `backend.split.management.config.relay.addresses` is replaced by the per-pod addresses, so management restarts once with the new configuration.
+6. Render with `helm template` and compare with the running objects before you upgrade.
+
+The same relay changes apply when upgrading a `2.0.0-rc.1` release, where the relay was a Deployment unless you set `exposedAddressTemplate`.
 
 ## Local kind environment
 

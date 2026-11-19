@@ -244,11 +244,9 @@ For a `NodePort` STUN Service, `backend.split.relay.stunService.nodePorts` fixes
 
 HTTP and gRPC ingresses are separate because ingress controllers often require different upstream protocol settings. Kubernetes Ingress does not expose UDP; enable both relay `config.stun.enabled` and `stunService.enabled`, then choose a suitable `LoadBalancer` or `NodePort` when clients need the chart's STUN endpoint.
 
-## Multiple relays
+## Relay addresses
 
-A relay only forwards traffic between peers connected to the same relay process. When several relay pods share one address, two peers can land on different pods and never reach each other, so the render fails when `backend.split.relay.replicaCount` is above 1 and `config.exposedAddressTemplate` is unset.
-
-Setting `config.exposedAddressTemplate` switches the relay to per-pod mode. Each pod advertises the template with `%d` replaced by its ordinal:
+A relay only forwards traffic between peers connected to the same relay process. When several relay pods share one address, two peers can land on different pods and never reach each other. So the relay runs in per-pod mode by default: each pod advertises `backend.split.relay.config.exposedAddressTemplate` with `%d` replaced by its ordinal. The default is `rels://relay-%d.netbird.example.com:443/relay`; set it to your domain, as you do the other `netbird.example.com` values. With one replica, peers reach the relay at `relay-0.<domain>`; scaling up adds `relay-1.<domain>` and on:
 
 ```yaml
 backend:
@@ -268,7 +266,7 @@ backend:
               - relay-2.netbird.example.com
 ```
 
-In per-pod mode the chart renders:
+In per-pod mode (the default) the chart renders:
 
 | Object | Name | Notes |
 | --- | --- | --- |
@@ -287,3 +285,21 @@ Without `topologySpreadConstraints`, relay pods spread softly (`ScheduleAnyway`)
 `%d` must be in the hostname. Clients connect to `wss://<host>/relay` whatever path the address carries, and every pod serves the same port, so `rels://netbird.example.com:443/relay-%d` or `rels://netbird.example.com:44%d/relay` would send every peer to any pod; the render rejects both. For the same reason, `service.externalIPs` is rejected with more than one per-pod relay: every per-pod Service would claim the same IP and port.
 
 Each address needs a DNS name and a TLS certificate that cover it, for example a wildcard such as `*.netbird.example.com`. Switching an existing release to per-pod mode replaces the relay Deployment with the StatefulSet, so relayed connections drop once while clients reconnect to the new addresses. The STUN Service still selects every relay pod, because STUN holds no per-peer state.
+
+### One shared relay
+
+To keep the relay at one address, for example on Kubernetes older than 1.28 or without a DNS name per relay, set `exposedAddressTemplate: ""`. The chart then renders the relay as a Deployment behind one `<fullname>-relay` Service, advertises `config.exposedAddress`, routes the relay ingress by `ingress.hosts`, and keeps `backend.split.management.config.relay.addresses` as you set it. `replicaCount` must stay 1:
+
+```yaml
+backend:
+  split:
+    management:
+      config:
+        relay:
+          addresses:
+            - rels://netbird.example.com:443/relay
+    relay:
+      config:
+        exposedAddressTemplate: ""
+        exposedAddress: rels://netbird.example.com:443/relay
+```

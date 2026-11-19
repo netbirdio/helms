@@ -23,7 +23,7 @@ templates/
     └── service-monitor.yaml
 ```
 
-The root `_helpers.tpl` contains chart-wide naming, labels, environment rendering, and credential helpers. Management's `_config.tpl` builds its JSON document. Signal and relay Deployments translate typed values directly to stable command-line flags; relay also renders Secret-backed environment.
+The root `_helpers.tpl` contains chart-wide naming, labels, environment rendering, and credential helpers. Management's `_config.tpl` builds its JSON document. Signal's Deployment and relay's StatefulSet (a Deployment with `exposedAddressTemplate: ""`) translate typed values directly to stable command-line flags; relay also renders Secret-backed environment.
 
 Helm loads helper files recursively. Files beginning with `_` are parsed but are not emitted as Kubernetes manifests. Named templates remain global across the chart, so keep names prefixed and unique.
 
@@ -32,7 +32,7 @@ Helm loads helper files recursively. Files beginning with `_` are parsed but are
 For a new or changed source configuration field:
 
 1. Add the typed input under the component in [`../values.yaml`](../values.yaml).
-2. Translate management JSON in `split/management/_config.tpl`, or translate signal and relay settings in their Deployment arguments and environment.
+2. Translate management JSON in `split/management/_config.tpl`, or translate signal and relay settings in their workload arguments and environment.
 3. Update the component Secret, Service, or ingress only when its Kubernetes contract changes.
 4. Update at least one runnable example when users need to configure the field.
 5. Render defaults, the 0.74.0 backend boundary, and the affected example.

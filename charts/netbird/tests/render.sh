@@ -12,6 +12,8 @@ required=(
   --set backend.split.management.config.embeddedIdp.sessionCookieEncryptionKey=cookie-key
   --set backend.split.relay.config.authSecret=relay-secret
 )
+# Opts out of the default per-pod relay: one Deployment at exposedAddress.
+shared=(--set backend.split.relay.config.exposedAddressTemplate=)
 
 # 1. No generation: every required credential needs a value or a ref.
 fails_with "backend.split.relay.config.authSecretRef is required" "${required[@]:0:4}"
@@ -66,7 +68,8 @@ fails_with "additional propert" "${required[@]}" --set management.enabled=true
 fails_with "imagePullSecrets" "${required[@]}" --set "dashboard.imagePullSecrets[0].name=r"
 
 # 9b. A long nameOverride keeps the component suffix, so selectors stay distinct.
-out="$(render "${required[@]}" --set nameOverride=$(printf 'n%.0s' {1..70}))"
+# A per-pod relay's StatefulSet name is capped lower (case 24), so opt out of it here.
+out="$(render "${required[@]}" "${shared[@]}" --set nameOverride=$(printf 'n%.0s' {1..70}))"
 [ "$(grep -o 'app.kubernetes.io/name: .*' <<<"$out" | sort -u | wc -l)" -ge 4 ] || { echo "FAIL: selectors collide with a long nameOverride"; exit 1; }
 has "nnnnnn-management" "$out"
 
@@ -186,7 +189,7 @@ grep -A4 "name: AUTH_AUDIENCE" <<<"$out" | grep -qF "name: dash" || { echo "FAIL
 fails_with "env.BAD must be a string or a map with only valueFrom" "${required[@]}" --set backend.split.signal.env.BAD.value=x
 
 # 24. More than one relay needs a per-pod address; a malformed template is rejected.
-fails_with "replicaCount > 1 needs backend.split.relay.config.exposedAddressTemplate" "${required[@]}" --set backend.split.relay.replicaCount=2
+fails_with "replicaCount > 1 needs backend.split.relay.config.exposedAddressTemplate" "${required[@]}" "${shared[@]}" --set backend.split.relay.replicaCount=2
 fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay.example.com:443/relay
 fails_with "must contain %d exactly once" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=rels://relay-%d-%d.example.com:443/relay
 fails_with "must look like rels://relay-%d.example.com:443/relay" "${required[@]}" --set backend.split.relay.config.exposedAddressTemplate=https://relay-%d.example.com/relay
@@ -217,5 +220,22 @@ fails_with "RELAY_POD_INDEX is set more than once" "${required[@]}" "${perPod[@]
 # 26. Only per-pod Services carry metrics, so a ServiceMonitor scrapes each relay once.
 out="$(render "${required[@]}" "${perPod[@]}" --set backend.split.relay.config.metrics.enabled=true --show-only templates/split/relay/service.yaml)"
 test "$(grep -c "name: metrics" <<<"$out")" = 2 || { echo "FAIL: want metrics on the 2 per-pod Services only"; exit 1; }
+
+# 27. Per-pod is the default: relay-0 under the example domain, advertised by management in place of its own list.
+out="$(render "${required[@]}" --set backend.split.relay.ingress.enabled=true)"
+has "kind: StatefulSet" "$out"
+has 'exposed-address=rels://relay-$(RELAY_POD_INDEX).netbird.example.com:443/relay' "$out"
+has 'host: "relay-0.netbird.example.com"' "$out"; has "name: t-netbird-relay-0" "$out"
+has '"rels://relay-0.netbird.example.com:443/relay"' "$out"; lacks '"rels://netbird.example.com:443/relay"' "$out"
+lacks "kind: PodDisruptionBudget" "$out"
+
+# 28. exposedAddressTemplate: "" opts out: one Deployment and shared Service at exposedAddress, management keeps its list.
+out="$(render "${required[@]}" "${shared[@]}" --set backend.split.relay.ingress.enabled=true)"
+workload="$(render "${required[@]}" "${shared[@]}" --show-only templates/split/relay/workload.yaml)"
+has "kind: Deployment" "$workload"; lacks "kind: StatefulSet" "$workload"; lacks RELAY_POD_INDEX "$workload"
+has "exposed-address=rels://netbird.example.com:443/relay" "$workload"
+lacks "relay-headless" "$out"; lacks "relay-0" "$out"
+has 'host: "netbird.example.com"' "$(render "${required[@]}" "${shared[@]}" --set backend.split.relay.ingress.enabled=true --show-only templates/split/relay/ingress.yaml)"
+has '"rels://netbird.example.com:443/relay"' "$out"
 
 echo "render checks passed"

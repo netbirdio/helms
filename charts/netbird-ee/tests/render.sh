@@ -49,4 +49,7 @@ diff <(settings "$chart/../netbird/examples/kind/values.yaml") <(settings "$char
   || { echo "FAIL: examples/kind drifted from the netbird chart's; see the diff above"; exit 1; }
 render --values "$chart/examples/kind/values.yaml" >/dev/null
 
+# 6. The netbird chart's per-pod relay default carries over.
+has 'exposed-address=rels://relay-$(RELAY_POD_INDEX).netbird.example.com:443/relay' "$(render "${required[@]}" --show-only charts/netbird/templates/split/relay/workload.yaml)"
+
 echo "netbird-ee render checks passed"

@@ -4,14 +4,14 @@ Run the commands in this guide from the repository root.
 
 ## Requirements
 
-- Kubernetes 1.24 or newer
+- Kubernetes 1.28 or newer for the default per-pod relay; 1.24 or newer with `backend.split.relay.config.exposedAddressTemplate: ""` (see [Relay addresses](configuration.md#relay-addresses))
 - Helm 3.12 or newer
 - An ingress controller when ingress is enabled
 - A TLS Secret or certificate controller for HTTPS ingress
 
 ## Workloads and supported versions
 
-The dashboard is always deployed with separate management, signal, and relay Deployments. Chart `2.0.0` tests the three backend images from NetBird `0.74.0` through the default `0.82.0`. The dashboard is independently pinned to `netbirdio/dashboard:v2.96.0`. To run every workload under the `restricted` Pod Security Standard, see [Pod security](configuration.md#pod-security).
+The dashboard is always deployed with separate management and signal Deployments and a relay StatefulSet with one address per pod (a Deployment with `exposedAddressTemplate: ""`). Chart `2.0.0` tests the three backend images from NetBird `0.74.0` through the default `0.82.0`. The dashboard is independently pinned to `netbirdio/dashboard:v2.96.0`. To run every workload under the `restricted` Pod Security Standard, see [Pod security](configuration.md#pod-security).
 
 Management uses its stable JSON configuration loader. Signal and relay use portable command-line flags; relay also receives its authentication secret through the environment. This runtime contract works at both tested backend boundaries without detecting the selected image tag.
 
@@ -51,9 +51,6 @@ backend:
   split:
     management:
       config:
-        relay:
-          addresses:
-            - rels://netbird.example.com:443/relay
         signal:
           proto: https
           uri: netbird.example.com:443
@@ -64,8 +61,11 @@ backend:
             password: replace-me
     relay:
       config:
-        exposedAddress: rels://netbird.example.com:443/relay
+        # Relay pod N at relay-N.netbird.example.com; management advertises every pod.
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay
 ```
+
+Each relay pod needs a DNS name and a certificate: `relay-0.netbird.example.com` with one replica, or a wildcard `*.netbird.example.com`. See [Relay addresses](configuration.md#relay-addresses).
 
 Reference the credentials Secret. Add `dashboard.config.auth.clientSecretRef` only when your identity provider uses a client secret:
 
