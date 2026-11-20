@@ -18,6 +18,7 @@ func TestChart(t *testing.T) {
 		shared.Step{Name: "an upgrade to the chart's backends keeps the peers", Run: l.Upgrade},
 		shared.Step{Name: "peers connect through the relay", Run: l.RelayedConnection},
 		shared.Step{Name: "management keeps its peers across a restart", Run: l.ManagementRestart},
+		shared.Step{Name: "peers on different relay pods connect", Run: l.PerPodRelays},
 	)
 }
 

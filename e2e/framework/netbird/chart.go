@@ -47,10 +47,18 @@ func CommunityVersion(version string) string {
 
 // InstallChart installs chart, or upgrades the release to it, from its
 // examples/kind under the suite's hostnames, with the backends at version.
+// Values set by an earlier EnablePerPodRelays are kept.
 func (e *Env) InstallChart(ctx context.Context, chart, version string) error {
 	files, err := e.valuesFiles(chart)
 	if err != nil {
 		return err
+	}
+	if e.perPodRelays {
+		perPod, err := writeValues(chart, filepath.Join(e.workDir, "per-pod-relay-values.yaml"), perPodRelayValues())
+		if err != nil {
+			return err
+		}
+		files = append(files, perPod)
 	}
 	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(chart), "--namespace", Namespace,
 		"--wait", "--timeout", "10m"}
@@ -106,6 +114,33 @@ func (e *Env) valuesFiles(chart string) ([]string, error) {
             password: ""
 `)
 	return append(files, suiteValues), err
+}
+
+// EnablePerPodRelays upgrades the release to RelayReplicas relays, relay i
+// at RelayHost(i), each with its own Service and ingress rule.
+func (e *Env) EnablePerPodRelays(ctx context.Context) error {
+	e.perPodRelays = true
+	return e.InstallChart(ctx, e.Chart, e.DefaultVersion)
+}
+
+// perPodRelayValues lists the relay hostnames under the ingress TLS, so
+// ingress-nginx serves the suite's certificate for them.
+func perPodRelayValues() string {
+	var tlsHosts strings.Builder
+	for _, host := range hostnames() {
+		fmt.Fprintf(&tlsHosts, "\n              - %s", host)
+	}
+	return fmt.Sprintf(`backend:
+  split:
+    relay:
+      replicaCount: %d
+      config:
+        exposedAddressTemplate: rels://relay-%%d.%s:443/relay
+      ingress:
+        tls:
+          - secretName: %s
+            hosts:%s
+`, RelayReplicas, Domain, tlsSecretName, tlsHosts.String())
 }
 
 // writeValues writes netbird chart values to path, under netbird: when chart

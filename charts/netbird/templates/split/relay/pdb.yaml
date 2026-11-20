@@ -1,0 +1,17 @@
+{{- if .Values.backend.split.relay.enabled }}
+{{- $values := .Values.backend.split.relay -}}
+{{- if and (include "netbird.relay.perPod" .) $values.podDisruptionBudget.enabled (gt (int $values.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "netbird.componentName" (dict "root" . "component" "relay") }}
+  namespace: {{ include "netbird.componentNamespace" (dict "root" . "component" "relay") }}
+  labels:
+    {{- include "netbird.labels" (dict "root" . "component" "relay") | nindent 4 }}
+spec:
+  maxUnavailable: {{ $values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "netbird.selectorLabels" (dict "root" . "component" "relay") | nindent 6 }}
+{{- end }}
+{{- end }}

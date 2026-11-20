@@ -437,6 +437,7 @@ backend:
       enabled: true
       # Overrides global.namespace for this component.
       namespace: ""
+      # Above 1 requires config.exposedAddressTemplate.
       replicaCount: 1
       # Restricted Pod Security Standard defaults, merged under pod and container
       # securityContext: non-root user 65532 with fsGroup.
@@ -476,6 +477,13 @@ backend:
       nodeSelector: {}
       tolerations: []
       affinity: {}
+      # Empty in per-pod mode: soft spread over zones and nodes.
+      topologySpreadConstraints: []
+
+      # Per-pod mode with replicaCount above 1 only.
+      podDisruptionBudget:
+        enabled: true
+        maxUnavailable: 1
 
       env: {}
       envRaw: []
@@ -484,6 +492,8 @@ backend:
 
       config:
         exposedAddress: rels://netbird.example.com:443/relay
+        # Per-pod mode, e.g. rels://relay-%d.netbird.example.com:443/relay; see docs/configuration.md.
+        exposedAddressTemplate: ""
         # Required: set this value or authSecretRef.
         authSecret: ""
         # References a key in a Secret in this component's namespace. Mutually exclusive with authSecret.

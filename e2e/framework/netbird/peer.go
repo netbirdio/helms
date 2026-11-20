@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -57,11 +58,23 @@ type PeerStatus struct {
 	ConnType string `json:"connectionType"`
 }
 
-// RelayAvailable reports whether the client holds a connection to the chart's
-// relay, the only one management hands out.
+// RelayAvailable reports whether the client holds a connection to one of the
+// chart's relays.
 func (s Status) RelayAvailable() bool {
 	for _, r := range s.Relays.Details {
-		if strings.HasPrefix(r.URI, "rels://"+Domain) && r.Available {
+		u, err := url.Parse(r.URI)
+		if err == nil && u.Scheme == "rels" && r.Available &&
+			(u.Hostname() == Domain || strings.HasSuffix(u.Hostname(), "."+Domain)) {
+			return true
+		}
+	}
+	return false
+}
+
+// relayAvailable reports whether the client holds a connection to the relay at host.
+func (s Status) relayAvailable(host string) bool {
+	for _, r := range s.Relays.Details {
+		if u, err := url.Parse(r.URI); err == nil && u.Hostname() == host && r.Available {
 			return true
 		}
 	}
@@ -78,7 +91,7 @@ func (e *Env) StartPeers(ctx context.Context, forceRelay bool, names ...string) 
 	}
 	peers := make([]*Peer, 0, len(names))
 	for _, name := range names {
-		p, err := e.startPeer(ctx, name, key, forceRelay)
+		p, err := e.startPeer(ctx, name, key, forceRelay, e.clientImage(), hostnames())
 		if err != nil {
 			return nil, err
 		}
@@ -87,24 +100,61 @@ func (e *Env) StartPeers(ctx context.Context, forceRelay bool, names ...string) 
 	return peers, nil
 }
 
-func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay bool) (*Peer, error) {
+// StartPeersOnRelays starts relay-only peers at the default client version, peer i with relay i as its home relay.
+func (e *Env) StartPeersOnRelays(ctx context.Context, names ...string) ([]*Peer, error) {
+	if len(names) > RelayReplicas {
+		return nil, fmt.Errorf("%d peers for %d relays", len(names), RelayReplicas)
+	}
+	key, err := e.API.CreateSetupKey(ctx, "e2e-"+strings.Join(names, "-"))
+	if err != nil {
+		return nil, err
+	}
+	image := framework.EnvOr(envClientImage, "netbirdio/netbird:"+CommunityVersion(e.DefaultVersion))
+	peers := make([]*Peer, 0, len(names))
+	for i, name := range names {
+		home := RelayHost(i)
+		// Only its home relay resolves until it connects, so the peer can pick no other.
+		p, err := e.startPeer(ctx, name, key, true, image, []string{Domain, DashboardDomain, home})
+		if err != nil {
+			return nil, err
+		}
+		if err := p.waitRelay(ctx, home); err != nil {
+			return nil, err
+		}
+		var others []string
+		for _, host := range hostnames() {
+			if host != Domain && host != DashboardDomain && host != home {
+				others = append(others, host)
+			}
+		}
+		if err := p.addHosts(ctx, e.Cluster.NodeIP, others...); err != nil {
+			return nil, err
+		}
+		peers = append(peers, p)
+	}
+	return peers, nil
+}
+
+func (e *Env) startPeer(ctx context.Context, name, setupKey string, forceRelay bool, image string, hosts []string) (*Peer, error) {
 	p := &Peer{Name: name, container: e.clusterName + "-" + name}
 	p.remove(ctx)
 
 	args := []string{"create", "--name", p.container, "--hostname", name,
-		"--network", framework.KindNetwork,
-		"--add-host", Domain + ":" + e.Cluster.NodeIP,
-		"--add-host", DashboardDomain + ":" + e.Cluster.NodeIP,
-		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--cap-add", "SYS_RESOURCE",
-		"--env", "NB_MANAGEMENT_URL=https://" + Domain,
-		"--env", "NB_SETUP_KEY=" + setupKey,
-		"--env", "NB_LOG_LEVEL=info",
-		"--env", "SSL_CERT_FILE=" + caInContainer,
+		"--network", framework.KindNetwork}
+	for _, host := range hosts {
+		args = append(args, "--add-host", host+":"+e.Cluster.NodeIP)
 	}
+	args = append(args,
+		"--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--cap-add", "SYS_RESOURCE",
+		"--env", "NB_MANAGEMENT_URL=https://"+Domain,
+		"--env", "NB_SETUP_KEY="+setupKey,
+		"--env", "NB_LOG_LEVEL=info",
+		"--env", "SSL_CERT_FILE="+caInContainer,
+	)
 	if forceRelay {
 		args = append(args, "--env", "NB_FORCE_RELAY=true")
 	}
-	args = append(args, e.clientImage())
+	args = append(args, image)
 	if _, err := framework.Command(ctx, "docker", args...); err != nil {
 		return nil, fmt.Errorf("create peer %s: %w", name, err)
 	}
@@ -155,6 +205,35 @@ func (p *Peer) IP(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%s never got a NetBird address: %w (last: %v)", p.Name, err, last)
 	}
 	return ip, nil
+}
+
+// waitRelay waits until the client holds a connection to the relay at host.
+func (p *Peer) waitRelay(ctx context.Context, host string) error {
+	var last Status
+	err := wait.PollUntilContextTimeout(ctx, 2*time.Second, 3*time.Minute, true, func(ctx context.Context) (bool, error) {
+		s, err := p.Status(ctx)
+		if err != nil {
+			return false, nil
+		}
+		last = s
+		return s.relayAvailable(host), nil
+	})
+	if err != nil {
+		return fmt.Errorf("%s never connected to the relay %s: %w (last relays: %+v)", p.Name, host, err, last.Relays.Details)
+	}
+	return nil
+}
+
+// addHosts appends hosts to the peer's bind-mounted /etc/hosts, resolving to ip.
+func (p *Peer) addHosts(ctx context.Context, ip string, hosts ...string) error {
+	var lines strings.Builder
+	for _, host := range hosts {
+		fmt.Fprintf(&lines, "%s %s\n", ip, host)
+	}
+	if _, err := framework.Command(ctx, "docker", "exec", p.container, "sh", "-c", "printf '%s' \"$0\" >> /etc/hosts", lines.String()); err != nil {
+		return fmt.Errorf("add %v to the hosts of %s: %w", hosts, p.Name, err)
+	}
+	return nil
 }
 
 // Ping sends one ping to ip from inside the peer and returns its output.

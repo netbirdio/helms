@@ -109,6 +109,20 @@ func (l *Lifecycle) ManagementRestart(t *testing.T) {
 	RequireConnected(t, l.gamma, l.delta, ConnRelayed)
 }
 
+// PerPodRelays upgrades to one relay per pod and checks two relay-only peers
+// on different relays connect: one reaches the other through its foreign relay.
+func (l *Lifecycle) PerPodRelays(t *testing.T) {
+	if err := l.Env.EnablePerPodRelays(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	peers, err := l.Env.StartPeersOnRelays(t.Context(), "epsilon", "zeta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	RequireConnected(t, peers[0], peers[1], ConnRelayed)
+	RequireConnected(t, peers[1], peers[0], ConnRelayed)
+}
+
 // startPeers starts two peers with one setup key; forceRelay keeps them off
 // direct connections.
 func (l *Lifecycle) startPeers(t *testing.T, forceRelay bool, a, b string) (*netbird.Peer, *netbird.Peer) {
