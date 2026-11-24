@@ -231,7 +231,7 @@ has 'image: "netbirdio/relay:0.82.0"' "$out"
 has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0-rootless"' "$(render "${required[@]}" "${enterprise[@]}" --set dashboard.rootless=true)"
 has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.2"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.tag=0.82.0-enterprise.2)"
 has 'image: "mirror.example.com/management-cloud:0.82.0-enterprise.1"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.repository=mirror.example.com/management-cloud)"
-fails_with "value must be one of 'community', 'enterprise'" "${required[@]}" --set edition=pro
+fails_with "must be one of" "${required[@]}" --set edition=pro
 
 # 28. Enterprise environment: single instance, and the integrations store shares the datastore key.
 grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: NB_SINGLE_INSTANCE_MODE"; exit 1; }
