@@ -7,6 +7,7 @@
     "global": { "type": "object" },
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
+    "edition": { "enum": ["community", "enterprise"] },
     "dashboard": {
       "type": "object",
       "description": "1.x dashboard.imagePullSecrets moved to dashboard.image.pullSecrets.",

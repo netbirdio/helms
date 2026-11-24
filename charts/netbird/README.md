@@ -2,7 +2,9 @@
 
 Deploys the NetBird dashboard and separate management, signal, and relay services.
 
-Focused guides: [installation](docs/installation.md), [configuration and secrets](docs/configuration.md), and [template development](docs/development.md).
+Focused guides: [installation](docs/installation.md), [configuration and secrets](docs/configuration.md), [enterprise edition](docs/enterprise.md), and [template development](docs/development.md).
+
+`edition` picks the build: `community` (the default) or `enterprise`, which runs the enterprise images single instance. See [Enterprise edition](docs/enterprise.md).
 
 ## Requirements
 
@@ -16,6 +18,7 @@ Focused guides: [installation](docs/installation.md), [configuration and secrets
 | Chart | Tested backend versions | Default backend | Dashboard |
 | --- | --- | --- | --- |
 | `2.0.0` | `0.74.0`–`0.82.0` | `0.82.0` | `v2.96.0` |
+| `2.0.0`, `edition: enterprise` | `0.82.0-enterprise.1` | `0.82.0-enterprise.1` | `v2.96.0` (`dashboard-cloud`) |
 
 Backend versions apply to the management, signal, and relay images. The dashboard has an independent compatibility pin and is not derived from the chart `appVersion`.
 

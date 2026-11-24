@@ -1,0 +1,9 @@
+{{- /* The enterprise edition runs single instance until HA lands: management and signal have no Redis or NATS to share state across replicas. */ -}}
+{{- if eq (include "netbird.edition" .) "enterprise" }}
+{{- range $component := list "management" "signal" }}
+{{- $values := index $.Values.backend.split $component }}
+{{- if and $values.enabled (gt (int $values.replicaCount) 1) }}
+{{- fail (printf "backend.split.%s.replicaCount must be 1 with edition: enterprise, which runs single instance" $component) }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -10,6 +10,15 @@
 {{- $secretEnv = include "netbird.management.secretEnv" . | fromJsonArray -}}
 {{- range $secretEnv -}}{{- $reservedEnv = append $reservedEnv .env -}}{{- end -}}
 {{- end -}}
+{{- $enterprise := eq (include "netbird.edition" .) "enterprise" -}}
+{{- if $enterprise -}}
+{{- $reservedEnv = append $reservedEnv "NB_SINGLE_INSTANCE_MODE" -}}
+{{- $userEnv := concat (keys $values.env) (keys $values.envFromSecret) -}}
+{{- range $values.envRaw -}}{{- $userEnv = append $userEnv .name -}}{{- end -}}
+{{- if and $values.overrideConfig (not (has "NETBIRD_ENCRYPTION_KEY" $userEnv)) -}}
+{{- fail "backend.split.management: with overrideConfig and edition: enterprise, set NETBIRD_ENCRYPTION_KEY in env or envFromSecret to the datastore encryption key" -}}
+{{- end -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -50,7 +59,7 @@ spec:
         {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "backendPod" "securityContext" $values.pod.securityContext) | nindent 8 }}
       containers:
         - name: management
-          image: {{ include "netbird.image" (dict "root" . "image" $values.image) | quote }}
+          image: {{ include "netbird.image" (dict "root" . "component" "management" "image" $values.image) | quote }}
           imagePullPolicy: {{ $values.image.pullPolicy }}
           {{- with $values.container.cmd.command }}
           command:
@@ -81,8 +90,12 @@ spec:
             {{- end }}
           securityContext:
             {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "container" "securityContext" $values.container.securityContext) | nindent 12 }}
-          {{- if or (not $values.overrideConfig) $values.env $values.envRaw $values.envFromSecret }}
+          {{- if or (not $values.overrideConfig) $enterprise $values.env $values.envRaw $values.envFromSecret }}
           env:
+            {{- if $enterprise }}
+            - name: NB_SINGLE_INSTANCE_MODE
+              value: "true"
+            {{- end }}
             {{- if not $values.overrideConfig }}
             {{- range $secretEnv }}
             - name: {{ .env }}

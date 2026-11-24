@@ -36,7 +36,7 @@ spec:
         {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "backendPod" "securityContext" $values.pod.securityContext) | nindent 8 }}
       containers:
         - name: signal
-          image: {{ include "netbird.image" (dict "root" . "image" $values.image) | quote }}
+          image: {{ include "netbird.image" (dict "root" . "component" "signal" "image" $values.image) | quote }}
           imagePullPolicy: {{ $values.image.pullPolicy }}
           {{- with $values.container.cmd.command }}
           command:
@@ -67,13 +67,21 @@ spec:
             {{- end }}
           securityContext:
             {{- include "netbird.securityContext" (dict "root" . "rootless" $values.rootless "kind" "container" "securityContext" $values.container.securityContext) | nindent 12 }}
-          {{- if or $values.config.pprofAddress $values.env $values.envRaw $values.envFromSecret }}
+          {{- $enterprise := eq (include "netbird.edition" .) "enterprise" }}
+          {{- $reserved := list }}
+          {{- if $values.config.pprofAddress }}{{- $reserved = append $reserved "NB_PPROF_ADDR" }}{{- end }}
+          {{- if $enterprise }}{{- $reserved = append $reserved "SINGLE_NODE_MODE" }}{{- end }}
+          {{- if or $values.config.pprofAddress $enterprise $values.env $values.envRaw $values.envFromSecret }}
           env:
             {{- with $values.config.pprofAddress }}
             - name: NB_PPROF_ADDR
               value: {{ . | quote }}
             {{- end }}
-            {{- include "netbird.env" (dict "values" $values "reserved" (ternary (list "NB_PPROF_ADDR") (list) (not (empty $values.config.pprofAddress)))) | nindent 12 }}
+            {{- if $enterprise }}
+            - name: SINGLE_NODE_MODE
+              value: "true"
+            {{- end }}
+            {{- include "netbird.env" (dict "values" $values "reserved" $reserved) | nindent 12 }}
           {{- end }}
           {{- with $values.lifecycle }}
           lifecycle:

@@ -41,9 +41,9 @@ const (
 
 	defaultFromVersion = "0.74.0"
 
-	// ChartCommunity and ChartEnterprise are the charts the suite can test.
-	ChartCommunity  = "netbird"
-	ChartEnterprise = "netbird-ee"
+	// EditionCommunity and EditionEnterprise are the chart's editions.
+	EditionCommunity  = "community"
+	EditionEnterprise = "enterprise"
 
 	envFromVersion = "NB_E2E_FROM_VERSION"
 	envRootless    = "NB_E2E_ROOTLESS"
@@ -51,11 +51,11 @@ const (
 
 // Config is what a test package brings up.
 type Config struct {
-	// Chart is the chart under test: ChartCommunity or ChartEnterprise.
-	Chart string
-	// FromChart is the chart installed first; empty means Chart. The only
-	// other choice is ChartCommunity before ChartEnterprise, the migration.
-	FromChart string
+	// Edition is the edition under test: EditionCommunity or EditionEnterprise.
+	Edition string
+	// FromEdition is the edition installed first; empty means Edition. The
+	// only other choice is EditionCommunity before EditionEnterprise, the switch.
+	FromEdition string
 	// ClusterName names the Kind cluster, and the peers' containers after it,
 	// so test packages can run side by side.
 	ClusterName string
@@ -64,11 +64,11 @@ type Config struct {
 // Env is a Kind cluster with ingress-nginx and the chart installed, and the
 // peers the tests started outside it.
 type Env struct {
-	// Chart is the chart under test: ChartCommunity or ChartEnterprise.
-	// FromChart is the chart installed first, Chart unless the suite tests
-	// the migration from netbird to netbird-ee.
-	Chart     string
-	FromChart string
+	// Edition is the edition under test: EditionCommunity or EditionEnterprise.
+	// FromEdition is the edition installed first, Edition unless the suite
+	// tests the switch from community to enterprise.
+	Edition     string
+	FromEdition string
 	// FromVersion is the backend version installed first, DefaultVersion the
 	// chart's. They are equal when there is no upgrade to test.
 	FromVersion    string
@@ -99,22 +99,22 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 			return nil, fmt.Errorf("%s is required: %w", tool, err)
 		}
 	}
-	chart := cfg.Chart
-	if chart != ChartCommunity && chart != ChartEnterprise {
-		return nil, fmt.Errorf("chart must be %s or %s, not %q", ChartCommunity, ChartEnterprise, chart)
+	edition := cfg.Edition
+	if edition != EditionCommunity && edition != EditionEnterprise {
+		return nil, fmt.Errorf("edition must be %s or %s, not %q", EditionCommunity, EditionEnterprise, edition)
 	}
-	fromChart := cmp.Or(cfg.FromChart, chart)
-	if fromChart != chart && (fromChart != ChartCommunity || chart != ChartEnterprise) {
-		return nil, fmt.Errorf("cannot go from %s to %s: the only migration is from %s to %s", fromChart, chart, ChartCommunity, ChartEnterprise)
+	fromEdition := cmp.Or(cfg.FromEdition, edition)
+	if fromEdition != edition && (fromEdition != EditionCommunity || edition != EditionEnterprise) {
+		return nil, fmt.Errorf("cannot go from %s to %s: the only switch is from %s to %s", fromEdition, edition, EditionCommunity, EditionEnterprise)
 	}
-	defaultVersion, err := chartBackendVersion(chart)
+	defaultVersion, err := chartBackendVersion(ctx, edition)
 	if err != nil {
 		return nil, err
 	}
-	// netbird-ee has no earlier release to upgrade from yet, and a migration
-	// keeps the backend version: the enterprise store must not be older.
+	// The enterprise edition has no earlier release to upgrade from yet, and
+	// a switch keeps the backend version: the enterprise store must not be older.
 	fromVersion := defaultFromVersion
-	if chart == ChartEnterprise {
+	if edition == EditionEnterprise {
 		fromVersion = defaultVersion
 	}
 	workDir, err := os.MkdirTemp("", cfg.ClusterName+"-*")
@@ -124,19 +124,13 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 	e := &Env{
 		clusterName:    cfg.ClusterName,
 		workDir:        workDir,
-		Chart:          chart,
-		FromChart:      fromChart,
+		Edition:        edition,
+		FromEdition:    fromEdition,
 		DefaultVersion: defaultVersion,
 		FromVersion:    framework.EnvOr(envFromVersion, fromVersion),
 		Rootless:       framework.EnvBool(envRootless),
 	}
-	log.Printf("e2e: chart %s with backends %s, then %s with %s; rootless %t", e.FromChart, e.FromVersion, e.Chart, e.DefaultVersion, e.Rootless)
-	if e.Enterprise() {
-		log.Print("e2e: vendoring the netbird chart into netbird-ee")
-		if _, err := framework.Command(ctx, "helm", "dependency", "update", framework.ChartDir(ChartEnterprise)); err != nil {
-			return e, err
-		}
-	}
+	log.Printf("e2e: edition %s with backends %s, then %s with %s; rootless %t", e.FromEdition, e.FromVersion, e.Edition, e.DefaultVersion, e.Rootless)
 
 	log.Print("e2e: creating the Kind cluster")
 	e.Cluster, err = framework.CreateCluster(ctx, e.clusterName, workDir)
@@ -150,8 +144,8 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 	if err := e.prepareNamespace(ctx); err != nil {
 		return e, err
 	}
-	log.Printf("e2e: installing %s with backends %s", e.FromChart, e.FromVersion)
-	if err := e.InstallChart(ctx, e.FromChart, e.FromVersion); err != nil {
+	log.Printf("e2e: installing the %s edition with backends %s", e.FromEdition, e.FromVersion)
+	if err := e.InstallChart(ctx, e.FromEdition, e.FromVersion); err != nil {
 		return e, err
 	}
 	e.ingress, err = e.Cluster.ForwardIngress(ctx)
