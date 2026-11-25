@@ -27,7 +27,9 @@ Then install with the guide's command:
 helm upgrade --install netbird charts/netbird --namespace netbird --create-namespace --values values-production.yaml --wait
 ```
 
-An `image.repository` or `image.tag` you set wins over the edition's default, for example to pull from a mirror. Leave both empty to follow the edition.
+An `image.repository` or `image.tag` you set wins over the edition's default, for example to pull from a mirror. Leave both empty to follow the edition. A community repository or tag (`netbirdio/management`, `0.82.0`) fails the render, since it would keep the community build or ask the enterprise repository for a tag it does not have.
+
+`global.imageRegistry` is prefixed to the full repository, so a mirror serves the enterprise images under `<registry>/ghcr.io/netbirdio/` and the community ones under `<registry>/netbirdio/`. That matches a pull-through cache per upstream registry. To use one flat layout instead, set each component's `image.repository`.
 
 ## Encryption key
 
@@ -92,7 +94,7 @@ The end-to-end suite runs this switch: `NB_E2E_FROM_EDITION=community task chart
    helm get values netbird --namespace netbird --output yaml > netbird-values.yaml
    ```
 
-2. Delete the `repository`, `tag` and `digest` of every `image` block under `dashboard` and `backend.split.management` and `signal`. Values you set win over the edition's, so a leftover `repository` or `tag` keeps the community image, and a leftover `digest` pins the enterprise repository to a community image that does not exist there. The relay's image stays as it is.
+2. Delete the `repository`, `tag` and `digest` of every `image` block under `dashboard` and `backend.split.management` and `signal`. Values you set win over the edition's, so a leftover community `repository` or `tag` stops the render, and a leftover `digest` pins the enterprise repository to a community image that does not exist there. The relay's image stays as it is. If you skip this, the render stops with `... is the community image`. `helm upgrade --reuse-values --set edition=enterprise` keeps them and stops the same way.
 
 3. Keep the release name, the namespace and `dataStoreEncryptionKey` (or `dataStoreEncryptionKeyRef`) unchanged. `NETBIRD_ENCRYPTION_KEY` is read from that key, and changing it makes the existing store unreadable.
 

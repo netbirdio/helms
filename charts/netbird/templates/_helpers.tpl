@@ -57,7 +57,19 @@ enterprise:
 {{- define "netbird.image" -}}
 {{- $image := .image -}}
 {{- with .component -}}
-{{- $default := index (include "netbird.editionImages" $.root | fromYaml) (include "netbird.edition" $.root) . -}}
+{{- $editions := include "netbird.editionImages" $.root | fromYaml -}}
+{{- $edition := include "netbird.edition" $.root -}}
+{{- if eq $edition "enterprise" -}}
+{{- /* A community image left in the values (helm upgrade --reuse-values keeps the old
+chart's defaults) would keep the community build, or ask the enterprise repository
+for a tag it does not have. */ -}}
+{{- $community := index $editions "community" . -}}
+{{- $enterprise := index $editions "enterprise" . -}}
+{{- if or (eq (toString $image.repository) $community.repository) (and (ne $community.tag $enterprise.tag) (eq (toString $image.tag) $community.tag)) -}}
+{{- fail (printf "%s.image (repository %q, tag %q) is the community image; with edition: enterprise, clear its repository, tag and digest (see docs/enterprise.md)" (ternary "dashboard" (printf "backend.split.%s" .) (eq . "dashboard")) (toString (default "" $image.repository)) (toString (default "" $image.tag))) -}}
+{{- end -}}
+{{- end -}}
+{{- $default := index $editions $edition . -}}
 {{- $image = merge (dict "repository" (default $default.repository $image.repository) "tag" (default $default.tag (toString (default "" $image.tag)))) $image -}}
 {{- end -}}
 {{- $repository := $image.repository -}}
