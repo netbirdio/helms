@@ -1,0 +1,111 @@
+{{- /* The netbird-ha Secret the chart's examples/ha references, in the chart's namespace. */}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: netbird-ha
+  namespace: {{ .Values.netbirdNamespace }}
+stringData:
+  store-dsn: "host=postgres.{{ .Release.Namespace }}.svc user=netbird password={{ .Values.password }} dbname=netbird port=5432 sslmode=disable"
+  idp-dsn: "postgres://netbird:{{ .Values.password }}@postgres.{{ .Release.Namespace }}.svc:5432/idp?sslmode=disable"
+  redis-url: "redis://:{{ .Values.password }}@redis.{{ .Release.Namespace }}.svc:6379/0"
+  nats-urls: "{{ range $i, $_ := until 3 }}{{ if $i }},{{ end }}nats://nats-{{ $i }}.nats.{{ $.Release.Namespace }}.svc:4222{{ end }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  idp.sql: CREATE DATABASE idp OWNER netbird;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - {name: POSTGRES_USER, value: netbird}
+            - {name: POSTGRES_PASSWORD, value: {{ .Values.password | quote }}}
+            - {name: POSTGRES_DB, value: netbird}
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: [pg_isready, -U, netbird, -d, idp]}
+            periodSeconds: 2
+          volumeMounts: [{name: init, mountPath: /docker-entrypoint-initdb.d}]
+      volumes: [{name: init, configMap: {name: postgres-init}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  selector: {matchLabels: {app: redis}}
+  template:
+    metadata: {labels: {app: redis}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: [--requirepass, {{ .Values.password | quote }}]
+          ports: [{containerPort: 6379}]
+          readinessProbe:
+            tcpSocket: {port: 6379}
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector: {app: redis}
+  ports: [{port: 6379}]
+---
+{{- /* Three NATS servers routed into one cluster, as the docs ask for. */}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+spec:
+  serviceName: nats
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector: {matchLabels: {app: nats}}
+  template:
+    metadata: {labels: {app: nats}}
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.11-alpine
+          args:
+            - --cluster_name=netbird
+            - --cluster=nats://0.0.0.0:6222
+            - --routes={{ range $i, $_ := until 3 }}{{ if $i }},{{ end }}nats://nats-{{ $i }}.nats.{{ $.Release.Namespace }}.svc:6222{{ end }}
+            - --http_port=8222
+          ports: [{containerPort: 4222}, {containerPort: 6222}, {containerPort: 8222}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8222}
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: nats}
+  ports: [{name: client, port: 4222}, {name: cluster, port: 6222}]

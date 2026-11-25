@@ -1,0 +1,46 @@
+# High availability on the enterprise edition: two replicas of management and
+# signal, sharing state through Postgres, Redis and NATS that you host.
+# Layer this file over your own values, after creating the netbird-ha Secret
+# (see docs/ha.md):
+#   helm upgrade --install netbird ./charts/netbird -f my-values.yaml -f ./charts/netbird/examples/ha/values.yaml
+edition: enterprise
+
+ha:
+  enabled: true
+  redis:
+    urlRef:
+      name: netbird-ha
+      key: redis-url
+  nats:
+    urlsRef:
+      name: netbird-ha
+      key: nats-urls
+
+backend:
+  split:
+    management:
+      replicaCount: 2
+      # State lives in Postgres; each replica keeps only its geolocation
+      # databases, in an emptyDir.
+      persistence:
+        enabled: false
+      config:
+        storeConfig:
+          engine: postgres
+          dsnRef:
+            name: netbird-ha
+            key: store-dsn
+        embeddedIdp:
+          storage:
+            type: postgres
+            config:
+              dsnRef:
+                name: netbird-ha
+                key: idp-dsn
+    signal:
+      replicaCount: 2
+    # Relays share no state: run one per pod, each at its own address.
+    relay:
+      replicaCount: 2
+      config:
+        exposedAddressTemplate: rels://relay-%d.netbird.example.com:443/relay

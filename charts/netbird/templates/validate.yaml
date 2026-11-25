@@ -1,9 +1,32 @@
-{{- /* The enterprise edition runs single instance until HA lands: management and signal have no Redis or NATS to share state across replicas. */ -}}
-{{- if eq (include "netbird.edition" .) "enterprise" }}
+{{- $enterprise := eq (include "netbird.edition" .) "enterprise" }}
+{{- $split := .Values.backend.split }}
+{{- if .Values.ha.enabled }}
+{{- /* HA prerequisites, from docs.netbird.io/selfhosted/enterprise: every store shared, nothing on a replica's own disk. */ -}}
+{{- if not $enterprise }}
+{{- fail "ha.enabled needs edition: enterprise: the community management and signal run single instance" }}
+{{- end }}
+{{- $management := $split.management }}
+{{- if $management.enabled }}
+{{- if ne (toString $management.config.storeConfig.engine) "postgres" }}
+{{- fail "ha.enabled needs backend.split.management.config.storeConfig.engine: postgres, shared by every replica" }}
+{{- end }}
+{{- $idp := $management.config.embeddedIdp }}
+{{- if and $idp.enabled (ne (toString $idp.storage.type) "postgres") }}
+{{- fail "ha.enabled needs backend.split.management.config.embeddedIdp.storage.type: postgres, with storage.config.dsn or dsnRef, shared by every replica" }}
+{{- end }}
+{{- if $management.persistence.enabled }}
+{{- fail "ha.enabled needs backend.split.management.persistence.enabled: false: a ReadWriteOnce volume cannot be shared by the replicas, and HA keeps no state on it" }}
+{{- end }}
+{{- end }}
+{{- if and $split.signal.enabled (not $management.enabled) }}
+{{- include "netbird.requireSecret" (dict "value" (join "," (default list .Values.ha.nats.urls)) "ref" .Values.ha.nats.urlsRef "path" "ha.nats.urls") }}
+{{- end }}
+{{- else if $enterprise }}
+{{- /* Without HA the enterprise management and signal have no Redis or NATS to share state across replicas. */ -}}
 {{- range $component := list "management" "signal" }}
-{{- $values := index $.Values.backend.split $component }}
+{{- $values := index $split $component }}
 {{- if and $values.enabled (gt (int $values.replicaCount) 1) }}
-{{- fail (printf "backend.split.%s.replicaCount must be 1 with edition: enterprise, which runs single instance" $component) }}
+{{- fail (printf "backend.split.%s.replicaCount above 1 needs ha.enabled with edition: enterprise" $component) }}
 {{- end }}
 {{- end }}
 {{- end }}

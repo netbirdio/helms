@@ -16,6 +16,7 @@ on:
       - 'e2e/shared/**'
       - 'e2e/netbird/**'
       - 'e2e/enterprise/**'
+      - 'e2e/ha/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   push:
     branches:
@@ -28,6 +29,7 @@ on:
       - 'e2e/shared/**'
       - 'e2e/netbird/**'
       - 'e2e/enterprise/**'
+      - 'e2e/ha/**'
       - '.github/workflows/e2e-chart-netbird.yaml'
   workflow_dispatch:
     inputs:
@@ -41,7 +43,7 @@ permissions:
 
 jobs:
   e2e:
-    name: e2e (${{ matrix.from_edition && format('{0} to ', matrix.from_edition) || '' }}${{ matrix.edition }}, Kubernetes ${{ matrix.kubernetes.version }}, rootless ${{ matrix.rootless }})
+    name: e2e (${{ matrix.from_edition && format('{0} to ', matrix.from_edition) || '' }}${{ matrix.edition }}${{ matrix.ha && ' HA' || '' }}, Kubernetes ${{ matrix.kubernetes.version }}, rootless ${{ matrix.rootless }})
     runs-on: ubuntu-latest
     # Above the test step's own budget, so an overrun fails that step with its
     # diagnostics rather than cancelling the job.
@@ -56,6 +58,8 @@ jobs:
         # Empty: a fresh install. Being a matrix key, it makes each include
         # below a job of its own instead of folding into a fresh install's.
         from_edition: [""]
+        # false: one replica. true runs e2e/ha (charts/netbird/docs/ha.md), below.
+        ha: [false]
         # The switch from community to enterprise (charts/netbird/docs/enterprise.md),
         # on the newest Kubernetes, with and without rootless.
         include:
@@ -65,6 +69,15 @@ jobs:
             kubernetes: {"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}
           - edition: enterprise
             from_edition: community
+            rootless: true
+            kubernetes: {"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}
+          # HA (charts/netbird/docs/ha.md) on the newest Kubernetes, with and without rootless.
+          - edition: enterprise
+            ha: true
+            rootless: false
+            kubernetes: {"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}
+          - edition: enterprise
+            ha: true
             rootless: true
             kubernetes: {"version":"1.37","image":"kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"}
     steps:
@@ -100,13 +113,13 @@ jobs:
           NB_E2E_KIND_NODE_IMAGE: ${{ matrix.kubernetes.image }}
           NB_E2E_ROOTLESS: ${{ matrix.rootless }}
           NB_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
-        # Each edition's tests are a package: e2e/netbird for community, e2e/enterprise.
-        run: go test -tags e2e ./${{ matrix.edition == 'enterprise' && 'enterprise' || 'netbird' }}/... -v -count 1 -timeout 30m
+        # Each edition's tests are a package: e2e/netbird for community, e2e/enterprise, and e2e/ha.
+        run: go test -tags e2e ./${{ matrix.ha && 'ha' || (matrix.edition == 'enterprise' && 'enterprise' || 'netbird') }}/... -v -count 1 -timeout 30m
 
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-${{ matrix.from_edition && format('{0}-to-', matrix.from_edition) || '' }}${{ matrix.edition }}-k8s-${{ matrix.kubernetes.version }}-rootless-${{ matrix.rootless }}
+          name: e2e-${{ matrix.from_edition && format('{0}-to-', matrix.from_edition) || '' }}${{ matrix.edition }}${{ matrix.ha && '-ha' || '' }}-k8s-${{ matrix.kubernetes.version }}-rootless-${{ matrix.rootless }}
           path: ${{ runner.temp }}/e2e-artifacts
           if-no-files-found: ignore

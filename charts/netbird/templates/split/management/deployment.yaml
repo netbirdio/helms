@@ -11,8 +11,12 @@
 {{- range $secretEnv -}}{{- $reservedEnv = append $reservedEnv .env -}}{{- end -}}
 {{- end -}}
 {{- $enterprise := eq (include "netbird.edition" .) "enterprise" -}}
+{{- if and .Values.ha.enabled $values.overrideConfig -}}
+{{- fail "ha.enabled does not support backend.split.management.overrideConfig: the chart renders the HA settings with the config it generates" -}}
+{{- end -}}
 {{- if $enterprise -}}
 {{- $reservedEnv = append $reservedEnv "NB_SINGLE_INSTANCE_MODE" -}}
+{{- if .Values.ha.enabled -}}{{- $reservedEnv = append $reservedEnv "NB_ACTIVITY_EVENT_STORE_ENGINE" -}}{{- end -}}
 {{- $userEnv := concat (keys $values.env) (keys $values.envFromSecret) -}}
 {{- range $values.envRaw -}}{{- $userEnv = append $userEnv .name -}}{{- end -}}
 {{- if and $values.overrideConfig (not (has "NETBIRD_ENCRYPTION_KEY" $userEnv)) -}}
@@ -94,7 +98,11 @@ spec:
           env:
             {{- if $enterprise }}
             - name: NB_SINGLE_INSTANCE_MODE
-              value: "true"
+              value: {{ ternary "false" "true" .Values.ha.enabled | quote }}
+            {{- if .Values.ha.enabled }}
+            - name: NB_ACTIVITY_EVENT_STORE_ENGINE
+              value: postgres
+            {{- end }}
             {{- end }}
             {{- if not $values.overrideConfig }}
             {{- range $secretEnv }}

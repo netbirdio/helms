@@ -62,7 +62,7 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
    - Create a one-node Kind cluster and install ingress-nginx on it.
    - Install the chart at the first edition (the package's, or community when enterprise runs with `NB_E2E_FROM_EDITION=community`) from `examples/kind`, with its hostnames swapped for `netbird.e2e.test`, at backend version `NB_E2E_FROM_VERSION`.
    - Activate the account through `POST /api/setup` to get an API token.
-2. **TestChart** (`netbird/chart_test.go` or `enterprise/chart_test.go`):
+2. **TestChart** (`netbird/chart_test.go` or `enterprise/chart_test.go`; `ha/chart_test.go` is described below):
    1. HTTP routes: the dashboard, the API and the IdP answer through the ingress.
    2. Two peers connect directly.
    3. The release is upgraded to the edition under test (community to enterprise, when switching) and its backends to the chart's defaults, and the peers and the credential Secrets survive it.
@@ -71,6 +71,8 @@ Read [`netbird/chart_test.go`](netbird/chart_test.go). `TestChart` lists the ste
    6. Management's pod is deleted, and every peer is still listed and reconnects.
    7. community only: the relay moves to per-pod mode with two pods. Two relay-only peers, each resolving only its own relay until that becomes its home, connect across the pods.
 3. **Teardown**: remove the peers and the cluster.
+
+`ha` (`task chart:e2e HA=true`) first installs PostgreSQL, Redis and a 3-node NATS cluster from `framework/netbird/testdata/ha-deps` in their own namespace, with the `netbird-ha` Secret, then the enterprise edition with `examples/ha`: two replicas of management and signal. Its steps: both replicas run the enterprise server; HTTP routes; peers connect directly and through the relay; one management and one signal pod are deleted and two new peers connect before the replacements are up; every management pod restarts and the peers stay listed; per-pod relays.
 
 The peers run in Docker containers on Kind's network, outside the cluster. They resolve `netbird.e2e.test` and the per-pod relay names `relay-<n>.netbird.e2e.test` to the Kind node, where ingress-nginx listens on 443, so they reach management, signal and the relay the way users' peers do. The tests reach the same ingress through a port-forward.
 

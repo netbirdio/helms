@@ -71,6 +71,8 @@ spec:
           {{- $reserved := list }}
           {{- if $values.config.pprofAddress }}{{- $reserved = append $reserved "NB_PPROF_ADDR" }}{{- end }}
           {{- if $enterprise }}{{- $reserved = append $reserved "SINGLE_NODE_MODE" }}{{- end }}
+          {{- $nats := .Values.ha.nats }}
+          {{- if .Values.ha.enabled }}{{- $reserved = append $reserved "NATS_ENDPOINTS" }}{{- end }}
           {{- if or $values.config.pprofAddress $enterprise $values.env $values.envRaw $values.envFromSecret }}
           env:
             {{- with $values.config.pprofAddress }}
@@ -79,7 +81,17 @@ spec:
             {{- end }}
             {{- if $enterprise }}
             - name: SINGLE_NODE_MODE
-              value: "true"
+              value: {{ ternary "false" "true" .Values.ha.enabled | quote }}
+            {{- end }}
+            {{- if .Values.ha.enabled }}
+            - name: NATS_ENDPOINTS
+              {{- if $nats.urlsRef }}
+              valueFrom:
+                secretKeyRef:
+                  {{- include "netbird.secretKeyRef" (dict "ref" $nats.urlsRef "value" (join "," (default list $nats.urls)) "path" "ha.nats.urlsRef") | nindent 18 }}
+              {{- else }}
+              value: {{ join "," (default list $nats.urls) | quote }}
+              {{- end }}
             {{- end }}
             {{- include "netbird.env" (dict "values" $values "reserved" $reserved) | nindent 12 }}
           {{- end }}

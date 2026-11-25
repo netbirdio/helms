@@ -255,10 +255,45 @@ fails_with "NETBIRD_ENCRYPTION_KEY is set more than once" "${required[@]}" "${en
 fails_with "set NETBIRD_ENCRYPTION_KEY in env or envFromSecret" "${required[@]}" "${enterprise[@]}" --set-string backend.split.management.overrideConfig='{}'
 has "name: NETBIRD_ENCRYPTION_KEY" "$(render "${required[@]}" "${enterprise[@]}" --set-string backend.split.management.overrideConfig='{}' --set backend.split.management.envFromSecret.NETBIRD_ENCRYPTION_KEY=s/k)"
 
-# 29. The enterprise edition runs single instance.
-fails_with "backend.split.management.replicaCount must be 1 with edition: enterprise" "${required[@]}" "${enterprise[@]}" --set backend.split.management.replicaCount=2
-fails_with "backend.split.signal.replicaCount must be 1 with edition: enterprise" "${required[@]}" "${enterprise[@]}" --set backend.split.signal.replicaCount=2
+# 29. The enterprise edition runs single instance unless ha is enabled.
+fails_with "backend.split.management.replicaCount above 1 needs ha.enabled" "${required[@]}" "${enterprise[@]}" --set backend.split.management.replicaCount=2
+fails_with "backend.split.signal.replicaCount above 1 needs ha.enabled" "${required[@]}" "${enterprise[@]}" --set backend.split.signal.replicaCount=2
 render "${required[@]}" --set backend.split.management.replicaCount=2 >/dev/null
 render "${enterprise[@]}" --values "$chart/examples/kind/values.yaml" >/dev/null
+
+# 30. HA: replicas share Postgres, Redis and NATS; nothing stays on a replica's disk.
+ha=(--values "$chart/examples/ha/values.yaml")
+out="$(render "${required[@]}" "${ha[@]}")"
+management="$(render "${required[@]}" "${ha[@]}" --show-only templates/split/management/deployment.yaml)"
+signal="$(render "${required[@]}" "${ha[@]}" --show-only templates/split/signal/deployment.yaml)"
+has "replicas: 2" "$management"; has "replicas: 2" "$signal"
+grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$management" | grep -qF 'value: "false"' || { echo "FAIL: HA management must not run single instance"; exit 1; }
+grep -A1 "name: SINGLE_NODE_MODE" <<<"$signal" | grep -qF 'value: "false"' || { echo "FAIL: HA signal must not run single node"; exit 1; }
+grep -A1 "name: NB_ACTIVITY_EVENT_STORE_ENGINE" <<<"$management" | grep -qF "value: postgres" || { echo "FAIL: HA activity store must be postgres"; exit 1; }
+for env in NB_STORE_ENGINE_POSTGRES_DSN NETBIRD_CLOUD_POSTGRES_DSN NB_ACTIVITY_EVENT_POSTGRES_DSN; do
+  grep -A4 "name: $env\$" <<<"$management" | grep -qF 'key: "store-dsn"' || { echo "FAIL: $env must read the store DSN"; exit 1; }
+done
+grep -A4 "name: NB_CACHE_REDIS_ADDRESS" <<<"$management" | grep -qF 'key: "redis-url"' || { echo "FAIL: NB_CACHE_REDIS_ADDRESS"; exit 1; }
+grep -A4 "name: NB_NATS_ENDPOINTS" <<<"$management" | grep -qF 'key: "nats-urls"' || { echo "FAIL: NB_NATS_ENDPOINTS"; exit 1; }
+grep -A4 "name: NATS_ENDPOINTS" <<<"$signal" | grep -qF 'key: "nats-urls"' || { echo "FAIL: signal NATS_ENDPOINTS"; exit 1; }
+lacks "kind: PersistentVolumeClaim" "$out"
+# Inline URLs: Redis goes to the credentials Secret, signal reads NATS as a plain value.
+inline=(--set ha.redis.urlRef=null --set ha.redis.url=redis://:p@redis:6379 --set ha.nats.urlsRef=null --set "ha.nats.urls={nats://a:4222,nats://b:4222}")
+out="$(render "${required[@]}" "${ha[@]}" "${inline[@]}")"
+has 'ha-redis-url: "redis://:p@redis:6379"' "$out"
+has 'value: "nats://a:4222,nats://b:4222"' "$out"
+# Prerequisites.
+fails_with "ha.enabled needs edition: enterprise" "${required[@]}" "${ha[@]}" --set edition=community
+fails_with "ha.redis.url or ha.redis.urlRef is required" "${required[@]}" "${ha[@]}" --set ha.redis.urlRef=null
+fails_with "ha.nats.urls or ha.nats.urlsRef is required" "${required[@]}" "${ha[@]}" --set ha.nats.urlsRef=null
+fails_with "storeConfig.engine: postgres" "${required[@]}" "${ha[@]}" --set backend.split.management.config.storeConfig.engine=sqlite
+fails_with "embeddedIdp.storage.type: postgres" "${required[@]}" "${ha[@]}" --set backend.split.management.config.embeddedIdp.storage.type=sqlite3
+fails_with "persistence.enabled: false" "${required[@]}" "${ha[@]}" --set backend.split.management.persistence.enabled=true
+fails_with "does not support backend.split.management.overrideConfig" "${required[@]}" "${ha[@]}" --set-string backend.split.management.overrideConfig='{}'
+fails_with "embeddedIdp.storage.config.dsn or" "${required[@]}" "${ha[@]}" --set backend.split.management.config.embeddedIdp.storage.config.dsnRef=null
+# Without HA the store DSN still feeds the enterprise integrations store, and nothing else changes.
+out="$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.config.storeConfig.engine=postgres --set backend.split.management.config.storeConfig.dsn=postgres://x --show-only templates/split/management/deployment.yaml)"
+has "name: NETBIRD_CLOUD_POSTGRES_DSN" "$out"; lacks "NB_ACTIVITY_EVENT" "$out"; lacks "NB_CACHE_REDIS_ADDRESS" "$out"
+lacks "NETBIRD_CLOUD_POSTGRES_DSN" "$(render "${required[@]}" --set backend.split.management.config.storeConfig.engine=postgres --set backend.split.management.config.storeConfig.dsn=postgres://x)"
 
 echo "render checks passed"
