@@ -93,7 +93,7 @@ The end-to-end suite runs this switch: `NB_E2E_FROM_EDITION=community task chart
    helm get values netbird --namespace netbird --output yaml > netbird-values.yaml
    ```
 
-2. Delete the `repository` and `tag` of every `image` block under `dashboard` and `backend.split.management` and `signal`. Values you set win over the edition's, so a leftover `repository` or `tag` keeps the community image. The relay's image stays as it is.
+2. Delete the `repository`, `tag` and `digest` of every `image` block under `dashboard` and `backend.split.management` and `signal`. Values you set win over the edition's, so a leftover `repository` or `tag` keeps the community image, and a leftover `digest` pins the enterprise repository to a community image that does not exist there. The relay's image stays as it is.
 
 3. Keep the release name, the namespace and `dataStoreEncryptionKey` (or `dataStoreEncryptionKeyRef`) unchanged. `NETBIRD_ENCRYPTION_KEY` is read from that key, and changing it makes the existing store unreadable.
 

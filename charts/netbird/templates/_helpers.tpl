@@ -30,9 +30,11 @@
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
 {{- end -}}
 
-{{/* The edition, after checking it is community or enterprise. Context: root. */}}
+{{/* The edition, after checking it is community or enterprise. Context: root.
+Unset means community: helm upgrade --reuse-values renders with the old release's
+values, which predate the edition key. */}}
 {{- define "netbird.edition" -}}
-{{- $edition := toString .Values.edition -}}
+{{- $edition := toString (default "community" .Values.edition) -}}
 {{- if not (has $edition (list "community" "enterprise")) -}}
 {{- fail (printf "edition must be community or enterprise, not %q" $edition) -}}
 {{- end -}}

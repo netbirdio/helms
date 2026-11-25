@@ -232,6 +232,8 @@ has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0-rootless"' "$(render "${r
 has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.2"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.tag=0.82.0-enterprise.2)"
 has 'image: "mirror.example.com/management-cloud:0.82.0-enterprise.1"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.repository=mirror.example.com/management-cloud)"
 fails_with "must be one of" "${required[@]}" --set edition=pro
+# A release from before the edition key (helm upgrade --reuse-values) renders as community.
+has "image: \"netbirdio/management:0.82.0\"" "$(render "${required[@]}" --set edition=null --show-only templates/split/management/deployment.yaml)"
 
 # 28. Enterprise environment: single instance, and the integrations store shares the datastore key.
 grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: NB_SINGLE_INSTANCE_MODE"; exit 1; }
