@@ -15,19 +15,16 @@ Every other value works as in the community edition, so the [installation](insta
 
 ## Install
 
+Follow the [installation guide](installation.md), credentials Secret included, and add one line to your values file:
+
 ```yaml
 edition: enterprise
-backend:
-  split:
-    management:
-      config:
-        dataStoreEncryptionKeyRef:
-          name: netbird-credentials
-          key: datastore-encryption-key
 ```
 
+Then install with the guide's command:
+
 ```bash
-helm upgrade --install netbird charts/netbird --namespace netbird --create-namespace -f my-values.yaml
+helm upgrade --install netbird charts/netbird --namespace netbird --create-namespace --values values-production.yaml --wait
 ```
 
 An `image.repository` or `image.tag` you set wins over the edition's default, for example to pull from a mirror. Leave both empty to follow the edition.
@@ -43,7 +40,7 @@ backend:
   split:
     management:
       envFromSecret:
-        NETBIRD_ENCRYPTION_KEY: netbird-credentials/datastore-encryption-key
+        NETBIRD_ENCRYPTION_KEY: netbird-external-credentials/datastore-encryption-key
 ```
 
 ## License
@@ -100,7 +97,7 @@ The end-to-end suite runs this switch: `NB_E2E_FROM_EDITION=community task chart
 4. Check what changes. Expect new images and the enterprise environment, and no resource created or deleted:
 
    ```bash
-   helm template netbird charts/netbird --namespace netbird -f netbird-values.yaml > before.yaml
+   helm get manifest netbird --namespace netbird > before.yaml
    helm template netbird charts/netbird --namespace netbird -f netbird-values.yaml --set edition=enterprise > after.yaml
    diff before.yaml after.yaml
    ```
