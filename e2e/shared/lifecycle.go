@@ -52,20 +52,20 @@ func (l *Lifecycle) DirectConnection(t *testing.T) {
 	RequireConnected(t, l.beta, l.alpha, ConnP2P)
 }
 
-// Upgrade upgrades the release from FromChart to Chart and the backends from
-// FromVersion to the chart's defaults, and checks the peers and the credential
-// Secrets survive it. From netbird to netbird-ee it is the migration
-// charts/netbird-ee/docs/migration.md describes.
+// Upgrade upgrades the release from FromEdition to Edition and the backends
+// from FromVersion to the chart's defaults, and checks the peers and the
+// credential Secrets survive it. From community to enterprise it is the switch
+// charts/netbird/docs/enterprise.md describes.
 func (l *Lifecycle) Upgrade(t *testing.T) {
 	env := l.Env
-	if env.FromChart == env.Chart && env.FromVersion == env.DefaultVersion {
-		t.Skipf("installed %s at its default %s; nothing to upgrade", env.Chart, env.DefaultVersion)
+	if env.FromEdition == env.Edition && env.FromVersion == env.DefaultVersion {
+		t.Skipf("installed the %s edition at its default %s; nothing to upgrade", env.Edition, env.DefaultVersion)
 	}
 	before, err := env.CredentialSecrets(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := env.InstallChart(t.Context(), env.Chart, env.DefaultVersion); err != nil {
+	if err := env.InstallChart(t.Context(), env.Edition, env.DefaultVersion); err != nil {
 		t.Fatal(err)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {

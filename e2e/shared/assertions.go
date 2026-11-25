@@ -1,6 +1,6 @@
 //go:build e2e
 
-// Package shared holds what the netbird and netbird-ee test packages share:
+// Package shared holds what the netbird and enterprise test packages share:
 // the steps of a release's life and the checks behind them, written against a
 // netbird.Env.
 package shared

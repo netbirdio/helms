@@ -68,7 +68,7 @@ backend:
 
 ### Images
 
-Each component renders `repository:tag`. Set `image.digest` (`sha256:...`) to render `repository@digest`; the tag is then ignored. `global.imageRegistry` adds a registry prefix to every image.
+Each component renders `repository:tag`. The dashboard, management and signal leave `repository` and `tag` empty by default, so `edition` picks them (see [Enterprise edition](enterprise.md)); a value you set wins. Set `image.digest` (`sha256:...`) to render `repository@digest`; the tag is then ignored. `global.imageRegistry` adds a registry prefix to every image.
 
 ### Pod security
 

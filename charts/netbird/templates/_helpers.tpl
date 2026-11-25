@@ -30,14 +30,54 @@
 {{- default (include "netbird.namespace" .root) $values.namespace -}}
 {{- end -}}
 
-{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag, with tagSuffix appended unless the tag already ends with it. Context: root, image, tagSuffix (optional). */}}
+{{/* The edition, after checking it is community or enterprise. Context: root.
+Unset means community: helm upgrade --reuse-values renders with the old release's
+values, which predate the edition key. */}}
+{{- define "netbird.edition" -}}
+{{- $edition := toString (default "community" .Values.edition) -}}
+{{- if not (has $edition (list "community" "enterprise")) -}}
+{{- fail (printf "edition must be community or enterprise, not %q" $edition) -}}
+{{- end -}}
+{{- $edition -}}
+{{- end -}}
+
+{{/* Each edition's default image per component; an empty image.repository or image.tag takes these. Bump them together with Chart.yaml's appVersion. */}}
+{{- define "netbird.editionImages" -}}
+community:
+  dashboard: {repository: netbirdio/dashboard, tag: v2.96.0}
+  management: {repository: netbirdio/management, tag: 0.82.0}
+  signal: {repository: netbirdio/signal, tag: 0.82.0}
+enterprise:
+  dashboard: {repository: ghcr.io/netbirdio/dashboard-cloud, tag: v2.96.0}
+  management: {repository: ghcr.io/netbirdio/management-cloud, tag: 0.82.0-enterprise.1}
+  signal: {repository: ghcr.io/netbirdio/signal-cloud, tag: 0.82.0-enterprise.1}
+{{- end -}}
+
+{{/* Image reference: [global.imageRegistry/]repository, then @digest or :tag, with tagSuffix appended unless the tag already ends with it. With component, an empty repository or tag takes the edition's default. Context: root, image, component (optional), tagSuffix (optional). */}}
 {{- define "netbird.image" -}}
-{{- $repository := .image.repository -}}
+{{- $image := .image -}}
+{{- with .component -}}
+{{- $editions := include "netbird.editionImages" $.root | fromYaml -}}
+{{- $edition := include "netbird.edition" $.root -}}
+{{- if eq $edition "enterprise" -}}
+{{- /* A community image left in the values (helm upgrade --reuse-values keeps the old
+chart's defaults) would keep the community build, or ask the enterprise repository
+for a tag it does not have. */ -}}
+{{- $community := index $editions "community" . -}}
+{{- $enterprise := index $editions "enterprise" . -}}
+{{- if or (eq (toString $image.repository) $community.repository) (and (ne $community.tag $enterprise.tag) (eq (toString $image.tag) $community.tag)) -}}
+{{- fail (printf "%s.image (repository %q, tag %q) is the community image; with edition: enterprise, clear its repository, tag and digest (see docs/enterprise.md)" (ternary "dashboard" (printf "backend.split.%s" .) (eq . "dashboard")) (toString (default "" $image.repository)) (toString (default "" $image.tag))) -}}
+{{- end -}}
+{{- end -}}
+{{- $default := index $editions $edition . -}}
+{{- $image = merge (dict "repository" (default $default.repository $image.repository) "tag" (default $default.tag (toString (default "" $image.tag)))) $image -}}
+{{- end -}}
+{{- $repository := $image.repository -}}
 {{- with .root.Values.global.imageRegistry -}}{{- $repository = printf "%s/%s" (trimSuffix "/" .) $repository -}}{{- end -}}
-{{- if .image.digest -}}
-{{- printf "%s@%s" $repository .image.digest -}}
+{{- if $image.digest -}}
+{{- printf "%s@%s" $repository $image.digest -}}
 {{- else -}}
-{{- $tag := toString .image.tag -}}
+{{- $tag := toString $image.tag -}}
 {{- with .tagSuffix -}}{{- if not (hasSuffix . $tag) -}}{{- $tag = printf "%s%s" $tag . -}}{{- end -}}{{- end -}}
 {{- printf "%s:%s" $repository $tag -}}
 {{- end -}}

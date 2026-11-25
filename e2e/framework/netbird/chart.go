@@ -20,67 +20,52 @@ const managementSelector = "app.kubernetes.io/name=netbird-management,app.kubern
 // examples/kind serves exampleDomain; the suite installs it under Domain.
 const exampleDomain = "netbird.localhost"
 
-// communityChartDir is the netbird chart; its examples/rootless serves both charts.
-var communityChartDir = framework.ChartDir(ChartCommunity)
-
-// Enterprise is whether the chart under test is netbird-ee.
-func (e *Env) Enterprise() bool {
-	return e.Chart == ChartEnterprise
-}
-
-// valuesPrefix is where the netbird chart's values sit in chart: netbird-ee
-// wraps it as a dependency.
-func valuesPrefix(chart string) string {
-	if chart == ChartEnterprise {
-		return "netbird."
-	}
-	return ""
-}
+// chartDir is the netbird chart, which serves both editions.
+var chartDir = framework.ChartDir("netbird")
 
 // CommunityVersion is the community release an enterprise version such as
 // 0.82.0-enterprise.1 is built on, and any other version unchanged. The
-// community images (the netbird chart's, netbird-ee's relay, the client) use it.
+// community images (the community edition's, the relay, the client) use it.
 func CommunityVersion(version string) string {
 	base, _, _ := strings.Cut(version, "-enterprise.")
 	return base
 }
 
-// InstallChart installs chart, or upgrades the release to it, from its
-// examples/kind under the suite's hostnames, with the backends at version.
-// Values set by an earlier EnablePerPodRelays are kept.
-func (e *Env) InstallChart(ctx context.Context, chart, version string) error {
-	files, err := e.valuesFiles(chart)
+// InstallChart installs the chart at edition, or upgrades the release to it,
+// from examples/kind under the suite's hostnames, with the backends at
+// version. Values set by an earlier EnablePerPodRelays are kept.
+func (e *Env) InstallChart(ctx context.Context, edition, version string) error {
+	files, err := e.valuesFiles()
 	if err != nil {
 		return err
 	}
 	if e.perPodRelays {
-		perPod, err := writeValues(chart, filepath.Join(e.workDir, "per-pod-relay-values.yaml"), perPodRelayValues())
+		perPod, err := writeValues(filepath.Join(e.workDir, "per-pod-relay-values.yaml"), perPodRelayValues())
 		if err != nil {
 			return err
 		}
 		files = append(files, perPod)
 	}
-	args := []string{"upgrade", "--install", ReleaseName, framework.ChartDir(chart), "--namespace", Namespace,
-		"--wait", "--timeout", "10m"}
+	args := []string{"upgrade", "--install", ReleaseName, chartDir, "--namespace", Namespace,
+		"--wait", "--timeout", "10m", "--set", "edition=" + edition}
 	for _, f := range files {
 		args = append(args, "--values", f)
 	}
 	for _, component := range []string{"management", "signal", "relay"} {
 		tag := version
-		if chart == ChartCommunity || component == "relay" {
+		if edition == EditionCommunity || component == "relay" {
 			tag = CommunityVersion(version)
 		}
-		args = append(args, "--set", fmt.Sprintf("%sbackend.split.%s.image.tag=%s", valuesPrefix(chart), component, tag))
+		args = append(args, "--set", fmt.Sprintf("backend.split.%s.image.tag=%s", component, tag))
 	}
 	_, err = e.Cluster.Helm(ctx, args...)
 	return err
 }
 
-// valuesFiles returns chart's examples/kind with the suite's hostnames, the
-// netbird chart's examples/rootless when rootless, and the suite's own
-// additions, the last two nested where chart expects them.
-func (e *Env) valuesFiles(chart string) ([]string, error) {
-	example, err := os.ReadFile(filepath.Join(framework.ChartDir(chart), "examples", "kind", "values.yaml"))
+// valuesFiles returns examples/kind with the suite's hostnames,
+// examples/rootless when rootless, and the suite's own additions.
+func (e *Env) valuesFiles() ([]string, error) {
+	example, err := os.ReadFile(filepath.Join(chartDir, "examples", "kind", "values.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +75,11 @@ func (e *Env) valuesFiles(chart string) ([]string, error) {
 	}
 	files := []string{kindValues}
 	if e.Rootless {
-		rootless, err := os.ReadFile(filepath.Join(communityChartDir, "examples", "rootless", "values.yaml"))
+		rootless, err := os.ReadFile(filepath.Join(chartDir, "examples", "rootless", "values.yaml"))
 		if err != nil {
 			return nil, err
 		}
-		rootlessValues, err := writeValues(chart, filepath.Join(e.workDir, "rootless-values.yaml"), string(rootless))
+		rootlessValues, err := writeValues(filepath.Join(e.workDir, "rootless-values.yaml"), string(rootless))
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +87,7 @@ func (e *Env) valuesFiles(chart string) ([]string, error) {
 	}
 
 	// No owner, so POST /api/setup creates the account and returns a token.
-	suiteValues, err := writeValues(chart, filepath.Join(e.workDir, "e2e-values.yaml"), `backend:
+	suiteValues, err := writeValues(filepath.Join(e.workDir, "e2e-values.yaml"), `backend:
   split:
     management:
       env:
@@ -120,7 +105,7 @@ func (e *Env) valuesFiles(chart string) ([]string, error) {
 // at RelayHost(i), each with its own Service and ingress rule.
 func (e *Env) EnablePerPodRelays(ctx context.Context) error {
 	e.perPodRelays = true
-	return e.InstallChart(ctx, e.Chart, e.DefaultVersion)
+	return e.InstallChart(ctx, e.Edition, e.DefaultVersion)
 }
 
 // perPodRelayValues lists the relay hostnames under the ingress TLS, so
@@ -143,13 +128,8 @@ func perPodRelayValues() string {
 `, RelayReplicas, Domain, tlsSecretName, tlsHosts.String())
 }
 
-// writeValues writes netbird chart values to path, under netbird: when chart
-// is netbird-ee, and returns path. Indenting every line keeps block scalars
-// intact.
-func writeValues(chart, path, values string) (string, error) {
-	if chart == ChartEnterprise {
-		values = "netbird:\n" + regexp.MustCompile(`(?m)^(.)`).ReplaceAllString(values, "  $1")
-	}
+// writeValues writes chart values to path and returns path.
+func writeValues(path, values string) (string, error) {
 	return path, os.WriteFile(path, []byte(values), 0o644)
 }
 
@@ -187,19 +167,21 @@ func (e *Env) CredentialSecrets(ctx context.Context) (map[string]map[string][]by
 	return data, nil
 }
 
-var backendTag = regexp.MustCompile(`(?m)^ +repository: \S*/management\S*\n +tag: "?([^"\s]+)"?`)
+var managementImageTag = regexp.MustCompile(`image: "[^"]*/management\S*:([^"@]+)"`)
 
-// chartBackendVersion reads the management tag from chart's values.yaml, the
-// version the chart installs by default.
-func chartBackendVersion(chart string) (string, error) {
-	chartDir := framework.ChartDir(chart)
-	raw, err := os.ReadFile(filepath.Join(chartDir, "values.yaml"))
+// chartBackendVersion renders management at edition and returns its image
+// tag, the version the chart installs by default.
+func chartBackendVersion(ctx context.Context, edition string) (string, error) {
+	out, err := framework.Command(ctx, "helm", "template", ReleaseName, chartDir,
+		"--set", "edition="+edition,
+		"--values", filepath.Join(chartDir, "examples", "kind", "values.yaml"),
+		"--show-only", "templates/split/management/deployment.yaml")
 	if err != nil {
 		return "", err
 	}
-	m := backendTag.FindSubmatch(raw)
+	m := managementImageTag.FindStringSubmatch(out)
 	if m == nil {
-		return "", fmt.Errorf("no management image tag in %s/values.yaml", chartDir)
+		return "", fmt.Errorf("no management image in the %s edition's render", edition)
 	}
-	return string(m[1]), nil
+	return m[1], nil
 }

@@ -98,6 +98,10 @@ chart-managed credentials Secret under key, with data (default value).
 {{- $entries := list -}}
 {{- include "netbird.requireSecret" (dict "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKey" $base) "hint" "generate one with: openssl rand -base64 32") -}}
 {{- $entries = append $entries (dict "env" "NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY" "key" "datastore-encryption-key" "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKeyRef" $base)) -}}
+{{- if eq (include "netbird.edition" .) "enterprise" -}}
+{{- /* The enterprise integrations store is encrypted with the datastore key. */ -}}
+{{- $entries = append $entries (dict "env" "NETBIRD_ENCRYPTION_KEY" "key" "datastore-encryption-key" "value" $config.dataStoreEncryptionKey "ref" $config.dataStoreEncryptionKeyRef "path" (printf "%s.dataStoreEncryptionKeyRef" $base)) -}}
+{{- end -}}
 {{- $relay := .Values.backend.split.relay.config -}}
 {{- include "netbird.requireSecret" (dict "value" $relay.authSecret "ref" $relay.authSecretRef "path" "backend.split.relay.config.authSecret" "hint" "generate one with: openssl rand -base64 32") -}}
 {{- $entries = append $entries (dict "env" "NB_RELAY_AUTH_SECRET" "key" "relay-auth-secret" "value" $relay.authSecret "ref" $relay.authSecretRef "path" "backend.split.relay.config.authSecretRef") -}}

@@ -17,5 +17,5 @@ import (
 var env *netbird.Env
 
 func TestMain(m *testing.M) {
-	shared.Main(m, netbird.Config{Chart: netbird.ChartCommunity, ClusterName: "netbird-chart-e2e"}, &env)
+	shared.Main(m, netbird.Config{Edition: netbird.EditionCommunity, ClusterName: "netbird-chart-e2e"}, &env)
 }

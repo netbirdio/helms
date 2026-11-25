@@ -1,6 +1,6 @@
 //go:build e2e
 
-package netbirdee_test
+package enterprise_test
 
 import (
 	"strings"
@@ -10,15 +10,15 @@ import (
 	"github.com/netbirdio/helms/e2e/shared"
 )
 
-// TestChart walks one installation through its life. When NB_E2E_FROM_CHART
-// is netbird, the release starts on the netbird chart and the upgrade step is
-// the migration to netbird-ee; the enterprise checks run after it either way.
+// TestChart walks one installation through its life. When NB_E2E_FROM_EDITION
+// is community, the release starts on the community edition and the upgrade
+// step is the switch to enterprise; the enterprise checks run after it either way.
 func TestChart(t *testing.T) {
 	l := &shared.Lifecycle{Env: env, BackendImage: backendImage}
 	shared.Run(t,
 		shared.Step{Name: "the dashboard, the API and the IdP answer through the ingress", Run: l.HTTPRoutes},
 		shared.Step{Name: "peers connect directly", Run: l.DirectConnection},
-		shared.Step{Name: "an upgrade to netbird-ee keeps the peers", Run: l.Upgrade},
+		shared.Step{Name: "an upgrade to the enterprise edition keeps the peers", Run: l.Upgrade},
 		shared.Step{Name: "the enterprise images run", Run: testEnterpriseImages},
 		shared.Step{Name: "management runs the enterprise server", Run: testEnterpriseServer},
 		shared.Step{Name: "peers connect through the relay", Run: l.RelayedConnection},
@@ -26,7 +26,7 @@ func TestChart(t *testing.T) {
 	)
 }
 
-// testEnterpriseImages checks netbird-ee swapped in the enterprise images and
+// testEnterpriseImages checks the edition swapped in the enterprise images and
 // they came up: the -cloud management, signal and dashboard, and the
 // community relay, which has no enterprise build.
 func testEnterpriseImages(t *testing.T) {

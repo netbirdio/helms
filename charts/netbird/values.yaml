@@ -13,6 +13,12 @@ global:
 nameOverride: ""
 fullnameOverride: ""
 
+# community or enterprise. enterprise runs the enterprise images of the
+# dashboard, management and signal (the relay has no enterprise build), sets
+# the environment they need, and runs management and signal as one replica
+# each. Paid modules need a license; see docs/enterprise.md.
+edition: community
+
 # The dashboard is always deployed. It is stateless and can be scaled independently.
 dashboard:
   enabled: true
@@ -25,8 +31,10 @@ dashboard:
   rootless: false
 
   image:
-    repository: netbirdio/dashboard
-    tag: v2.96.0
+    # Empty picks the edition's image: netbirdio/dashboard, or ghcr.io/netbirdio/dashboard-cloud with edition: enterprise.
+    repository: ""
+    # Empty picks the edition's version; see the README for the defaults.
+    tag: ""
     # Pins the image by digest (sha256:...) and ignores tag when set.
     digest: ""
     pullPolicy: IfNotPresent
@@ -129,8 +137,10 @@ backend:
       rootless: false
 
       image:
-        repository: netbirdio/management
-        tag: 0.82.0
+        # Empty picks the edition's image: netbirdio/management, or ghcr.io/netbirdio/management-cloud with edition: enterprise.
+        repository: ""
+        # Empty picks the edition's version; see the README for the defaults.
+        tag: ""
         # Pins the image by digest (sha256:...) and ignores tag when set.
         digest: ""
         pullPolicy: IfNotPresent
@@ -344,8 +354,10 @@ backend:
       rootless: false
 
       image:
-        repository: netbirdio/signal
-        tag: 0.82.0
+        # Empty picks the edition's image: netbirdio/signal, or ghcr.io/netbirdio/signal-cloud with edition: enterprise.
+        repository: ""
+        # Empty picks the edition's version; see the README for the defaults.
+        tag: ""
         # Pins the image by digest (sha256:...) and ignores tag when set.
         digest: ""
         pullPolicy: IfNotPresent

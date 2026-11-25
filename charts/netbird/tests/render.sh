@@ -218,4 +218,47 @@ fails_with "RELAY_POD_INDEX is set more than once" "${required[@]}" "${perPod[@]
 out="$(render "${required[@]}" "${perPod[@]}" --set backend.split.relay.config.metrics.enabled=true --show-only templates/split/relay/service.yaml)"
 test "$(grep -c "name: metrics" <<<"$out")" = 2 || { echo "FAIL: want metrics on the 2 per-pod Services only"; exit 1; }
 
+# 27. Editions: empty image fields take the edition's defaults; the relay has no enterprise build.
+out="$(render "${required[@]}")"
+has 'image: "netbirdio/management:0.82.0"' "$out"; has 'image: "netbirdio/signal:0.82.0"' "$out"
+lacks NB_SINGLE_INSTANCE_MODE "$out"; lacks SINGLE_NODE_MODE "$out"; lacks NETBIRD_ENCRYPTION_KEY "$out"
+enterprise=(--set edition=enterprise)
+out="$(render "${required[@]}" "${enterprise[@]}")"
+has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.1"' "$out"
+has 'image: "ghcr.io/netbirdio/signal-cloud:0.82.0-enterprise.1"' "$out"
+has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0"' "$out"
+has 'image: "netbirdio/relay:0.82.0"' "$out"
+has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0-rootless"' "$(render "${required[@]}" "${enterprise[@]}" --set dashboard.rootless=true)"
+has 'image: "ghcr.io/netbirdio/management-cloud:0.82.0-enterprise.2"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.tag=0.82.0-enterprise.2)"
+has 'image: "mirror.example.com/management-cloud:0.82.0-enterprise.1"' "$(render "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.repository=mirror.example.com/management-cloud)"
+fails_with "must be one of" "${required[@]}" --set edition=pro
+# A community image left in the values fails under enterprise, instead of keeping
+# the community build or asking the enterprise repository for a community tag.
+fails_with "backend.split.management.image (repository \"netbirdio/management\", tag \"\") is the community image" "${required[@]}" "${enterprise[@]}" --set backend.split.management.image.repository=netbirdio/management
+fails_with "backend.split.signal.image (repository \"\", tag \"0.82.0\") is the community image" "${required[@]}" "${enterprise[@]}" --set backend.split.signal.image.tag=0.82.0
+fails_with "dashboard.image (repository \"netbirdio/dashboard\"" "${required[@]}" "${enterprise[@]}" --set dashboard.image.repository=netbirdio/dashboard
+# The dashboard tag is the same in both editions, so a leftover one is fine.
+has 'image: "ghcr.io/netbirdio/dashboard-cloud:v2.96.0"' "$(render "${required[@]}" "${enterprise[@]}" --set dashboard.image.tag=v2.96.0 --show-only templates/dashboard/deployment.yaml)"
+# A release from before the edition key (helm upgrade --reuse-values) renders as community.
+has "image: \"netbirdio/management:0.82.0\"" "$(render "${required[@]}" --set edition=null --show-only templates/split/management/deployment.yaml)"
+
+# 28. Enterprise environment: single instance, and the integrations store shares the datastore key.
+grep -A1 "name: NB_SINGLE_INSTANCE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: NB_SINGLE_INSTANCE_MODE"; exit 1; }
+grep -A1 "name: SINGLE_NODE_MODE" <<<"$out" | grep -qF '"true"' || { echo "FAIL: SINGLE_NODE_MODE"; exit 1; }
+grep -A4 "name: NETBIRD_ENCRYPTION_KEY" <<<"$out" | grep -qF "key: datastore-encryption-key" || { echo "FAIL: NETBIRD_ENCRYPTION_KEY"; exit 1; }
+test "$(grep -c '^  datastore-encryption-key:' <<<"$out")" = 1 || { echo "FAIL: the datastore key is stored once"; exit 1; }
+out="$(render "${enterprise[@]}" --values "$chart/tests/values/secret-refs.yaml")"
+test "$(grep -A4 -E 'name: (NB_MANAGEMENT_DATASTORE_ENCRYPTION_KEY|NETBIRD_ENCRYPTION_KEY)$' <<<"$out" | grep -E '^ +(name|key): ' | grep -vE 'name: (NB_MANAGEMENT_DATASTORE|NETBIRD)_ENCRYPTION_KEY' | sort -u | grep -c .)" = 2 \
+  || { echo "FAIL: NETBIRD_ENCRYPTION_KEY must read dataStoreEncryptionKeyRef"; exit 1; }
+fails_with "NB_SINGLE_INSTANCE_MODE is set more than once" "${required[@]}" "${enterprise[@]}" --set backend.split.management.env.NB_SINGLE_INSTANCE_MODE=false
+fails_with "NETBIRD_ENCRYPTION_KEY is set more than once" "${required[@]}" "${enterprise[@]}" --set backend.split.management.envFromSecret.NETBIRD_ENCRYPTION_KEY=s/k
+fails_with "set NETBIRD_ENCRYPTION_KEY in env or envFromSecret" "${required[@]}" "${enterprise[@]}" --set-string backend.split.management.overrideConfig='{}'
+has "name: NETBIRD_ENCRYPTION_KEY" "$(render "${required[@]}" "${enterprise[@]}" --set-string backend.split.management.overrideConfig='{}' --set backend.split.management.envFromSecret.NETBIRD_ENCRYPTION_KEY=s/k)"
+
+# 29. The enterprise edition runs single instance.
+fails_with "backend.split.management.replicaCount must be 1 with edition: enterprise" "${required[@]}" "${enterprise[@]}" --set backend.split.management.replicaCount=2
+fails_with "backend.split.signal.replicaCount must be 1 with edition: enterprise" "${required[@]}" "${enterprise[@]}" --set backend.split.signal.replicaCount=2
+render "${required[@]}" --set backend.split.management.replicaCount=2 >/dev/null
+render "${enterprise[@]}" --values "$chart/examples/kind/values.yaml" >/dev/null
+
 echo "render checks passed"
