@@ -65,6 +65,9 @@ The end-to-end suite runs this switch: `NB_E2E_FROM_EDITION=community task chart
 
 ### Before you start
 
+- **Back up first**, before the version upgrade below. Going back to the community edition after the switch is not supported; restoring this backup is the way back. Back up both management databases:
+  - **Store:** with the default SQLite store, snapshot the management volume (`<release>-management` PersistentVolumeClaim). With Postgres, dump the database.
+  - **Embedded IdP:** by default it keeps `idp.db` on the same volume, even when the store is on Postgres, so snapshot the volume too. With `embeddedIdp.storage.type: postgres`, dump that database instead.
 - **Same backend version.** Management and signal must run the version the enterprise build is based on: `0.82.0` for `0.82.0-enterprise.1`. If your release pins an older version, upgrade it on the community edition first. A pinned `image.digest` wins over the tag, so clear it too:
 
   ```bash
@@ -80,7 +83,6 @@ The end-to-end suite runs this switch: `NB_E2E_FROM_EDITION=community task chart
   Management and signal must both show `0.82.0`. If your release runs a newer version than the enterprise default, wait for a chart release at that version; never move the store to an older management.
 - **No MySQL.** NetBird 0.82.0 removed the MySQL store: management refuses to start with it, and the chart refuses to render it. On MySQL, [migrate to PostgreSQL](https://docs.netbird.io/selfhosted/migration/mysql-to-postgresql) while still on 0.81.x, with the tool from the [v0.81.5 release](https://github.com/netbirdio/netbird/releases/tag/v0.81.5), before the upgrade above.
 - **Single instance.** Set `replicaCount` to 1 for management and signal.
-- **Back up the store.** With the default SQLite store, snapshot the management volume (`<release>-management` PersistentVolumeClaim). With Postgres, dump the database. Going back to the community edition after the switch is not supported; restoring this backup is the way back.
 
 ### Switch
 
