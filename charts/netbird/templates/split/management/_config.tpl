@@ -111,7 +111,25 @@ chart-managed credentials Secret under key, with data (default value).
 {{- end -}}
 {{- if eq (toString $store.engine) "postgres" -}}
 {{- include "netbird.requireSecret" (dict "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsn" $base)) -}}
-{{- $entries = append $entries (dict "env" (printf "NB_STORE_ENGINE_%s_DSN" (upper $store.engine)) "key" "store-dsn" "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsnRef" $base)) -}}
+{{- $storeDSN := dict "key" "store-dsn" "value" $store.dsn "ref" $store.dsnRef "path" (printf "%s.storeConfig.dsnRef" $base) -}}
+{{- $entries = append $entries (merge (dict "env" (printf "NB_STORE_ENGINE_%s_DSN" (upper $store.engine))) $storeDSN) -}}
+{{- if eq (include "netbird.edition" .) "enterprise" -}}
+{{- /* The enterprise integrations store shares the database, as the combined server does. */ -}}
+{{- $entries = append $entries (merge (dict "env" "NETBIRD_CLOUD_POSTGRES_DSN") $storeDSN) -}}
+{{- end -}}
+{{- if .Values.ha.enabled -}}
+{{- /* Activity events too, instead of SQLite in each replica's data directory. */ -}}
+{{- $entries = append $entries (merge (dict "env" "NB_ACTIVITY_EVENT_POSTGRES_DSN") $storeDSN) -}}
+{{- end -}}
+{{- end -}}
+{{- with .Values.ha -}}
+{{- if .enabled -}}
+{{- include "netbird.requireSecret" (dict "value" .redis.url "ref" .redis.urlRef "path" "ha.redis.url") -}}
+{{- $entries = append $entries (dict "env" "NB_CACHE_REDIS_ADDRESS" "key" "ha-redis-url" "value" .redis.url "ref" .redis.urlRef "path" "ha.redis.urlRef") -}}
+{{- $natsURLs := join "," (default list .nats.urls) -}}
+{{- include "netbird.requireSecret" (dict "value" $natsURLs "ref" .nats.urlsRef "path" "ha.nats.urls") -}}
+{{- $entries = append $entries (dict "env" "NB_NATS_ENDPOINTS" "key" "ha-nats-urls" "value" $natsURLs "ref" .nats.urlsRef "path" "ha.nats.urlsRef") -}}
+{{- end -}}
 {{- end -}}
 {{- $idp := $config.embeddedIdp -}}
 {{- if $idp.enabled -}}
@@ -139,6 +157,9 @@ chart-managed credentials Secret under key, with data (default value).
 {{- end -}}
 {{- end -}}
 {{- if $idp.enabled -}}
+{{- if eq (toString $idp.storage.type) "postgres" -}}
+{{- include "netbird.requireSecret" (dict "value" $idp.storage.config.dsn "ref" $idp.storage.config.dsnRef "path" (printf "%s.embeddedIdp.storage.config.dsn" $base)) -}}
+{{- end -}}
 {{- with $idp.storage.config -}}
 {{- if include "netbird.externalize" (dict "value" .dsn "ref" .dsnRef) -}}
 {{- $entries = append $entries (dict "env" "NB_IDP_STORAGE_DSN" "key" "idp-storage-dsn" "value" .dsn "ref" .dsnRef "path" (printf "%s.embeddedIdp.storage.config.dsnRef" $base)) -}}

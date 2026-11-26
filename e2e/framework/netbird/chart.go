@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,9 @@ import (
 )
 
 const managementSelector = "app.kubernetes.io/name=netbird-management,app.kubernetes.io/instance=" + ReleaseName
+
+// haDepsNamespace holds what HA needs besides the chart: Postgres, Redis, NATS.
+const haDepsNamespace = "netbird-ha-deps"
 
 // examples/kind serves exampleDomain; the suite installs it under Domain.
 const exampleDomain = "netbird.localhost"
@@ -86,6 +90,14 @@ func (e *Env) valuesFiles() ([]string, error) {
 		files = append(files, rootlessValues)
 	}
 
+	if e.HA {
+		haValues, err := writeValues(filepath.Join(e.workDir, "ha-values.yaml"), haValues)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, filepath.Join(chartDir, "examples", "ha", "values.yaml"), haValues)
+	}
+
 	// No owner, so POST /api/setup creates the account and returns a token.
 	suiteValues, err := writeValues(filepath.Join(e.workDir, "e2e-values.yaml"), `backend:
   split:
@@ -128,6 +140,25 @@ func perPodRelayValues() string {
 `, RelayReplicas, Domain, tlsSecretName, tlsHosts.String())
 }
 
+// haValues starts examples/ha with one relay: its per-pod relays serve
+// netbird.example.com, and EnablePerPodRelays switches to the suite's.
+const haValues = `backend:
+  split:
+    relay:
+      replicaCount: 1
+      config:
+        exposedAddressTemplate: ""
+`
+
+// installHADeps installs testdata/ha-deps: Postgres, Redis and three NATS
+// servers in their own namespace, and the netbird-ha Secret examples/ha reads.
+func (e *Env) installHADeps(ctx context.Context) error {
+	_, file, _, _ := runtime.Caller(0)
+	_, err := e.Cluster.Helm(ctx, "upgrade", "--install", "ha-deps", filepath.Join(filepath.Dir(file), "testdata", "ha-deps"),
+		"--namespace", haDepsNamespace, "--create-namespace", "--set", "netbirdNamespace="+Namespace, "--wait", "--timeout", "5m")
+	return err
+}
+
 // writeValues writes chart values to path and returns path.
 func writeValues(path, values string) (string, error) {
 	return path, os.WriteFile(path, []byte(values), 0o644)
@@ -151,6 +182,12 @@ func (e *Env) RestartManagement(ctx context.Context) error {
 		return fmt.Errorf("management did not come back after its pod was deleted: %w", err)
 	}
 	return nil
+}
+
+// RemoveOnePod deletes one pod of component's Deployment without waiting for
+// its replacement, so the other replicas serve alone for a while.
+func (e *Env) RemoveOnePod(ctx context.Context, component string) error {
+	return e.Cluster.DeleteOnePod(ctx, Namespace, "app.kubernetes.io/name=netbird-"+component+",app.kubernetes.io/instance="+ReleaseName)
 }
 
 // CredentialSecrets returns the data of the Secrets holding management's and

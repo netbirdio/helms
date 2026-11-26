@@ -83,3 +83,17 @@ func (c *Cluster) RestartPods(ctx context.Context, namespace, selector string) e
 		return len(list.Items) > 0, nil
 	})
 }
+
+// DeleteOnePod deletes the first pod selector matches and returns without
+// waiting for a replacement.
+func (c *Cluster) DeleteOnePod(ctx context.Context, namespace, selector string) error {
+	pods := c.Kube.CoreV1().Pods(namespace)
+	list, err := pods.List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return err
+	}
+	if len(list.Items) == 0 {
+		return fmt.Errorf("no pod matches %s", selector)
+	}
+	return pods.Delete(ctx, list.Items[0].Name, metav1.DeleteOptions{})
+}

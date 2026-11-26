@@ -59,6 +59,9 @@ type Config struct {
 	// ClusterName names the Kind cluster, and the peers' containers after it,
 	// so test packages can run side by side.
 	ClusterName string
+	// HA installs Postgres, Redis and NATS first and layers examples/ha in:
+	// two replicas of management and signal. Needs EditionEnterprise.
+	HA bool
 }
 
 // Env is a Kind cluster with ingress-nginx and the chart installed, and the
@@ -75,6 +78,9 @@ type Env struct {
 	DefaultVersion string
 	// Rootless is whether examples/rootless is layered in.
 	Rootless bool
+	// HA is whether examples/ha is layered in, over Postgres, Redis and NATS
+	// the suite installs.
+	HA bool
 
 	// Cluster is the Kind cluster the chart runs in.
 	Cluster *framework.Cluster
@@ -103,6 +109,9 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 	if edition != EditionCommunity && edition != EditionEnterprise {
 		return nil, fmt.Errorf("edition must be %s or %s, not %q", EditionCommunity, EditionEnterprise, edition)
 	}
+	if cfg.HA && edition != EditionEnterprise {
+		return nil, fmt.Errorf("HA needs the %s edition", EditionEnterprise)
+	}
 	fromEdition := cmp.Or(cfg.FromEdition, edition)
 	if fromEdition != edition && (fromEdition != EditionCommunity || edition != EditionEnterprise) {
 		return nil, fmt.Errorf("cannot go from %s to %s: the only switch is from %s to %s", fromEdition, edition, EditionCommunity, EditionEnterprise)
@@ -129,8 +138,9 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 		DefaultVersion: defaultVersion,
 		FromVersion:    framework.EnvOr(envFromVersion, fromVersion),
 		Rootless:       framework.EnvBool(envRootless),
+		HA:             cfg.HA,
 	}
-	log.Printf("e2e: edition %s with backends %s, then %s with %s; rootless %t", e.FromEdition, e.FromVersion, e.Edition, e.DefaultVersion, e.Rootless)
+	log.Printf("e2e: edition %s with backends %s, then %s with %s; rootless %t; HA %t", e.FromEdition, e.FromVersion, e.Edition, e.DefaultVersion, e.Rootless, e.HA)
 
 	log.Print("e2e: creating the Kind cluster")
 	e.Cluster, err = framework.CreateCluster(ctx, e.clusterName, workDir)
@@ -143,6 +153,12 @@ func Bootstrap(ctx context.Context, cfg Config) (*Env, error) {
 	}
 	if err := e.prepareNamespace(ctx); err != nil {
 		return e, err
+	}
+	if e.HA {
+		log.Print("e2e: installing Postgres, Redis and NATS for HA")
+		if err := e.installHADeps(ctx); err != nil {
+			return e, err
+		}
 	}
 	log.Printf("e2e: installing the %s edition with backends %s", e.FromEdition, e.FromVersion)
 	if err := e.InstallChart(ctx, e.FromEdition, e.FromVersion); err != nil {

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: ha-deps
+description: Postgres, Redis and a 3-node NATS cluster for the HA end-to-end suite. Test only.
+version: 0.1.0

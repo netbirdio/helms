@@ -2,9 +2,10 @@ version: "3"
 
 vars:
   # dev:* deploy charts/netbird at EDITION with its examples/kind, and chart:e2e runs that edition's
-  # e2e package: community or enterprise.
+  # e2e package: community or enterprise, or ha with HA=true.
   EDITION: '{{default "community" .EDITION}}'
-  E2E_PACKAGE: '{{if eq .EDITION "enterprise"}}enterprise{{else}}netbird{{end}}'
+  HA: '{{default "false" .HA}}'
+  E2E_PACKAGE: '{{if eq .HA "true"}}ha{{else if eq .EDITION "enterprise"}}enterprise{{else}}netbird{{end}}'
   CHART_DIR: charts/netbird
   DEV_VALUES: charts/netbird/examples/kind/values.yaml
   KIND_CONFIG: charts/netbird/examples/kind/kind.yaml
@@ -68,7 +69,7 @@ tasks:
         done
 
   chart:e2e:
-    desc: Install the chart (EDITION=enterprise for the enterprise edition) into a fresh Kind cluster and connect NetBird peers through it
+    desc: Install the chart (EDITION=enterprise for the enterprise edition, HA=true for HA) into a fresh Kind cluster and connect NetBird peers through it
     dir: e2e
     preconditions:
       - sh: command -v docker

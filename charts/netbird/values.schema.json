@@ -8,6 +8,7 @@
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
     "edition": { "enum": ["community", "enterprise"] },
+    "ha": { "type": "object" },
     "dashboard": {
       "type": "object",
       "description": "1.x dashboard.imagePullSecrets moved to dashboard.image.pullSecrets.",

@@ -2,9 +2,9 @@
 
 Deploys the NetBird dashboard and separate management, signal, and relay services.
 
-Focused guides: [installation](docs/installation.md), [configuration and secrets](docs/configuration.md), [enterprise edition](docs/enterprise.md), and [template development](docs/development.md).
+Focused guides: [installation](docs/installation.md), [configuration and secrets](docs/configuration.md), [enterprise edition](docs/enterprise.md), [high availability](docs/ha.md), and [template development](docs/development.md).
 
-`edition` picks the build: `community` (the default) or `enterprise`, which runs the enterprise images single instance. See [Enterprise edition](docs/enterprise.md).
+`edition` picks the build: `community` (the default) or `enterprise`, which runs the enterprise images single instance, or several replicas with `ha.enabled`. See [Enterprise edition](docs/enterprise.md) and [High availability](docs/ha.md).
 
 ## Requirements
 
